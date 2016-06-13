@@ -1,0 +1,159 @@
+package spinoco.fs2.cassandra
+
+import fs2.Stream._
+import fs2.util.Task
+import shapeless.LabelledGeneric
+import spinoco.fs2.cassandra.sample.{ListTableRow, MapTableRow, OptionalTableRow, SimpleTableRow}
+import spinoco.fs2.cassandra.support.{DockerCassandra, Fs2CassandraSpec}
+
+
+trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
+
+  val ks = KeySpace("crud_ks")
+
+  val simpleTable =
+    ks.table[SimpleTableRow]
+      .partition('intColumn)
+      .cluster('longColumn)
+      .createTable("test_table")
+
+  val strInsert =
+    simpleTable.insert
+      .all
+      .build
+      .from[SimpleTableRow]
+
+  val strSelectOne =
+    simpleTable.query.all
+      .partition
+      .cluster('longColumn, Comparison.EQ)
+      .build
+      .fromTuple
+      .as[SimpleTableRow]
+
+  val strSelectAll =
+    simpleTable.query.all
+      .build
+      .as[SimpleTableRow]
+
+
+  val strGen = LabelledGeneric[SimpleTableRow]
+
+
+
+  def createValuesAndSchema[A](cs:CassandraSession[Task])(table:Table[_,_,_], insert:Insert[A,_])(f: (Int,Long) => A):Unit = {
+    val records =
+      for {
+        i <- 0 to 10
+        l <- 0l to 10l
+      } yield f(i,l)
+
+    (for {
+      _ <- cs.create(ks)
+      _ <- cs.create(table)
+      _ <- emits(records).flatMap(a => eval_(cs.execute(insert)(a))).run
+    } yield ()).unsafeRun
+
+  }
+
+
+  def withSessionAndSimpleSchema(f: CassandraSession[Task] => Any): Unit = {
+    withSession { cs =>
+      createValuesAndSchema(cs)(simpleTable,strInsert){ case (i,l) => SimpleTableRow.simpleInstance.copy(intColumn = i, longColumn = l)}
+      f(cs)
+    }
+  }
+
+  def withSessionAndEmptySimpleSchema(f: CassandraSession[Task] => Any): Unit = {
+    withSession { cs =>
+      (for {
+        _ <- cs.create(ks)
+        _ <- cs.create(simpleTable)
+      } yield ()).unsafeRun
+      f(cs)
+    }
+  }
+
+
+  val listTable =
+    ks.table[ListTableRow]
+      .partition('intColumn)
+      .cluster('longColumn)
+      .createTable("list_table")
+
+  val ltInsert =
+    listTable.insert
+      .all
+      .build
+      .from[ListTableRow]
+
+  val ltSelectOne =
+    listTable.query
+      .all
+      .primary
+      .build
+      .fromTuple
+      .as[ListTableRow]
+
+
+
+  def withSessionAndListSchema(f: CassandraSession[Task] => Any): Unit = {
+    withSession { cs =>
+      createValuesAndSchema(cs)(listTable,ltInsert){ case (i,l) => ListTableRow.instance.copy(intColumn = i, longColumn = l)}
+      f(cs)
+    }
+  }
+
+
+  val mapTable =
+    ks.table[MapTableRow]
+      .partition('intColumn)
+      .cluster('longColumn)
+      .createTable("list_table")
+
+  val mtInsert =
+    mapTable.insert
+      .all
+      .build
+      .from[MapTableRow]
+
+  val mtSelectOne =
+    mapTable.query
+      .all
+      .primary
+      .build
+      .fromTuple
+      .as[MapTableRow]
+
+  def withSessionAndMapSchema(f: CassandraSession[Task] => Any): Unit = {
+    withSession { cs =>
+      createValuesAndSchema(cs)(mapTable,mtInsert){ case (i,l) => MapTableRow.instance.copy(intColumn = i, longColumn = l)}
+      f(cs)
+    }
+  }
+
+  val optionalTable =
+    ks.table[OptionalTableRow]
+      .partition('intColumn)
+      .cluster('longColumn)
+      .createTable("optional_table")
+
+  val otInsert =
+    optionalTable.insert
+      .all
+      .build
+      .from[OptionalTableRow]
+
+  val otSelectAll =
+    optionalTable.query.all
+      .build
+      .as[OptionalTableRow]
+
+  def withSessionAndOptionalSchema(f: CassandraSession[Task] => Any): Unit = {
+    withSession { cs =>
+      createValuesAndSchema(cs)(optionalTable,otInsert){ case (i,l) => OptionalTableRow.instance.copy(intColumn = i, longColumn = l)}
+      f(cs)
+    }
+  }
+
+}

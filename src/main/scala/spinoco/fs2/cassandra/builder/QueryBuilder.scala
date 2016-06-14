@@ -3,7 +3,6 @@ package spinoco.fs2.cassandra.builder
 import java.nio.ByteBuffer
 
 import com.datastax.driver.core.{BoundStatement, PreparedStatement, ProtocolVersion, Row}
-import fs2.Chunk.Bytes
 import shapeless.labelled._
 import shapeless.ops.hlist.{Prepend, ToTraversable}
 import shapeless.ops.record.{Keys, Selector}
@@ -20,7 +19,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
   , whereConditions: Seq[String]
   , orderColumns:Seq[(String, Boolean)]
   , clusterColumns:Map[Comparison.Value, Seq[(String, String)]]
-  , pagingStart:Option[String]
   , limitCount:Option[Int]
   , solrQuery:Option[String]
   , allowFilteringFlag:Boolean
@@ -34,7 +32,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
       , whereConditions = whereConditions
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
-      , pagingStart = pagingStart
       , limitCount = limitCount
       , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
@@ -58,7 +55,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
       , whereConditions = whereConditions
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
-      , pagingStart = pagingStart
       , limitCount = limitCount
       , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
@@ -75,7 +71,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
       , whereConditions = whereConditions
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
-      , pagingStart = pagingStart
       , limitCount = limitCount
       , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
@@ -90,7 +85,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
       , whereConditions = whereConditions
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
-      , pagingStart = pagingStart
       , limitCount = limitCount
       , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
@@ -112,7 +106,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
       , whereConditions = whereConditions ++ pkStmts
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
-      , pagingStart = pagingStart
       , limitCount = limitCount
       , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
@@ -153,7 +146,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
       , whereConditions = whereConditions
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns + (op -> (clusterColumns.getOrElse(op, Nil) :+ (k -> k0)))
-      , pagingStart = pagingStart
       , limitCount = limitCount
       , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
@@ -174,31 +166,12 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
       , whereConditions = pkStmts
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
-      , pagingStart = pagingStart
       , limitCount = limitCount
       , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
     )
   }
 
-
-  /**
-    * Allows to pass-in paging reference to continue request where it ends last time
-    */
-  def pageFrom[K](name:Witness.Aux[K]):QueryBuilder[R, PK, CK, FieldType[K,Bytes] :: Q, S] = {
-    val k = internal.keyOf(name)
-    QueryBuilder(
-      table = table
-      , columns = columns
-      , whereConditions = whereConditions
-      , orderColumns = orderColumns
-      , clusterColumns = clusterColumns
-      , pagingStart = Some(k)
-      , limitCount = limitCount
-      , solrQuery = solrQuery
-      , allowFilteringFlag = allowFilteringFlag
-    )
-  }
 
   /**
     * Allows to pass limit of records that has to be returned
@@ -221,7 +194,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
       , whereConditions = whereConditions
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
-      , pagingStart = pagingStart
       , limitCount = limitCount
       , solrQuery = Some(k)
       , allowFilteringFlag = allowFilteringFlag

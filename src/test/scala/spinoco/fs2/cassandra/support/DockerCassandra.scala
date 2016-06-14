@@ -98,7 +98,7 @@ trait DockerCassandra
       cs.queryAll(cassandra.allKeySpaceQuery)
       .filter(n => !preserveKeySpace(n))
       .flatMap { n =>
-        eval(cs.execute(s"DROP KEYSPACE $n"))
+        eval(cs.executeCql(s"DROP KEYSPACE $n"))
       }
       .run.unsafeRun
     }

@@ -29,25 +29,49 @@ trait CassandraSession[F[_]] {
   def diffDDL(ddl:SchemaDDL):F[Option[String]]
 
   /** Builds a stream, that runs query against C* when run **/
-  def query[Q,R](query:Query[Q,R])(q:Q):Stream[F,R]
+  def query[Q,R](query:Query[Q,R], o:QueryOptions = Options.defaultQuery)(q:Q):Stream[F,R]
 
   /** Queries all elements. Requires query that accepts all results **/
-  def queryAll[R](q:Query[HNil,R]):Stream[F,R] = query(q)(HNil)
+  def queryAll[R](q:Query[HNil,R], o:QueryOptions = Options.defaultQuery):Stream[F,R] = query(q,o)(HNil)
 
   /** Builds a stream, that runs query specified by cql against C* when run **/
-  def query(cql:String):Stream[F,Row]
+  def queryCql(cql:String, o:QueryOptions = Options.defaultQuery):Stream[F,Row]
 
   /** Builds a stream, that runs query specified by supplied `boundStatement` against C* when run **/
-  def query(boundStatement: BoundStatement):Stream[F,Row]
+  def queryStatement(boundStatement: BoundStatement):Stream[F,Row]
+
+  /**
+    * Like query, but only teches single page and then returns on left paging state that can be reused to fetch more
+    * Last element is guaranteed to be on Left, possibly empty, indicating end of paging.
+    */
+  def page[Q,R](query:Query[Q,R], o:QueryOptions = Options.defaultQuery)(q:Q):Stream[F,Either[Option[PagingState],R]]
+
+  /**
+    * Alias for paging w/o any query restrictions.
+    * Last element is guaranteed to be on Left, possibly empty, indicating end of paging.
+    */
+  def pageAll[R](q:Query[HNil,R], o:QueryOptions = Options.defaultQuery):Stream[F,Either[Option[PagingState],R]]= page(q,o)(HNil)
+
+  /**
+    * Builds a paging stream, that runs query specified by cql against C* when run
+    * Last element is guaranteed to be on Left, possibly empty, indicating end of paging.
+    */
+  def pageCql(cql:String, o:QueryOptions = Options.defaultQuery):Stream[F,Either[Option[PagingState],Row]]
+
+  /**
+    * Builds a paging stream, that runs query specified by supplied `boundStatement` against C* when run.
+    * Last element is guaranteed to be on Left, possibly empty, indicating end of paging.
+    */
+  def pageStatement(boundStatement: BoundStatement):Stream[F,Either[Option[PagingState],Row]]
 
   /** Executes supplied DML statement (INSERT, UPDATE, DELETE).**/
-  def execute[I,R](statement: DMLStatement[I,R])(i:I):F[R]
+  def execute[I,R](statement: DMLStatement[I,R], o: DMLOptions = Options.defaultDML)(i:I):F[R]
 
   /** executes supplied DML statement specified by CQL expecting raw ResultSet as result **/
-  def execute(cql:String):F[ResultSet]
+  def executeCql(cql:String, o: DMLOptions = Options.defaultDML):F[ResultSet]
 
   /** prepares supplied CQL statement **/
-  def prepare(cql:String):F[PreparedStatement]
+  def prepareCql(cql:String):F[PreparedStatement]
 
 }
 
@@ -66,7 +90,17 @@ object CassandraSession {
   }
 
 
+
+
   object impl {
+
+    implicit class ResultSetSyntax(val self:ResultSet) extends AnyVal {
+      def drain:Vector[Row] = {
+        val count = self.getAvailableWithoutFetching
+        util.iterateN(self.iterator(), count)
+      }
+    }
+
 
     case class SessionState(
       cache:Map[String, PreparedStatement]
@@ -75,60 +109,83 @@ object CassandraSession {
     def mkSession[F[_]](cs:Session, protocolVersion: ProtocolVersion)(implicit F:Async[F]):F[CassandraSession[F]] = {
       F.map(F.refOf[SessionState](SessionState(Map.empty))) { state =>
 
-
-        def execute1[I](statement:CStatement[I],i:I):F[ResultSet] = {
-          F.bind(F.get(state)) { s =>
-            s.cache.get(statement.cqlStatement) match {
-              case Some(ps) =>
-                F.suspend(cs.executeAsync(statement.fill(i,ps, protocolVersion)))
-                //F.delay(cs.executeAsync(statement.fill(i,ps, protocolVersion)).get())
-
-              case None =>
-                F.bind(cs.prepareAsync(statement.cqlStatement)) { ps =>
-                F.bind(F.modify(state)(s => s.copy(cache = s.cache + (statement.cqlStatement -> ps)))) { _ =>
-                  F.suspend(cs.executeAsync(statement.fill(i,ps, protocolVersion)))
-                }}
-            }
-          }
-        }
-
-
-        def executeDML[I, R](statement: DMLStatement[I, R],i: I): F[R] = {
-          F.bind(execute1(statement, i)) { rs =>
+        def executeDML[I, R](statement: DMLStatement[I, R],o: DMLOptions,i: I): F[R] = {
+          F.bind(mkStatement(statement,i)) { bs =>
+          F.bind(F.suspend(cs.executeAsync(Options.applyDMLOptions(bs,o)))) { rs =>
             statement.read(rs,protocolVersion).fold(F.fail, F.pure)
-          }
+          }}
         }
 
-        def executeQuery[Q,R](query: Query[Q, R], q:Q):Stream[F,R] = {
-          def emitAndNext(processed:ResultSet):Stream[F,Row] = {
-            if (processed.isExhausted) Stream.empty
+        def _queryRows(statement:Statement, o:QueryOptions):Stream[F,Row] = {
+          def go(drained:ResultSet):Stream[F,Row] = {
+            if (drained.isExhausted) Stream.empty
             else {
-              eval(processed.fetchMoreResults():F[ResultSet]).flatMap { rs =>
-                Stream.emits(util.iterateN(rs.iterator(), rs.getAvailableWithoutFetching)) ++ emitAndNext(rs)
+              eval(F.suspend(drained.fetchMoreResults)).flatMap { rs =>
+                Stream.emits(rs.drain) ++ go(rs)
               }
             }
           }
-          eval(execute1(query,q))
-          .flatMap { rs =>
-            Stream.emits(util.iterateN(rs.iterator(), rs.getAvailableWithoutFetching)) ++ emitAndNext(rs)
+          eval(F.suspend(cs.executeAsync(Options.applyQueryOptions(statement,o)))).flatMap { rs =>
+            Stream.emits(rs.drain) ++ go(rs)
           }
-          .flatMap { row =>
-            query.read(row, protocolVersion).fold(Stream.fail, Stream.emit)
+        }
+
+        def _queryStatement[Q,R](query: Query[Q, R], o:QueryOptions, q:Q):Stream[F,R] = {
+          eval(mkStatement(query,q))
+          .flatMap { bs => _queryRows(bs,o) }
+          .flatMap { row => query.read(row, protocolVersion).fold(Stream.fail,Stream.emit) }
+        }
+
+
+        def mkStatement[I](statement:CStatement[I], i:I):F[BoundStatement] = {
+          F.map(F.bind(F.get(state)) { s =>
+            s.cache.get(statement.cqlStatement) match {
+              case Some(ps) => F.pure(ps)
+              case None =>
+               F.bind(F.suspend(cs.prepareAsync(statement.cqlStatement))) { ps =>
+                 F.map(F.modify(state)(s => s.copy(cache = s.cache + (statement.cqlStatement -> ps)))) { _ => ps }
+               }
+            }
+          }) { ps => statement.fill(i,ps, protocolVersion) }
+        }
+
+        // pages single query from supplied statement. Instead fetching next results,
+        // this will return paging state on left, unless exhausted.
+        def _pageQueryRows(s:Statement, o:QueryOptions):Stream[F,Either[Option[PagingState], Row]] = {
+          eval(F.suspend(cs.executeAsync(Options.applyQueryOptions(s,o)))).flatMap { rs =>
+            // paging state must be taken before the iteration starts
+            val paging:Option[PagingState] = {
+              if (rs.isExhausted) None
+              else Option(rs.getExecutionInfo.getPagingState)
+            }
+            Stream.emits(rs.drain.map(Right(_))) ++ Stream.emit(Left(paging))
+          }
+        }
+
+        def _pageQuery[Q,R](query: Query[Q, R], o:QueryOptions, q:Q):Stream[F,Either[Option[PagingState],R]] = {
+          eval(mkStatement(query,q))
+          .flatMap { bs => _pageQueryRows(bs,o) }
+          .flatMap {
+            case Right(row) => query.read(row, protocolVersion).fold(Stream.fail,r => Stream.emit(Right(r)))
+            case Left(ps) => Stream.emit(Left(ps))
           }
         }
 
 
 
         new CassandraSession[F] {
-          def create(ddl: SchemaDDL): F[Unit] = F.map(execute(ddl.cqlStatement))(_ => ())
+          def create(ddl: SchemaDDL): F[Unit] = F.map(executeCql(ddl.cqlStatement))(_ => ())
           def migrate(ddl: SchemaDDL): F[Boolean] = ???
           def diffDDL(ddl: SchemaDDL): F[Option[String]] = ???
-          def execute[I, R](statement: DMLStatement[I, R])(i: I): F[R] = executeDML(statement,i)
-          def execute(cql: String): F[ResultSet] = cs.executeAsync(cql)
-          def query[Q, R](query: Query[Q, R])(q: Q): Stream[F, R] = executeQuery(query,q)
-          def query(cql: String): Stream[F, Row] = ???
-          def query(boundStatement: BoundStatement): Stream[F, Row] = ???
-          def prepare(cql: String): F[PreparedStatement] = cs.prepareAsync(cql)
+          def execute[I, R](statement: DMLStatement[I, R], o: DMLOptions = Options.defaultDML)(i: I): F[R] = executeDML(statement,o,i)
+          def executeCql(cql: String, o: DMLOptions = Options.defaultDML): F[ResultSet] = F.suspend(cs.executeAsync(cql))
+          def query[Q, R](query: Query[Q, R], o:QueryOptions = Options.defaultQuery)(q: Q): Stream[F, R] = _queryStatement(query,o,q)
+          def queryCql(cql: String, o:QueryOptions = Options.defaultQuery): Stream[F, Row] = _queryRows(new SimpleStatement(cql),o)
+          def queryStatement(boundStatement: BoundStatement): Stream[F, Row] = _queryRows(boundStatement,Options.defaultQuery)
+          def page[Q, R](query: Query[Q, R], o:QueryOptions = Options.defaultQuery)(q: Q): Stream[F, Either[Option[PagingState], R]] = _pageQuery(query,o,q)
+          def pageCql(cql: String, o:QueryOptions = Options.defaultQuery): Stream[F, Either[Option[PagingState], Row]] = _pageQueryRows(new SimpleStatement(cql), o)
+          def pageStatement(boundStatement: BoundStatement): Stream[F, Either[Option[PagingState], Row]] = _pageQueryRows(boundStatement,Options.defaultQuery)
+          def prepareCql(cql: String): F[PreparedStatement] = F.suspend(cs.prepareAsync(cql))
         }
       }
     }

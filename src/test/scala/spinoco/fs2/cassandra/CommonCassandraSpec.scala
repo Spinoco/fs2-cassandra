@@ -9,5 +9,6 @@ trait CommonCassandraSpec
      with SchemaSpec
     with CrudSpec
     with DeleteSpec
+    with PagingSpec
     with DockerCassandra
 

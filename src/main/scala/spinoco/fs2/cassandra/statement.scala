@@ -7,6 +7,7 @@ import shapeless.ops.hlist.Tupler
 import shapeless.ops.record.Values
 import shapeless.{::, HList, HNil, LabelledGeneric}
 
+
 /** type safe statement against cassandra **/
 sealed trait CStatement[I] {
   /** raw cql statement used for preparing the statement **/

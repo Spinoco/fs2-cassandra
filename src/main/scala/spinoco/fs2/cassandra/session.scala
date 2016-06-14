@@ -67,6 +67,9 @@ trait CassandraSession[F[_]] {
   /** Executes supplied DML statement (INSERT, UPDATE, DELETE).**/
   def execute[I,R](statement: DMLStatement[I,R], o: DMLOptions = Options.defaultDML)(i:I):F[R]
 
+  /** Executes supplied batch statement **/
+  def executeBatch[I,R](batch:BatchStatement[I,R], o: DMLOptions = Options.defaultDML)(i:I):F[R]
+
   /** executes supplied DML statement specified by CQL expecting raw ResultSet as result **/
   def executeCql(cql:String, o: DMLOptions = Options.defaultDML):F[ResultSet]
 
@@ -136,17 +139,23 @@ object CassandraSession {
           .flatMap { row => query.read(row, protocolVersion).fold(Stream.fail,Stream.emit) }
         }
 
-
-        def mkStatement[I](statement:CStatement[I], i:I):F[BoundStatement] = {
-          F.map(F.bind(F.get(state)) { s =>
-            s.cache.get(statement.cqlStatement) match {
+        def getOrRegisterStatement(cql:String):F[PreparedStatement] = {
+          F.bind(F.get(state)) { s =>
+            s.cache.get(cql) match {
               case Some(ps) => F.pure(ps)
               case None =>
-               F.bind(F.suspend(cs.prepareAsync(statement.cqlStatement))) { ps =>
-                 F.map(F.modify(state)(s => s.copy(cache = s.cache + (statement.cqlStatement -> ps)))) { _ => ps }
-               }
+                F.bind(F.suspend(cs.prepareAsync(cql))) { ps =>
+                  F.map(F.modify(state)(s => s.copy(cache = s.cache + (cql -> ps)))) { _ => ps }
+                }
             }
-          }) { ps => statement.fill(i,ps, protocolVersion) }
+          }
+        }
+
+
+        def mkStatement[I](statement:CStatement[I], i:I):F[BoundStatement] = {
+          F.map(getOrRegisterStatement(statement.cqlStatement)) { ps =>
+            statement.fill(i,ps, protocolVersion)
+          }
         }
 
         // pages single query from supplied statement. Instead fetching next results,
@@ -172,6 +181,31 @@ object CassandraSession {
         }
 
 
+        def _executeBatch[I,R](batch:BatchStatement[I,R], o:DMLOptions, i:I):F[R] = {
+          F.bind(F.get(state)) { s =>
+            val statements = batch.statements
+            F.bind(
+              F.traverse(statements.filterNot(s.cache.isDefinedAt)) { notPrepared =>
+                F.map(F.suspend(cs.prepareAsync(notPrepared))) { notPrepared -> _ }
+              }
+            ) { stmts =>
+              F.bind(F.modify(state){ s0 => s0.copy(cache = s0.cache ++ stmts.toMap) }) { c =>
+                // here we have guaranteed that `now` contains all statements, so we can just apply for them
+                val allStatements = statements.map(c.now.cache.apply)
+                F.bind(batch.createStatement(allStatements,i,protocolVersion).fold(F.fail,F.pure)) { bs =>
+                  F.bind(F.suspend(cs.executeAsync(Options.applyDMLOptions(bs,o)))) { rs =>
+                    val rows = rs.drain
+                    batch.read(i)(rows,protocolVersion).fold(F.fail,F.pure)
+                  }
+                }
+
+              }
+            }
+
+          }
+        }
+
+
 
         new CassandraSession[F] {
           def create(ddl: SchemaDDL): F[Unit] = F.map(executeCql(ddl.cqlStatement))(_ => ())
@@ -186,6 +220,7 @@ object CassandraSession {
           def pageCql(cql: String, o:QueryOptions = Options.defaultQuery): Stream[F, Either[Option[PagingState], Row]] = _pageQueryRows(new SimpleStatement(cql), o)
           def pageStatement(boundStatement: BoundStatement): Stream[F, Either[Option[PagingState], Row]] = _pageQueryRows(boundStatement,Options.defaultQuery)
           def prepareCql(cql: String): F[PreparedStatement] = F.suspend(cs.prepareAsync(cql))
+          def executeBatch[I, R](batch: BatchStatement[I, R], o: DMLOptions= Options.defaultDML)(i: I): F[R] = _executeBatch(batch,o,i)
         }
       }
     }

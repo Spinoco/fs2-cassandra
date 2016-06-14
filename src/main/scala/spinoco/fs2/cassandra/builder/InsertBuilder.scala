@@ -4,57 +4,61 @@ import java.nio.ByteBuffer
 
 import com.datastax.driver.core._
 import shapeless.labelled._
+import shapeless.ops.hlist.{Intersection, Prepend}
 import shapeless.ops.record.Selector
 import shapeless.tag.@@
 import shapeless.{::, HList, Witness}
 import spinoco.fs2.cassandra.CType.TTL
 import spinoco.fs2.cassandra.internal.CTypeNonEmptyRecordInstance
-import spinoco.fs2.cassandra.{Insert, Table, internal}
+import spinoco.fs2.cassandra.{BatchResultReader, Insert, Table, internal}
 
 import scala.concurrent.duration.FiniteDuration
 
 /**
   * Builder for Insert of the columns in table. `I` is at least sum of Partitioning and Cluster Key types
   */
-case class InsertBuilder[R <: HList, I <: HList](
-  table: Table[R,_ <: HList, _ <: HList]
+case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
+  table: Table[R,PK,CK]
   , ttl:Option[String]
   , timestamp: Option[String]
   , ifNotExistsFlag: Boolean
 ) {
 
   /** inserts all columns in the table **/
-  def all:InsertBuilder[R, R] =
+  def all:InsertBuilder[R,PK,CK, R] =
     InsertBuilder(table,None,None, ifNotExistsFlag)
 
   /**
     * Allows to specify TTL attribute at insert time.
     */
-  def withTTL[K](wt:Witness.Aux[K]):InsertBuilder[R,  FieldType[K,FiniteDuration @@ TTL] :: I] =
+  def withTTL[K](wt:Witness.Aux[K]):InsertBuilder[R, PK, CK, FieldType[K,FiniteDuration @@ TTL] :: I] =
     InsertBuilder(table,Some(internal.keyOf(wt)), timestamp, ifNotExistsFlag)
 
   /**
     * Allows to specify Timestamp attribute of the row at insert time.
     */
-  def withTimestamp[K](wt:Witness.Aux[K]):InsertBuilder[R,  FieldType[K,Long] :: I] =
+  def withTimestamp[K](wt:Witness.Aux[K]):InsertBuilder[R, PK, CK, FieldType[K,Long] :: I] =
     InsertBuilder(table,ttl, Some(internal.keyOf(wt)), ifNotExistsFlag)
 
   /** flags the insert so `IF NOT EXISTS` condition is applied **/
-  def ifNotExists:InsertBuilder[R,I] =
+  def ifNotExists:InsertBuilder[R,PK,CK,I] =
     InsertBuilder(table,ttl,timestamp, ifNotExistsFlag = true)
 
   /**
     * Inserts specific column to table.
     */
   def column[K,V](wt:Witness.Aux[K])(implicit ev:Selector.Aux[R,K,V])
-  :InsertBuilder[R, FieldType[K,V] :: I] =
+  :InsertBuilder[R, PK,CK, FieldType[K,V] :: I] =
     InsertBuilder(table,ttl,timestamp, ifNotExistsFlag)
 
   /** creates insert statement **/
-  def build(
+  def build[PR <: HList](
     implicit
     CTI: CTypeNonEmptyRecordInstance[I]
     , CTR: CTypeNonEmptyRecordInstance[R]
+    , P:Prepend.Aux[PK,CK,PR]
+    , GETPK:Intersection.Aux[I,PR,PR]
+    , CTPK: CTypeNonEmptyRecordInstance[PR]
   ):Insert[I,Option[R]] = {
     val columnNames = CTI.types.map(_._1).filterNot(k => ttl.contains(k) || timestamp.contains(k))
     val ttlStmt = ttl.map(k => s"TTL :$k").toSeq
@@ -86,6 +90,19 @@ case class InsertBuilder[R <: HList, I <: HList](
         Option(r.one()) match {
           case None => Right(None)
           case Some(row) => read(row,protocolVersion)
+        }
+      }
+
+
+      def readBatchResult(i: I): BatchResultReader[Option[R]] = {
+        val primKey = GETPK(i)
+        new BatchResultReader[Option[R]] {
+          def readsFrom(row: Row, protocolVersion: ProtocolVersion): Boolean =
+            CTPK.readByName(row,protocolVersion).fold(_ => false, _  == primKey)
+
+          def read(row: Row, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] =
+            CTR.readByName(row,protocolVersion).right.map(Some(_))
+
         }
       }
 

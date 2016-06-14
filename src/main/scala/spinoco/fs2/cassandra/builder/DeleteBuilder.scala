@@ -9,7 +9,7 @@ import shapeless.ops.record.Selector
 import shapeless.{::, HList, HNil, Witness}
 import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
 import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, CTypeRecordInstance}
-import spinoco.fs2.cassandra.{Comparison, Delete, Table, internal}
+import spinoco.fs2.cassandra.{BatchResultReader, Comparison, Delete, Table, internal}
 
 
 case class DeleteBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <: HList](
@@ -120,6 +120,18 @@ case class DeleteBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
             if (!ifExistsCondition && ifConditions.isEmpty) Right(HNil.asInstanceOf[RIF]) // guaranteed to be safe
             else Left(new Throwable("Expected result row but none returned"))
           case Some(row) => read(r,protocolVersion)
+        }
+      }
+
+
+      def readBatchResult(i: Q): BatchResultReader[RIF] = {
+        new BatchResultReader[RIF] {
+          def readsFrom(row: Row, protocolVersion: ProtocolVersion): Boolean =
+            CTQ.readByName(row,protocolVersion).fold(_ => false, _ == i)
+
+          def read(row: Row, protocolVersion: ProtocolVersion): Either[Throwable, RIF] =
+            CTR.readByName(row,protocolVersion)
+
         }
       }
 

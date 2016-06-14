@@ -11,7 +11,7 @@ import shapeless.tag._
 import spinoco.fs2.cassandra.CType.{Counter, TTL}
 import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
 import spinoco.fs2.cassandra.internal._
-import spinoco.fs2.cassandra.{Comparison, Table, Update, internal}
+import spinoco.fs2.cassandra.{BatchResultReader, Comparison, Table, Update, internal}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.FiniteDuration
@@ -317,6 +317,18 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
           case Some(row) =>
             val columns = r.getColumnDefinitions.asList().asScala.map(_.getName).toSet
             CTR.readByNameIfExists(columns,row,protocolVersion)
+        }
+      }
+
+
+      def readBatchResult(i: Q): BatchResultReader[RIF] = {
+        new BatchResultReader[RIF] {
+          def readsFrom(row: Row, protocolVersion: ProtocolVersion): Boolean =
+            CTQ.readByName(row,protocolVersion).fold(_ => false, _ == i)
+
+          def read(row: Row, protocolVersion: ProtocolVersion): Either[Throwable, RIF] =
+            CTR.readByName(row,protocolVersion)
+
         }
       }
 

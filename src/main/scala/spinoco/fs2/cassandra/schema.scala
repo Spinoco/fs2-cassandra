@@ -1,6 +1,6 @@
 package spinoco.fs2.cassandra
 
-import com.datastax.driver.core.{DataType, Row}
+import com.datastax.driver.core.DataType
 import shapeless.labelled.FieldType
 import shapeless.ops.hlist.Prepend
 import shapeless.ops.record.Selector
@@ -81,7 +81,7 @@ trait Table[R <: HList, PK <: HList, CK <: HList] extends SchemaDDL {
   def update(implicit p:Prepend[PK,CK]):UpdateBuilder[R, PK, CK, p.Out,HNil]
 
   /** creates definition of the Insert DML statement against this table **/
-  def insert(implicit p:Prepend[PK,CK]):InsertBuilder[R,p.Out]
+  def insert(implicit p:Prepend[PK,CK]):InsertBuilder[R,PK,CK,p.Out]
 
   ///////////////////////////////////////
 
@@ -98,7 +98,5 @@ trait Table[R <: HList, PK <: HList, CK <: HList] extends SchemaDDL {
   /** cluster key(s), if any **/
   def clusterKey: Seq[String]
 
-  /** reads row from the table, possibly converting it to `R` **/
-  def read(row:Row):Either[Throwable,R]
 }
 

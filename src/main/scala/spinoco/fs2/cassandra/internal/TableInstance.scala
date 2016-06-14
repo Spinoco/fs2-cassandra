@@ -1,6 +1,6 @@
 package spinoco.fs2.cassandra.internal
 
-import com.datastax.driver.core.{DataType, Row}
+import com.datastax.driver.core.DataType
 import shapeless.ops.hlist.{Prepend, ToTraversable}
 import shapeless.ops.record.Keys
 import shapeless.{HList, HNil}
@@ -58,7 +58,7 @@ object TableInstance {
           def query: QueryBuilder[R, PK, CK, HNil, HNil] =
             QueryBuilder(self, Nil, Nil, Nil, Map.empty, None,None, allowFilteringFlag = false)
 
-          def insert(implicit p:Prepend[PK,CK]):InsertBuilder[R,p.Out] =
+          def insert(implicit p:Prepend[PK,CK]):InsertBuilder[R,PK,CK,p.Out] =
             InsertBuilder(self, None, None, ifNotExistsFlag = false)
 
           def delete[Q, R0]: DeleteBuilder[R, PK, CK, PK, HNil] =
@@ -67,7 +67,6 @@ object TableInstance {
           def update(implicit p:Prepend[PK,CK]):UpdateBuilder[R, PK, CK, p.Out,HNil] =
             UpdateBuilder(self,Nil,Set.empty,Nil, None, None, Nil, ifExistsCondition = false)
 
-          def read(row: Row): Either[Throwable, R] = ??? //CTR.read(row).right.map(G.from)
 
           override def toString: String = s"Table[$cql]"
         }

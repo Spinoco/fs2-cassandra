@@ -4,7 +4,6 @@ import java.net.InetAddress
 import java.util.UUID
 
 import fs2.Chunk
-import fs2.Chunk.Bytes
 import shapeless.tag
 import shapeless.tag._
 import spinoco.fs2.cassandra.CType.{Ascii, Type1}
@@ -21,7 +20,7 @@ case class SimpleTableRow(
   , doubleColumn: Double
   , bigDecimalColumn: BigDecimal
   , bigIntColumn: BigInt
-  , blobColumn: Bytes
+  , blobColumn: Chunk[Byte]
   , uuidColumn: UUID
   , timeUuidColumn: UUID @@ Type1
   , durationColumn: FiniteDuration

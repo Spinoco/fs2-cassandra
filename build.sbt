@@ -28,11 +28,10 @@ lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest" % "3.0.0-M16-SNAP4" % "test"
     , "org.scalacheck" %% "scalacheck" % "1.13.1" % "test"
-    , "org.apache.cassandra" % "cassandra-all" % "2.1.10" % "test"
     //, "org.slf4j" % "slf4j-simple" % "1.6.1" % "test" // uncomment this for logs when testing
 
-    , "co.fs2" %% "fs2-core" % "0.9.0-SNAPSHOT"
-    , "co.fs2" %% "fs2-io" % "0.9.0-SNAPSHOT"
+    , "co.fs2" %% "fs2-core" % "0.9.0-M3"
+    , "co.fs2" %% "fs2-io" % "0.9.0-M3"
     , "com.datastax.cassandra" % "cassandra-driver-core" % "3.0.1"
     , "com.chuusai" %% "shapeless" % "2.3.1"
 
@@ -40,7 +39,7 @@ lazy val commonSettings = Seq(
     , "com.google.code.findbugs" % "jsr305" % "1.3.+" % "compile"
 
   ),
-  scmInfo := Some(ScmInfo(url("https://github.com/Spinoco/fs2-cassabdra"), "git@github.com:Spinoco/fs2-spinoco.fs2.cassandra.git")),
+  scmInfo := Some(ScmInfo(url("https://github.com/Spinoco/fs2-cassandra"), "git@github.com:Spinoco/fs2-cassandra.git")),
   homepage := None,
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
   initialCommands := s"""
@@ -136,7 +135,7 @@ lazy val root =
   project.in(file("."))
   .settings(commonSettings)
   .settings(
-   name := "fs2-spinoco.fs2.cassandra"
+   name := "fs2.cassandra"
   ) 
  
  

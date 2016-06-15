@@ -370,36 +370,35 @@ trait UpdateSpec extends SchemaSupport {
     }
 
 
-    // this won't work, seems
-    // https://datastax-oss.atlassian.net/browse/JAVA-1219
-//    "will update with timestamp" in withSessionAndSimpleSchema { cs =>
-//      val update =
-//        simpleTable
-//          .update
-//          .set('stringColumn)
-//          .withTimeStamp('ts)
-//          .build
-//          .fromTuple4
-//
-//
-//
-//      val selectTimeStamp =
-//        simpleTable.query
-//          .functionAt(functions.writeTimeOfMicro[String],'stringColumn, 'ts)
-//          .primary
-//          .build
-//          .fromTuple
-//          .asA
-//
-//
-//
-//      cs.execute(update)((999l,"UPDATED",9,9)).unsafeRun
-//
-//      val result = cs.query(selectTimeStamp)(9 -> 9l).runLog.unsafeRun
-//
-//      result shouldBe Vector(999l)
-//
-//    }
+
+    "will update with timestamp" in withSessionAndSimpleSchema { cs =>
+      val update =
+        simpleTable
+          .update
+          .set('stringColumn)
+          .withTimeStamp('ts)
+          .build
+          .fromTuple4
+
+
+
+      val selectTimeStamp =
+        simpleTable.query
+          .functionAt(functions.writeTimeOfMicro[String],'stringColumn, 'ts)
+          .primary
+          .build
+          .fromTuple
+          .asA
+
+      val ts = System.currentTimeMillis()*1000 + 1
+
+      cs.execute(update)((ts,"UPDATED",9,9)).unsafeRun
+
+      val result = cs.query(selectTimeStamp)(9 -> 9l).runLog.unsafeRun
+
+      result shouldBe Vector(ts)
+
+    }
 
 
     "will increment and decrement counter" in withSession { cs =>

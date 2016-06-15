@@ -39,7 +39,7 @@ trait Query[Q,R] extends CStatement[Q] { self =>
   /** function that read values from the row with converting them to `R` or presenting read failure **/
   def read(r:Row, protocolVersion: ProtocolVersion):Either[Throwable,R]
   /** function that writes query to their CQL representations **/
-  def writeCql(q:Q):Map[String,String]
+  def cqlFor(q:Q):String
   /** function that writes query to their raw values **/
   def writeRaw(q:Q, protocolVersion: ProtocolVersion):Map[String,ByteBuffer]
 
@@ -47,7 +47,7 @@ trait Query[Q,R] extends CStatement[Q] { self =>
   def mapIn[I](f: I => Q):Query[I,R] = {
     new Query[I,R] {
       def cqlStatement: String = self.cqlStatement
-      def writeCql(q: I): Map[String, String] = self.writeCql(f(q))
+      def cqlFor(q: I): String = self.cqlFor(f(q))
       def writeRaw(q: I, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(f(q), protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, R] = self.read(r,protocolVersion)
       def fill(i: I, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = self.fill(f(i),s,protocolVersion)
@@ -59,7 +59,7 @@ trait Query[Q,R] extends CStatement[Q] { self =>
   def map[O](f: R => O):Query[Q,O] = {
     new Query[Q,O] {
       def cqlStatement: String = self.cqlStatement
-      def writeCql(q: Q): Map[String, String] = self.writeCql(q)
+      def cqlFor(q: Q): String = self.cqlFor(q)
       def writeRaw(q: Q, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(q, protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, O] = self.read(r,protocolVersion).right.map(f)
       def fill(i: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = self.fill(i,s,protocolVersion)
@@ -139,14 +139,14 @@ trait Update[Q,R] extends DMLStatement[Q,R] { self =>
   /** function that read values from the row with converting them to `R` or presenting read failure **/
   def read(r:Row, protocolVersion: ProtocolVersion):Either[Throwable,R]
   /** function that writes query `Q` to their CQL representations **/
-  def writeCql(q:Q):Map[String,String]
+  def cqlFor(q:Q):String
   /** function that writes query `Q` to their raw values **/
   def writeRaw(q:Q, protocolVersion: ProtocolVersion):Map[String,ByteBuffer]
 
   /** allows to modify input Q by applying  `f` **/
   def mapIn[B](f: B => Q):Update[B,R] = new Update[B,R]{
     def cqlStatement: String = self.cqlStatement
-    def writeCql(q: B): Map[String, String] = self.writeCql(f(q))
+    def cqlFor(q: B): String = self.cqlFor(f(q))
     def writeRaw(q: B, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(f(q), protocolVersion)
     def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, R] = self.read(r,protocolVersion)
     def read(r: ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, R] = self.read(r,protocolVersion)
@@ -158,7 +158,7 @@ trait Update[Q,R] extends DMLStatement[Q,R] { self =>
 
   def map[B](f: R => B):Update[Q,B] = new Update[Q,B] {
     def cqlStatement: String = self.cqlStatement
-    def writeCql(q: Q): Map[String, String] = self.writeCql(q)
+    def cqlFor(q: Q): String = self.cqlFor(q)
     def writeRaw(q: Q, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(q,protocolVersion)
     def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, B] = self.read(r,protocolVersion).right.map(f)
     def read(r: ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, B] = self.read(r,protocolVersion).right.map(f)
@@ -229,13 +229,13 @@ trait Delete[Q,R] extends DMLStatement[Q,R] { self =>
   /** function that read values from the row with converting them to `R` or presenting read failure **/
   def read(r:Row, protocolVersion: ProtocolVersion):Either[Throwable,R]
   /** function that writes query `Q` to their CQL representations **/
-  def writeCql(q:Q):Map[String,String]
+  def cqlFor(q:Q):String
   /** function that writes query `Q` to their raw values **/
   def writeRaw(q:Q, protocolVersion: ProtocolVersion):Map[String,ByteBuffer]
 
   def mapIn[Q2](f: Q2 => Q):Delete[Q2,R] = new Delete[Q2,R] {
     def cqlStatement: String = self.cqlStatement
-    def writeCql(q: Q2): Map[String, String] = self.writeCql(f(q))
+    def cqlFor(q: Q2): String = self.cqlFor(f(q))
     def writeRaw(q: Q2, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(f(q),protocolVersion)
     def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, R] = self.read(r,protocolVersion)
     def read(r: ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, R] = self.read(r,protocolVersion)
@@ -246,7 +246,7 @@ trait Delete[Q,R] extends DMLStatement[Q,R] { self =>
 
   def map[R2](f: R => R2):Delete[Q,R2] = new Delete[Q,R2] {
     def cqlStatement: String = self.cqlStatement
-    def writeCql(q: Q): Map[String, String] = self.writeCql(q)
+    def cqlFor(q: Q): String = self.cqlFor(q)
     def writeRaw(q: Q, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(q,protocolVersion)
     def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, R2] = self.read(r,protocolVersion).right.map(f)
     def read(r: ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, R2] = self.read(r,protocolVersion).right.map(f)
@@ -316,7 +316,7 @@ trait Insert[I,O] extends DMLStatement[I,O] { self =>
   /** function that read values from the row with converting them to `O` or presenting read failure **/
   def read(r:Row, protocolVersion: ProtocolVersion):Either[Throwable,O]
   /** function that writes query to their CQL representations **/
-  def writeCql(i:I):Map[String,String]
+  def cqlFor(i:I):String
   /** function that writes query to their raw values **/
   def writeRaw(i:I, protocolVersion: ProtocolVersion):Map[String,ByteBuffer]
 
@@ -324,7 +324,7 @@ trait Insert[I,O] extends DMLStatement[I,O] { self =>
   def mapIn[I2](f: I2 => I):Insert[I2,O] = {
     new Insert[I2,O] {
       def cqlStatement: String = self.cqlStatement
-      def writeCql(i: I2): Map[String, String] = self.writeCql(f(i))
+      def cqlFor(i: I2): String = self.cqlFor(f(i))
       def writeRaw(i: I2, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(f(i), protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, O] = self.read(r,protocolVersion)
       def fill(i: I2, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = self.fill(f(i),s,protocolVersion)
@@ -338,7 +338,7 @@ trait Insert[I,O] extends DMLStatement[I,O] { self =>
   def map[O2](f: O => O2):Insert[I,O2] = {
     new Insert[I,O2] {
       def cqlStatement: String = self.cqlStatement
-      def writeCql(i: I): Map[String, String] = self.writeCql(i)
+      def cqlFor(i: I): String = self.cqlFor(i)
       def writeRaw(i: I, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(i, protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, O2] = self.read(r,protocolVersion).right.map(f)
       def fill(i: I, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = self.fill(i,s,protocolVersion)

@@ -49,7 +49,7 @@ trait DockerCassandra
 
   private var dockerInstanceId:Option[String] = None
   private var clusterInstance:Option[Cluster] = None
-  private var sessionInstance:Option[(Session, CassandraSession[Task])] = None
+   var sessionInstance:Option[(Session, CassandraSession[Task])] = None
 
 
   def withCluster(f: CassandraCluster[Task] => Any): Unit = {
@@ -160,7 +160,7 @@ object DockerCassandra {
   }
 
   /**
-    * Stops previsously running container.
+    * Stops previously running container.
     *
     * @param cdef             definition of cassandra
     * @param instance         Id of docker instance to stop

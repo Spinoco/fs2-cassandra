@@ -60,8 +60,8 @@ trait CassandraSession[F[_]] {
   /** Executes supplied DML statement (INSERT, UPDATE, DELETE).**/
   def execute[I,R](statement: DMLStatement[I,R], o: DMLOptions = Options.defaultDML)(i:I):F[R]
 
-  /** Executes supplied batch statement **/
-  def executeBatch[I,R](batch:BatchStatement[I,R], o: DMLOptions = Options.defaultDML)(i:I):F[R]
+  /** Executes supplied batch statement. Returns None, if statement was applied correctly, Some(R) in case it was not applied **/
+  def executeBatch[I,R](batch:BatchStatement[I,R], o: DMLOptions = Options.defaultDML)(i:I):F[Option[R]]
 
   /** executes supplied DML statement specified by CQL expecting raw ResultSet as result **/
   def executeCql(cql:String, o: DMLOptions = Options.defaultDML):F[ResultSet]
@@ -174,7 +174,7 @@ object CassandraSession {
         }
 
 
-        def _executeBatch[I,R](batch:BatchStatement[I,R], o:DMLOptions, i:I):F[R] = {
+        def _executeBatch[I,R](batch:BatchStatement[I,R], o:DMLOptions, i:I):F[Option[R]] = {
           F.bind(F.get(state)) { s =>
             val statements = batch.statements
             F.bind(
@@ -187,8 +187,7 @@ object CassandraSession {
                 val allStatements = statements.map(c.now.cache.apply)
                 F.bind(batch.createStatement(allStatements,i,protocolVersion).fold(F.fail,F.pure)) { bs =>
                   F.bind(F.suspend(cs.executeAsync(Options.applyDMLOptions(bs,o)))) { rs =>
-                    val rows = rs.drain
-                    batch.read(i)(rows,protocolVersion).fold(F.fail,F.pure)
+                    batch.read(i)(rs,protocolVersion).fold(F.fail,F.pure)
                   }
                 }
 
@@ -223,7 +222,7 @@ object CassandraSession {
           def pageCql(cql: String, o:QueryOptions = Options.defaultQuery): Stream[F, Either[Option[PagingState], Row]] = _pageQueryRows(new SimpleStatement(cql), o)
           def pageStatement(boundStatement: BoundStatement): Stream[F, Either[Option[PagingState], Row]] = _pageQueryRows(boundStatement,Options.defaultQuery)
           def prepareCql(cql: String): F[PreparedStatement] = F.suspend(cs.prepareAsync(cql))
-          def executeBatch[I, R](batch: BatchStatement[I, R], o: DMLOptions= Options.defaultDML)(i: I): F[R] = _executeBatch(batch,o,i)
+          def executeBatch[I, R](batch: BatchStatement[I, R], o: DMLOptions= Options.defaultDML)(i: I): F[Option[R]] = _executeBatch(batch,o,i)
         }
       }
     }

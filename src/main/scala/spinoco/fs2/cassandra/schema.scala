@@ -86,6 +86,8 @@ trait Table[R <: HList, PK <: HList, CK <: HList] extends SchemaDDL {
 
   /** name of the keyspace **/
   def keySpace:String
+  /** full name of the table **/
+  def fullName:String = s"$keySpace.$name"
   /** name of the table **/
   def name:String
   /** any table specificc options **/

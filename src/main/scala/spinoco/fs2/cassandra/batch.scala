@@ -1,6 +1,6 @@
 package spinoco.fs2.cassandra
 
-import com.datastax.driver.core.{PreparedStatement, ProtocolVersion, Row, BatchStatement => CBatchStatement}
+import com.datastax.driver.core.{PreparedStatement, ProtocolVersion, ResultSet, Row, BatchStatement => CBatchStatement}
 import shapeless.HNil
 import spinoco.fs2.cassandra.builder.BatchBuilder
 
@@ -26,7 +26,7 @@ object batch {
 trait BatchStatement[R,O] {
 
   /** reads result received from executing batch statement **/
-  def read(r:R)(rows:Seq[Row], protocolVersion: ProtocolVersion):Either[Throwable, O]
+  def read(r:R)(rs:ResultSet, protocolVersion: ProtocolVersion):Either[Throwable, Option[O]]
   /** returns CQL representation of statements this batch operates on **/
   def statements:Seq[String]
   /** creates batch statement to be executed agains the C* **/

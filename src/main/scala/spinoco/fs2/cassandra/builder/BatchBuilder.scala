@@ -62,8 +62,12 @@ case class BatchBuilder[Q <: HList, R <: HList] (
       def statements: Seq[String] =
         self.statements
 
-      def read(r: Q)(rows: Seq[Row], protocolVersion: ProtocolVersion): Either[Throwable, R] =
-        self.readResult(r)(rows,protocolVersion)
+      def read(r: Q)(rs:ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
+        val all = rs.all().asScala
+        if (rs.wasApplied()) Right(None)
+        else self.readResult(r)(all,protocolVersion).right.map(Some(_))
+      }
+
 
       def createStatement(statements: Seq[PreparedStatement], r: Q, protocolVersion: ProtocolVersion): Either[Throwable, CBatchStatement] =
         self.fill(r,statements,protocolVersion).right.map { bs =>

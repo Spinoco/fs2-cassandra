@@ -1,6 +1,6 @@
 package spinoco.fs2.cassandra
 
-import shapeless.{ HNil }
+import shapeless.HNil
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 
@@ -81,9 +81,7 @@ trait BatchSpec extends SchemaSupport {
           HNil
       ).unsafeRun
 
-
-      result.head shouldBe Some(Some(SimpleTableRow.simpleInstance))
-      result.tail.head shouldBe None
+      result shouldBe Some(Some(Some(SimpleTableRow.simpleInstance)) :: None :: HNil)
 
     }
 
@@ -113,8 +111,7 @@ trait BatchSpec extends SchemaSupport {
         ).unsafeRun
 
 
-      result.head shouldBe Some(Some(SimpleTableRow.simpleInstance))
-      result.tail.head shouldBe Some(Some(SimpleTableRow.simpleInstance.copy(longColumn = 20)))
+      result shouldBe Some(Some(Some(SimpleTableRow.simpleInstance)) :: Some(Some(SimpleTableRow.simpleInstance.copy(longColumn = 20))) :: HNil)
     }
 
 
@@ -123,6 +120,8 @@ trait BatchSpec extends SchemaSupport {
 //
 //      cs.execute(strInsert)(SimpleTableRow.simpleInstance).unsafeRun
 //      cs.execute(strInsert)(SimpleTableRow.simpleInstance.copy(longColumn = 20)).unsafeRun
+//
+//      cs.queryAll(strSelectAll).runLog.unsafeRun.foreach(println)
 //
 //      val updateIfExists =
 //        simpleTable.update
@@ -146,10 +145,13 @@ trait BatchSpec extends SchemaSupport {
 //        ).unsafeRun
 //
 //
-//      result shouldBe (None :: None :: HNil)
+//      result shouldBe None
 //
 //      cs.queryAll(strSelectAll).runLog.unsafeRun.foreach(println)
-//    println("-----")
+//
+//      val cs1 = sessionInstance.map(_._1).get
+//      val r1 = cs1.execute(s"SELECT * from ${simpleTable.fullName}")
+//      r1.all().asScala.foreach(println)
 //    }
 //
 //

@@ -271,7 +271,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
 
     new Query[Q, S] {
       def cqlStatement: String = cql
-      def writeCql(q: Q): Map[String, String] = CTQ.writeCql(q)
+      def cqlFor(q: Q): String = spinoco.fs2.cassandra.util.replaceInCql(cql,CTQ.writeCql(q))
       def writeRaw(q: Q, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = CTQ.writeRaw(q,protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, S] = CTS.readByName(r, protocolVersion)
       def fill(q: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {

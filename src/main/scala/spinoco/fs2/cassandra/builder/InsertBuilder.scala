@@ -71,7 +71,8 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
 
     new Insert[I,Option[R]] {
       def cqlStatement: String = cql
-      def writeCql(s: I): Map[String, String] = CTI.writeCql(s)
+      def cqlFor(s: I): String = spinoco.fs2.cassandra.util.replaceInCql(cql,CTI.writeCql(s))
+
       def writeRaw(s: I, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = CTI.writeRaw(s, protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
         if (ifNotExistsFlag) {

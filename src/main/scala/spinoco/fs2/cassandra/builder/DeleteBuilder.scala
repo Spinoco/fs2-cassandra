@@ -11,6 +11,7 @@ import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
 import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, CTypeRecordInstance}
 import spinoco.fs2.cassandra.{BatchResultReader, Comparison, Delete, Table, internal}
 
+import collection.JavaConverters._
 
 case class DeleteBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <: HList](
   table: Table[R,PK, CK]
@@ -114,12 +115,15 @@ case class DeleteBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
         CTQ.writeByName(i,bs,protocolVersion)
         bs
       }
+
       def read(r: ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
         Option(r.one()) match {
           case None =>
-            if (!ifExistsCondition && ifConditions.isEmpty) Right(HNil.asInstanceOf[RIF]) // guaranteed to be safe
+            if (!ifExistsCondition && ifConditions.isEmpty) Right(HNil.asInstanceOf[RIF]) // guaranteed to be safe always Hnil result if no ifExists or conditions
             else Left(new Throwable("Expected result row but none returned"))
-          case Some(row) => read(r,protocolVersion)
+          case Some(row) =>
+            val keys = r.getColumnDefinitions.asScala.map(_.getName.toLowerCase).toSet
+            CTR.readByNameIfExists(keys,row,protocolVersion)
         }
       }
 

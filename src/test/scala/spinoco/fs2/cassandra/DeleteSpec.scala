@@ -53,43 +53,43 @@ trait DeleteSpec  extends SchemaSupport {
 
     }
 
-    // below will fail seems Java driver (3.0.1) won't return result for IF/IF EXISTS
-    // see https://datastax-oss.atlassian.net/browse/JAVA-1218
-//    "will delete if exists" in withSessionAndSimpleSchema { cs =>
-//      val delete =
-//        simpleTable.delete
-//          .row
-//          .primary
-//          .onlyIfExists
-//          .build
-//          .fromTuple
-//          .asA
-//
-//
-//
-//      val result1 = cs.execute(delete)(1 -> 1l).unsafeRun
-//      val result2 = cs.execute(delete)(99 -> 1l).unsafeRun
-//
-//      result1 shouldBe true
-//      result2 shouldBe false
-//
-//    }
-//
-//    "will delete if condition holds" in withSessionAndSimpleSchema { cs =>
-//      val delete =
-//        simpleTable.delete
-//          .row
-//          .primary
-//          .onlyIf('stringColumn, "str_eq", Comparison.EQ)
-//          .build
-//          .fromTriple
-//          .asA
-//
-//
-//      val result1 = cs.execute(delete)(("varchar string",1,1l)).unsafeRun
-//      val result2 = cs.execute(delete)(("xxx",2,2l)).unsafeRun
-//
-//    }
+    "will delete if exists" in withSessionAndSimpleSchema { cs =>
+      val delete =
+        simpleTable.delete
+          .row
+          .primary
+          .onlyIfExists
+          .build
+          .fromTuple
+          .asA
+
+
+      val result1 =  cs.execute(delete)(1 -> 1l).unsafeRun
+      val result2 =  cs.execute(delete)(99 -> 1l).unsafeRun
+
+      result1 shouldBe true
+      result2 shouldBe false
+
+    }
+
+    "will delete if condition holds" in withSessionAndSimpleSchema { cs =>
+      val delete =
+        simpleTable.delete
+          .row
+          .primary
+          .onlyIf('stringColumn, "str_eq", Comparison.EQ)
+          .build
+          .fromTriple
+          .asA
+
+
+      val result1 = cs.execute(delete)(("varchar string",1,1l)).unsafeRun
+      val result2 = cs.execute(delete)(("xxx",2,2l)).unsafeRun
+
+      result1 shouldBe None
+      result2 shouldBe Some("varchar string")
+
+    }
 
 
   }

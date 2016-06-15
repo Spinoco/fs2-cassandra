@@ -16,17 +16,10 @@ trait CassandraSession[F[_]] {
   def create(ddl:SchemaDDL):F[Unit]
 
   /**
-    * Migrates supplied Schema object from actual version in C*.
-    * Yields false, if migration was not necessary and true, if it performed successfully.
-    *
-    */
-  def migrate(ddl:SchemaDDL):F[Boolean]
-
-  /**
     * Compares supplied Schema object from actual version in C*, yielding in CQL statement that needs to be run to
     * update schema.
     */
-  def diffDDL(ddl:SchemaDDL):F[Option[String]]
+  def migrateDDL(ddl:SchemaDDL):F[Seq[String]]
 
   /** Builds a stream, that runs query against C* when run **/
   def query[Q,R](query:Query[Q,R], o:QueryOptions = Options.defaultQuery)(q:Q):Stream[F,R]
@@ -83,7 +76,7 @@ object CassandraSession {
 
 
 
-
+  /** given cluster this will create a single element stream with session **/
   def apply[F[_]](cluster:Cluster)(implicit F:Async[F]):Stream[F,CassandraSession[F]] = {
     Stream.bracket[F,Session,CassandraSession[F]](cluster.connectAsync())(
       {cs => Stream.eval(impl.mkSession(cs, cluster.getConfiguration.getProtocolOptions.getProtocolVersion))}
@@ -206,11 +199,21 @@ object CassandraSession {
         }
 
 
+        def _migrateDDL(ddl: SchemaDDL):F[Seq[String]] = {
+          ddl match {
+            case ks:KeySpace => F.delay { system.migrateKeySpace(ks, Option(cs.getCluster.getMetadata.getKeyspace(ks.name))) }
+            case t:Table[_,_,_] => F.delay {
+              val current = Option(cs.getCluster.getMetadata.getKeyspace(t.keySpace)).flatMap(km => Option(km.getTable(t.name)))
+              system.migrateTable(t, current)
+            }
+          }
+        }
+
+
 
         new CassandraSession[F] {
           def create(ddl: SchemaDDL): F[Unit] = F.map(executeCql(ddl.cqlStatement))(_ => ())
-          def migrate(ddl: SchemaDDL): F[Boolean] = ???
-          def diffDDL(ddl: SchemaDDL): F[Option[String]] = ???
+          def migrateDDL(ddl: SchemaDDL): F[Seq[String]] = _migrateDDL(ddl)
           def execute[I, R](statement: DMLStatement[I, R], o: DMLOptions = Options.defaultDML)(i: I): F[R] = executeDML(statement,o,i)
           def executeCql(cql: String, o: DMLOptions = Options.defaultDML): F[ResultSet] = F.suspend(cs.executeAsync(cql))
           def query[Q, R](query: Query[Q, R], o:QueryOptions = Options.defaultQuery)(q: Q): Stream[F, R] = _queryStatement(query,o,q)

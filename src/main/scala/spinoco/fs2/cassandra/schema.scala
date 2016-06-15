@@ -16,9 +16,8 @@ sealed trait SchemaDDL {
 case class KeySpace(
   name:String
   , durableWrites:Boolean = true
-  , strategyClass:String = "SimpleStrategy"
+  , strategyClass:String = "org.apache.cassandra.locator.SimpleStrategy"
   , strategyOptions:Seq[(String,String)] = Seq("replication_factor" -> "1")
-  , solr:Boolean = false
 ) extends SchemaDDL { self =>
 
   trait KsTblBuilder[A] {
@@ -37,8 +36,7 @@ case class KeySpace(
 
 
   lazy val cql = {
-    val solrConfig = if (solr) Seq("Solr" -> "1") else Nil
-    val replication = (("class" -> strategyClass) +: (strategyOptions ++ solrConfig)).map {case (k,v) => s"'$k':'$v'"}.mkString("{",",","}")
+    val replication = (("class" -> strategyClass) +: strategyOptions).map {case (k,v) => s"'$k':'$v'"}.mkString("{",",","}")
 
     s"CREATE KEYSPACE $name WITH REPLICATION = $replication AND DURABLE_WRITES = $durableWrites "
   }
@@ -57,8 +55,9 @@ object KeySpace {
       , strategyOptions = Seq("replication_factor" -> "1")
     )
 
-    /** enables DSE Solr on the keyspace **/
-    def enableDSESolr:KeySpace = self.copy(solr = true)
+    def withDurableWrites(durable:Boolean):KeySpace = {
+      self.copy(durableWrites = durable)
+    }
 
   }
 

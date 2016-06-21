@@ -323,6 +323,8 @@ object Insert {
 
   implicit class InsertHInputSyntax[I <: HList,O](val self: Insert[I,O]) extends AnyVal {
     def from[A](implicit G:LabelledGeneric.Aux[A,I]):Insert[A,O] = self.mapIn(G.to)
+    /** reads from given supplied HList. value types must be in same order as `I` record **/
+    def fromHList[L <: HList](implicit V: Values.Aux[I,L]):Insert[L,O] = self.mapIn(_.asInstanceOf[I])
     def fromTuple[A](implicit T:ToHList.Aux[A,I]):Insert[A,O] = self.mapIn(T(_))
   }
 

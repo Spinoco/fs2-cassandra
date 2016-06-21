@@ -22,7 +22,7 @@ trait CrudSpec extends SchemaSupport {
         table.query.all.build.as[SimpleTableRow]
 
       val update =
-        table.update.set('stringColumn).build.fromTuple
+        table.update.set('stringColumn).build.fromHList.fromTuple[(String,Int)]
 
       val delete =
         table.delete.row.build.fromA

@@ -100,7 +100,7 @@ case class DeleteBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
     val ifStmt = if (ifStmts.nonEmpty) s"IF $ifStmts" else ""
     val timestampStmt = if (timestamp.nonEmpty) timestamp.map(k => s"USING TIMESTAMP :$k").mkString else ""
 
-    val cql = s"DELETE$columnsStmts FROM ${table.keySpace}.${table.name} $timestampStmt WHERE $whereClause $ifStmt$ifExistsStmt"
+    val cql = s"DELETE$columnsStmts FROM ${table.keySpaceName}.${table.name} $timestampStmt WHERE $whereClause $ifStmt$ifExistsStmt"
 
     new Delete[Q,RIF] {
       def cqlStatement: String = cql

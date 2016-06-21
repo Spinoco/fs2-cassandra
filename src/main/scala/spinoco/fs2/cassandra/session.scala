@@ -2,12 +2,14 @@ package spinoco.fs2.cassandra
 
 
 import com.datastax.driver.core._
+import com.datastax.driver.core.{BatchStatement => CBatchStatement}
 import fs2._
 import fs2.Async
 import fs2.Stream._
 import shapeless.HNil
 
 import scala.language.higherKinds
+import scala.collection.JavaConverters._
 
 
 trait CassandraSession[F[_]] {
@@ -26,6 +28,9 @@ trait CassandraSession[F[_]] {
 
   /** Queries all elements. Requires query that accepts all results **/
   def queryAll[R](q:Query[HNil,R], o:QueryOptions = Options.defaultQuery):Stream[F,R] = query(q,o)(HNil)
+
+  /** queries only single result. This does nto guarantee there is only single result, but will always yield only in single `R` **/
+  def queryOne[Q,R](query:Query[Q,R], o:QueryOptions = Options.defaultQuery)(q:Q):F[Option[R]]
 
   /** Builds a stream, that runs query specified by cql against C* when run **/
   def queryCql(cql:String, o:QueryOptions = Options.defaultQuery):Stream[F,Row]
@@ -60,8 +65,14 @@ trait CassandraSession[F[_]] {
   /** Executes supplied DML statement (INSERT, UPDATE, DELETE).**/
   def execute[I,R](statement: DMLStatement[I,R], o: DMLOptions = Options.defaultDML)(i:I):F[R]
 
+  /** create bound statement that may be used later to form complex batch **/
+  def bindStatement[I](statement: DMLStatement[I,_], o: DMLOptions = Options.defaultDML)(i:I):F[BoundStatement]
+
   /** Executes supplied batch statement. Returns None, if statement was applied correctly, Some(R) in case it was not applied **/
   def executeBatch[I,R](batch:BatchStatement[I,R], o: DMLOptions = Options.defaultDML)(i:I):F[Option[R]]
+
+  /** raw variant of batch statement execution, allowing to join several bound statements together **/
+  def executeBatchRaw(statements:Seq[BoundStatement],logged:Boolean):F[ResultSet]
 
   /** executes supplied DML statement specified by CQL expecting raw ResultSet as result **/
   def executeCql(cql:String, o: DMLOptions = Options.defaultDML):F[ResultSet]
@@ -202,12 +213,32 @@ object CassandraSession {
           ddl match {
             case ks:KeySpace => F.delay { system.migrateKeySpace(ks, Option(cs.getCluster.getMetadata.getKeyspace(ks.name))) }
             case t:Table[_,_,_] => F.delay {
-              val current = Option(cs.getCluster.getMetadata.getKeyspace(t.keySpace)).flatMap(km => Option(km.getTable(t.name)))
+              val current = Option(cs.getCluster.getMetadata.getKeyspace(t.keySpaceName)).flatMap(km => Option(km.getTable(t.name)))
               system.migrateTable(t, current)
             }
           }
         }
 
+
+        def _queryOne[Q,R](query: Query[Q, R], o: QueryOptions, q: Q): F[Option[R]] = {
+          F.bind(getOrRegisterStatement(query.cqlStatement)) { ps =>
+            val bs = Options.applyQueryOptions(query.fill(q,ps, protocolVersion),o)
+            bs.setFetchSize(1) // only one item we are insterested in
+            F.bind(F.suspend(cs.executeAsync(bs))) { rs =>
+              Option(rs.one()) match {
+                case None => F.pure(None)
+                case Some(row) => query.read(row,protocolVersion).fold(F.fail,r => F.pure(Some(r)))
+              }
+            }
+          }
+        }
+
+        def _executeBatchRaw(statements: Seq[BoundStatement], logged: Boolean): F[ResultSet] = {
+          val tpe = if (logged) CBatchStatement.Type.LOGGED else CBatchStatement.Type.UNLOGGED
+          val batch = new CBatchStatement(tpe)
+          batch.addAll(statements.asJava)
+          F.suspend(cs.executeAsync(batch))
+        }
 
 
         new CassandraSession[F] {
@@ -216,6 +247,7 @@ object CassandraSession {
           def execute[I, R](statement: DMLStatement[I, R], o: DMLOptions = Options.defaultDML)(i: I): F[R] = executeDML(statement,o,i)
           def executeCql(cql: String, o: DMLOptions = Options.defaultDML): F[ResultSet] = F.suspend(cs.executeAsync(cql))
           def query[Q, R](query: Query[Q, R], o:QueryOptions = Options.defaultQuery)(q: Q): Stream[F, R] = _queryStatement(query,o,q)
+          def queryOne[Q, R](query: Query[Q, R], o: QueryOptions)(q: Q): F[Option[R]] = _queryOne(query,o,q)
           def queryCql(cql: String, o:QueryOptions = Options.defaultQuery): Stream[F, Row] = _queryRows(new SimpleStatement(cql),o)
           def queryStatement(boundStatement: BoundStatement): Stream[F, Row] = _queryRows(boundStatement,Options.defaultQuery)
           def page[Q, R](query: Query[Q, R], o:QueryOptions = Options.defaultQuery)(q: Q): Stream[F, Either[Option[PagingState], R]] = _pageQuery(query,o,q)
@@ -223,6 +255,8 @@ object CassandraSession {
           def pageStatement(boundStatement: BoundStatement): Stream[F, Either[Option[PagingState], Row]] = _pageQueryRows(boundStatement,Options.defaultQuery)
           def prepareCql(cql: String): F[PreparedStatement] = F.suspend(cs.prepareAsync(cql))
           def executeBatch[I, R](batch: BatchStatement[I, R], o: DMLOptions= Options.defaultDML)(i: I): F[Option[R]] = _executeBatch(batch,o,i)
+          def bindStatement[I](statement: DMLStatement[I, _], o: DMLOptions)(i: I): F[BoundStatement] = F.map(mkStatement(statement,i)) { bs => Options.applyDMLOptions(bs,o)}
+          def executeBatchRaw(statements: Seq[BoundStatement], logged: Boolean): F[ResultSet] = _executeBatchRaw(statements,logged)
         }
       }
     }

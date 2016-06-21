@@ -23,8 +23,8 @@ case class TableBuilder[R <: HList, PK <: HList, CK <: HList](
   :TableBuilder[R,  PK, P.Out] = TableBuilder(ks)
 
   /** registers given `V` as column of this table with name `name` **/
-  def column[V](name:Witness)(implicit ev:CType[V])
-  : TableBuilder[FieldType[name.T,V] :: R, PK, CK] = TableBuilder(ks)
+  def column[K,V](name:Witness.Aux[K])(implicit ev:CType[V])
+  : TableBuilder[FieldType[K,V] :: R, PK, CK] = TableBuilder(ks)
 
 
   def createTable(name:String,options:Map[String,String] = Map.empty)(

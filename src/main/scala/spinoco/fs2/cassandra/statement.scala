@@ -4,6 +4,7 @@ import java.nio.ByteBuffer
 
 import com.datastax.driver.core._
 import shapeless.ops.hlist.Tupler
+import shapeless.ops.product.ToHList
 import shapeless.ops.record.Values
 import shapeless.{::, HList, HNil, LabelledGeneric}
 
@@ -80,21 +81,12 @@ object Query {
     /** converts query to read from single `A` if input requires only single parameter **/
     def fromA[A](implicit V: Values.Aux[Q, A :: HNil]):Query[A,R] = self.mapIn(a => (a :: HNil).asInstanceOf[Q])
 
-    /** reads query from supplied tuple **/
-    def fromTuple[A,B](implicit V: Values.Aux[Q, A :: B :: HNil]):Query[(A,B),R] = self.mapIn { case (a,b) => (a :: b :: HNil).asInstanceOf[Q]}
+    /** reads from given supplied HList. value types must be in same order as `Q` record **/
+    def fromHList[L <: HList](implicit V: Values.Aux[Q,L]):Query[L,R] = self.mapIn(_.asInstanceOf[Q])
 
-    /** reads query from supplied triple **/
-    def fromTriple[A,B,C](implicit V: Values.Aux[Q, A :: B :: C :: HNil]):Query[(A,B,C),R] = self.mapIn { case (a,b,c) => (a :: b :: c :: HNil).asInstanceOf[Q]}
 
-    /** reads query from supplied tuple of four elements **/
-    def fromTuple4[A,B,C,D](implicit V: Values.Aux[Q, A :: B :: C :: D :: HNil]):Query[(A,B,C,D),R] = self.mapIn { case (a,b,c,d) => (a :: b :: c :: d :: HNil).asInstanceOf[Q]}
-
-    /** reads query from supplied tuple of five elements **/
-    def fromTuple5[A,B,C,D,E](implicit V: Values.Aux[Q, A :: B :: C :: D :: E :: HNil]):Query[(A,B,C,D,E),R] = self.mapIn { case (a,b,c,d,e) => (a :: b :: c :: d :: e :: HNil).asInstanceOf[Q]}
-
-    /** reads query from supplied tuple of six elements **/
-    def fromTuple6[A,B,C,D,E,F](implicit V: Values.Aux[Q, A :: B :: C :: D :: E :: F :: HNil]):Query[(A,B,C,D,E,F),R] = self.mapIn { case (a,b,c,d,e,f) => (a :: b :: c :: d :: e :: f :: HNil).asInstanceOf[Q]}
-
+    /** reads delete from supplied tuple. Explicit tuple type must be provided **/
+    def fromTuple[T](implicit T:ToHList.Aux[T,Q]):Query[T,R] = self.mapIn[T](T(_))
   }
 
 
@@ -179,21 +171,8 @@ object Update {
     /** reasd from givne supplied HList. value types must be in same order as `Q` record **/
     def fromHList[L <: HList](implicit V: Values.Aux[Q,L]):Update[L,R] = self.mapIn(_.asInstanceOf[Q])
 
-    /** reads update from supplied tuple **/
-    def fromTuple[A,B](implicit V: Values.Aux[Q, A :: B :: HNil]):Update[(A,B),R] = self.mapIn { case (a,b) => (a :: b :: HNil).asInstanceOf[Q]}
-
-    /** reads update from supplied triple **/
-    def fromTriple[A,B,C](implicit V: Values.Aux[Q, A :: B :: C :: HNil]):Update[(A,B,C),R] = self.mapIn { case (a,b,c) => (a :: b :: c :: HNil).asInstanceOf[Q]}
-
-    /** reads update from supplied tuple of four elements **/
-    def fromTuple4[A,B,C,D](implicit V: Values.Aux[Q, A :: B :: C :: D :: HNil]):Update[(A,B,C,D),R] = self.mapIn { case (a,b,c,d) => (a :: b :: c :: d :: HNil).asInstanceOf[Q]}
-
-    /** reads update from supplied tuple of five elements **/
-    def fromTuple5[A,B,C,D,E](implicit V: Values.Aux[Q, A :: B :: C :: D :: E :: HNil]):Update[(A,B,C,D,E),R] = self.mapIn { case (a,b,c,d,e) => (a :: b :: c :: d :: e :: HNil).asInstanceOf[Q]}
-
-    /** reads update from supplied tuple of six elements **/
-    def fromTuple6[A,B,C,D,E,F](implicit V: Values.Aux[Q, A :: B :: C :: D :: E :: F :: HNil]):Update[(A,B,C,D,E,F),R] = self.mapIn { case (a,b,c,d,e,f) => (a :: b :: c :: d :: e :: f :: HNil).asInstanceOf[Q]}
-
+    /** reads delete from supplied tuple. Explicit tuple type must be provided **/
+    def fromTuple[T](implicit T:ToHList.Aux[T,Q]):Update[T,R] = self.mapIn(T(_))
 
   }
 
@@ -266,23 +245,12 @@ object Delete {
 
     def fromA[A](implicit V: Values.Aux[Q, A :: HNil]):Delete[A,R] = self.mapIn { a => (a :: HNil).asInstanceOf[Q]}
 
-    /** reasd from givne supplied HList. value types must be in same order as `Q` record **/
+    /** reads from given supplied HList. value types must be in same order as `Q` record **/
     def fromHList[L <: HList](implicit V: Values.Aux[Q,L]):Delete[L,R] = self.mapIn(_.asInstanceOf[Q])
 
-    /** reads update from supplied tuple **/
-    def fromTuple[A,B](implicit V: Values.Aux[Q, A :: B :: HNil]):Delete[(A,B),R] = self.mapIn { case (a,b) => (a :: b :: HNil).asInstanceOf[Q]}
+    /** reads delete from supplied tuple. Explicit tuple type must be provided **/
+    def fromTuple[T](implicit T:ToHList.Aux[T,Q]):Delete[T,R] = self.mapIn(T(_))
 
-    /** reads update from supplied triple **/
-    def fromTriple[A,B,C](implicit V: Values.Aux[Q, A :: B :: C :: HNil]):Delete[(A,B,C),R] = self.mapIn { case (a,b,c) => (a :: b :: c :: HNil).asInstanceOf[Q]}
-
-    /** reads update from supplied tuple of four elements **/
-    def fromTuple4[A,B,C,D](implicit V: Values.Aux[Q, A :: B :: C :: D :: HNil]):Delete[(A,B,C,D),R] = self.mapIn { case (a,b,c,d) => (a :: b :: c :: d :: HNil).asInstanceOf[Q]}
-
-    /** reads update from supplied tuple of five elements **/
-    def fromTuple5[A,B,C,D,E](implicit V: Values.Aux[Q, A :: B :: C :: D :: E :: HNil]):Delete[(A,B,C,D,E),R] = self.mapIn { case (a,b,c,d,e) => (a :: b :: c :: d :: e :: HNil).asInstanceOf[Q]}
-
-    /** reads update from supplied tuple of six elements **/
-    def fromTuple6[A,B,C,D,E,F](implicit V: Values.Aux[Q, A :: B :: C :: D :: E :: F :: HNil]):Delete[(A,B,C,D,E,F),R] = self.mapIn { case (a,b,c,d,e,f) => (a :: b :: c :: d :: e :: f :: HNil).asInstanceOf[Q]}
 
   }
 
@@ -355,6 +323,7 @@ object Insert {
 
   implicit class InsertHInputSyntax[I <: HList,O](val self: Insert[I,O]) extends AnyVal {
     def from[A](implicit G:LabelledGeneric.Aux[A,I]):Insert[A,O] = self.mapIn(G.to)
+    def fromTuple[A](implicit T:ToHList.Aux[A,I]):Insert[A,O] = self.mapIn(T(_))
   }
 
   implicit class InsertHOutputSyntax[I,O <: HList](val self: Insert[I,Option[O]]) extends AnyVal {

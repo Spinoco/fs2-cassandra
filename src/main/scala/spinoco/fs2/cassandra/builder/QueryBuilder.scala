@@ -259,7 +259,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
     }
 
     val cql = Seq(
-      s"SELECT $selectColumns FROM ${table.keySpace}.${table.name}"
+      s"SELECT $selectColumns FROM ${table.keySpaceName}.${table.name}"
       , whereStmt
       , orderStmt
       , limitStmt

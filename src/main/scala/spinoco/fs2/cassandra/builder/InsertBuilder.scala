@@ -67,7 +67,7 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
       if (ttlStmt.nonEmpty || timestamp.nonEmpty) (ttlStmt ++ timestampStmt).mkString("USING "," AND ", "")
       else ""
     val ifNe = if (ifNotExistsFlag) "IF NOT EXISTS" else ""
-    val cql = s"INSERT INTO ${table.keySpace}.${table.name} (${columnNames.mkString(",")}) VALUES (${columnNames.map(":" + _).mkString(",")}) $ifNe $usingStmt "
+    val cql = s"INSERT INTO ${table.keySpaceName}.${table.name} (${columnNames.mkString(",")}) VALUES (${columnNames.map(":" + _).mkString(",")}) $ifNe $usingStmt "
 
     new Insert[I,Option[R]] {
       def cqlStatement: String = cql

@@ -28,7 +28,8 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
       .partition
       .cluster('longColumn, Comparison.EQ)
       .build
-      .fromTuple
+      .fromHList
+      .fromTuple[(Int,Long)]
       .as[SimpleTableRow]
 
   val strSelectAll =
@@ -92,7 +93,8 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
       .all
       .primary
       .build
-      .fromTuple
+      .fromHList
+      .fromTuple[(Int,Long)]
       .as[ListTableRow]
 
 
@@ -122,7 +124,8 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
       .all
       .primary
       .build
-      .fromTuple
+      .fromHList
+      .fromTuple[(Int,Long)]
       .as[MapTableRow]
 
   def withSessionAndMapSchema(f: CassandraSession[Task] => Any): Unit = {

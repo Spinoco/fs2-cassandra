@@ -48,7 +48,7 @@ object TableInstance {
             s"""CREATE TABLE ${ks.name}.$tn ($fields, PRIMARY KEY ($pkDef))"""
 
           def cqlStatement:String = cql
-          def keySpace:String = ks.name
+          def keySpace:KeySpace = ks
           def name:String = tn
           def options:Map[String,String] = opt
           def columns: Seq[(String, DataType)] = CTR.types

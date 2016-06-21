@@ -11,6 +11,7 @@ import spinoco.fs2.cassandra.sample._
 
 import scala.concurrent.duration._
 import com.datastax.driver.core.utils.UUIDs.timeBased
+import shapeless.tag.{apply => _, _}
 
 
 
@@ -62,7 +63,8 @@ trait UpdateSpec extends SchemaSupport {
           .update
           .set('stringColumn)
           .build
-          .fromTriple
+          .fromHList
+          .fromTuple[(String,Int,Long)]
 
       cs.execute(update)(("UPDATED",9,9)).unsafeRun
 
@@ -79,7 +81,8 @@ trait UpdateSpec extends SchemaSupport {
           .set('stringColumn)
           .onlyIfExists
           .build
-          .fromTriple
+          .fromHList
+          .fromTuple[(String,Int,Long)]
           .asA
 
       val result1 =
@@ -99,7 +102,8 @@ trait UpdateSpec extends SchemaSupport {
           .set('stringColumn)
           .onlyIf('doubleColumn, "double_gt", Comparison.GT)
           .build
-          .fromTuple4
+          .fromHList
+          .fromTuple[(Double,String,Int,Long)]
           .asA
 
 
@@ -123,7 +127,8 @@ trait UpdateSpec extends SchemaSupport {
           .onlyIf('doubleColumn, Comparison.GT)
           .onlyIf('floatColumn, "float_greater",Comparison.GT)
           .build
-          .fromTuple5
+          .fromHList
+          .fromTuple[(Float,Double,String,Int,Long)]
           .asTuple
 
       val result1 = cs.execute(update)((0.0f, 0.0d, "UPDATED", 9, 9)).unsafeRun
@@ -142,7 +147,8 @@ trait UpdateSpec extends SchemaSupport {
           .update
           .set('listColumn)
           .build
-          .fromTriple
+          .fromHList
+          .fromTuple[(List[String],Int,Long)]
 
         cs.execute(update)((List("l1","l2"), 9, 9)).unsafeRun
 
@@ -167,7 +173,8 @@ trait UpdateSpec extends SchemaSupport {
         .update
         .append('listColumn)
         .build
-        .fromTriple
+        .fromHList
+        .fromTuple[(List[String],Int,Long)]
 
 
       cs.execute(update)((List("appended"), 9, 9)).unsafeRun
@@ -191,7 +198,8 @@ trait UpdateSpec extends SchemaSupport {
           .update
           .prepend('listColumn)
           .build
-          .fromTriple
+          .fromHList
+          .fromTuple[(List[String],Int,Long)]
 
       cs.execute(update)((List("prepended"), 9, 9)).unsafeRun
 
@@ -213,7 +221,8 @@ trait UpdateSpec extends SchemaSupport {
           .update
           .addAt('listColumn, 0)
           .build
-          .fromTriple
+          .fromHList
+          .fromTuple[(String,Int,Long)]
 
       cs.execute(update)(("index_set", 9, 9)).unsafeRun
 
@@ -235,7 +244,8 @@ trait UpdateSpec extends SchemaSupport {
           .update
           .remove('listColumn)
           .build
-          .fromTriple
+          .fromHList
+          .fromTuple[(List[String],Int,Long)]
 
       cs.execute(update)((List("two"), 9, 9)).unsafeRun
 
@@ -257,7 +267,8 @@ trait UpdateSpec extends SchemaSupport {
           .update
           .add('setColumn)
           .build
-          .fromTriple
+          .fromHList
+          .fromTuple[(Set[String],Int,Long)]
 
       cs.execute(update)((Set("added"), 9, 9)).unsafeRun
 
@@ -279,7 +290,8 @@ trait UpdateSpec extends SchemaSupport {
           .update
           .remove('setColumn)
           .build
-          .fromTriple
+          .fromHList
+          .fromTuple[(Set[String],Int,Long)]
 
       cs.execute(update)((Set("ones"), 9, 9)).unsafeRun
 
@@ -302,7 +314,8 @@ trait UpdateSpec extends SchemaSupport {
           .update
           .addToMap('mapStringColumn)
           .build
-          .fromTriple
+          .fromHList
+          .fromTuple[(Map[String,String],Int,Long)]
 
       cs.execute(update)((Map("add" -> "addedValue"), 9,9)).unsafeRun
 
@@ -325,7 +338,8 @@ trait UpdateSpec extends SchemaSupport {
           .update
           .removeFromMap('mapStringColumn)
           .build
-          .fromTriple
+          .fromHList
+          .fromTuple[(Set[String],Int,Long)]
 
       cs.execute(update)((Set("k1"), 9,9)).unsafeRun
 
@@ -350,14 +364,16 @@ trait UpdateSpec extends SchemaSupport {
           .set('stringColumn)
           .withTTL('ttl)
           .build
-          .fromTuple4
+          .fromHList
+          .fromTuple[(FiniteDuration @@ TTL, String,Int,Long)]
 
       val selectTTL =
         simpleTable.query
         .functionAt(functions.ttlOf[String],'stringColumn, 'ttl)
         .primary
         .build
-        .fromTuple
+        .fromHList
+        .fromTuple[(Int,Long)]
         .asA
 
 
@@ -378,7 +394,8 @@ trait UpdateSpec extends SchemaSupport {
           .set('stringColumn)
           .withTimeStamp('ts)
           .build
-          .fromTuple4
+          .fromHList
+          .fromTuple[(Long, String,Int,Long)]
 
 
 
@@ -387,7 +404,8 @@ trait UpdateSpec extends SchemaSupport {
           .functionAt(functions.writeTimeOfMicro[String],'stringColumn, 'ts)
           .primary
           .build
-          .fromTuple
+          .fromHList
+          .fromTuple[(Int,Long)]
           .asA
 
       val ts = System.currentTimeMillis()*1000 + 1
@@ -415,13 +433,15 @@ trait UpdateSpec extends SchemaSupport {
         counterTable.update
           .increment('counterColumn)
           .build
-          .fromTriple
+          .fromHList
+          .fromTuple[(Long, Int,Long)]
 
       val decrement =
         counterTable.update
           .decrement('counterColumn)
           .build
-          .fromTriple
+          .fromHList
+          .fromTuple[(Long, Int,Long)]
 
       val select =
         counterTable.query.all.build.as[CounterTableRow]

@@ -1,7 +1,9 @@
 package spinoco.fs2.cassandra
 
 import com.datastax.driver.core.{PreparedStatement, ProtocolVersion, ResultSet, Row, BatchStatement => CBatchStatement}
-import shapeless.HNil
+import shapeless.ops.hlist.Tupler
+import shapeless.ops.product.ToHList
+import shapeless.{Generic, HList, HNil}
 import spinoco.fs2.cassandra.builder.BatchBuilder
 
 /**
@@ -23,7 +25,7 @@ object batch {
 
 
 
-trait BatchStatement[R,O] {
+trait BatchStatement[R,O] { self =>
 
   /** reads result received from executing batch statement **/
   def read(r:R)(rs:ResultSet, protocolVersion: ProtocolVersion):Either[Throwable, Option[O]]
@@ -32,8 +34,49 @@ trait BatchStatement[R,O] {
   /** creates batch statement to be executed agains the C* **/
   def createStatement(statements:Seq[PreparedStatement], r:R, protocolVersion: ProtocolVersion):Either[Throwable, CBatchStatement]
 
+  def mapIn[I](f: I => R):BatchStatement[I,O] = new BatchStatement[I,O] {
+    def read(r: I)(rs: ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[O]] = self.read(f(r))(rs,protocolVersion)
+    def createStatement(statements: Seq[PreparedStatement], r: I, protocolVersion: ProtocolVersion): Either[Throwable, CBatchStatement] =
+      self.createStatement(statements,f(r), protocolVersion)
+    def statements: Seq[String] = self.statements
+  }
+
+  def map[O2](f: O => O2):BatchStatement[R,O2] = new BatchStatement[R,O2] {
+    def read(r: R)(rs: ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[O2]] =
+      self.read(r)(rs,protocolVersion).right.map(_ map f)
+    def createStatement(statements: Seq[PreparedStatement], r: R, protocolVersion: ProtocolVersion): Either[Throwable, CBatchStatement] =
+      self.createStatement(statements,r,protocolVersion)
+    def statements: Seq[String] = self.statements
+  }
 
 }
+
+object BatchStatement {
+
+  implicit class BatchStatementSyntaxQH[Q <: HList,R](val self: BatchStatement[Q,R]) extends AnyVal {
+    /** converts batch to read queried parameters from `A` instead of `Q` **/
+    def from[A](implicit G:Generic.Aux[A,Q]):BatchStatement[A,R] = self.mapIn(G.to)
+
+    /** reads batch from supplied tuple **/
+    def fromTuple[T](implicit T:ToHList.Aux[T,Q]):BatchStatement[T,R] = self.mapIn(T(_))
+
+
+  }
+
+
+  implicit class BatchStatementSyntaxRH[Q,R <: HList](val self: BatchStatement[Q,R]) extends AnyVal {
+
+    /** converts result of batch to to `A` **/
+    def as[A](implicit G:Generic.Aux[A,R]):BatchStatement[Q,A] = self.map(G.from)
+
+    /** returns result as tuple **/
+    def asTuple(implicit T: Tupler[R]):BatchStatement[Q,T.Out] = self.map(T(_))
+
+  }
+
+}
+
+
 
 /**
   * Batch statements may result in more than one result returned when batch statement

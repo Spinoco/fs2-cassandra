@@ -294,7 +294,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
       if (ttl.nonEmpty || timestamp.nonEmpty) (ttl.toSeq.map { c => s" TTL :$c" } ++ timestamp.toSeq.map {c => s"TIMESTAMP :$c"}).mkString(" USING "," AND ", " ")
       else ""
 
-    val cql = s"UPDATE ${table.keySpace}.${table.name}$usingStmt SET $setStmt WHERE $whereStmt$ifStmt$ifExistsStmt"
+    val cql = s"UPDATE ${table.keySpaceName}.${table.name}$usingStmt SET $setStmt WHERE $whereStmt$ifStmt$ifExistsStmt"
 
     new Update[Q,RIF] {
       def cqlStatement: String = cql

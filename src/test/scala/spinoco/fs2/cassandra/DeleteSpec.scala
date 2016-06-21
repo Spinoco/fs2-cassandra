@@ -28,7 +28,7 @@ trait DeleteSpec  extends SchemaSupport {
         simpleTable.delete
           .row
           .cluster('longColumn)
-          .build.fromTuple
+          .build.fromHList.fromTuple[(Int,Long)]
 
       cs.execute(delete)(1 -> 1l).unsafeRun
 
@@ -43,7 +43,7 @@ trait DeleteSpec  extends SchemaSupport {
         optionalTable.delete
         .column('stringColumn)
         .primary
-        .build.fromTuple
+        .build.fromHList.fromTuple[(Int,Long)]
 
       cs.execute(delete)(1 -> 1l).unsafeRun
 
@@ -60,7 +60,8 @@ trait DeleteSpec  extends SchemaSupport {
           .primary
           .onlyIfExists
           .build
-          .fromTuple
+          .fromHList
+          .fromTuple[(Int,Long)]
           .asA
 
 
@@ -79,7 +80,8 @@ trait DeleteSpec  extends SchemaSupport {
           .primary
           .onlyIf('stringColumn, "str_eq", Comparison.EQ)
           .build
-          .fromTriple
+          .fromHList
+          .fromTuple[(String,Int,Long)]
           .asA
 
 

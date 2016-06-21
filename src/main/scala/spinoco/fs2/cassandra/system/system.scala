@@ -66,7 +66,7 @@ package object system {
             tpeA.getName.isCompatibleWith(tpeB.getName) &&
             sameArgs
         }
-        val fullTableName = s"${desiredTable.keySpace}.${desiredTable.name}"
+        val fullTableName = s"${desiredTable.keySpaceName}.${desiredTable.name}"
 
 
         if (desiredTable.name != current.getName) Nil

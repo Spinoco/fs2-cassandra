@@ -32,7 +32,7 @@ case class KeySpace(
   def table[A]:KsTblBuilder[A] = new KsTblBuilder[A] {}
 
   /** constructs empty table definition **/
-  def table:TableBuilder[HNil, HNil, HNil]= TableBuilder(self)
+  def emptyTable:TableBuilder[HNil, HNil, HNil]= TableBuilder(self)
 
 
   lazy val cql = {
@@ -70,6 +70,10 @@ object KeySpace {
 
 trait Table[R <: HList, PK <: HList, CK <: HList] extends SchemaDDL {
 
+  type Row = R
+  type PartitionKey = PK
+  type ClusterKay = CK
+
   /** creates definition of the query against the table **/
   def query:QueryBuilder[R,PK,CK, HNil, HNil]
 
@@ -85,9 +89,11 @@ trait Table[R <: HList, PK <: HList, CK <: HList] extends SchemaDDL {
   ///////////////////////////////////////
 
   /** name of the keyspace **/
-  def keySpace:String
+  def keySpaceName:String = keySpace.name
+  /** reference to keyspace **/
+  def keySpace: KeySpace
   /** full name of the table **/
-  def fullName:String = s"$keySpace.$name"
+  def fullName:String = s"$keySpaceName.$name"
   /** name of the table **/
   def name:String
   /** any table specificc options **/

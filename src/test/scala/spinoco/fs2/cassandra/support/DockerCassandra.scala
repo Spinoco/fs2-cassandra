@@ -29,9 +29,6 @@ trait DockerCassandra
   // this has to be overridden to provide exact casandra defintition. latest is default
   lazy val cassandra: CassandraDefinition = CassandraDefinition.latest
 
-  val systemKeySpaces:Set[String]=  Set(
-    "system_auth", "system_schema", "system_distributed", "system", "system_traces"
-  )
 
   // yields to true, if given KeySpace has to be preserved between tests, all other KeySpaces will be dropped after each test will end
   def preserveKeySpace(s:String):Boolean = systemKeySpaces.contains(s)
@@ -95,12 +92,7 @@ trait DockerCassandra
   override protected def beforeEach(): Unit = {
     super.beforeEach()
     sessionInstance.foreach { case (_, cs) =>
-      cs.queryAll(cassandra.allKeySpaceQuery)
-      .filter(n => !preserveKeySpace(n))
-      .flatMap { n =>
-        eval(cs.executeCql(s"DROP KEYSPACE $n"))
-      }
-      .run.unsafeRun
+      cleanupSchema(cs,cassandra)(preserveKeySpace)
     }
   }
 
@@ -111,6 +103,9 @@ trait DockerCassandra
 
 object DockerCassandra {
 
+  val systemKeySpaces:Set[String]=  Set(
+    "system_auth", "system_schema", "system_distributed", "system", "system_traces"
+  )
 
 
   /** asserts that docker is available on host os **/
@@ -126,6 +121,16 @@ object DockerCassandra {
       Process(s"docker pull ${cdef.dockerImageUrl}").!!
       ()
     }
+  }
+
+  /** cleans schema, leaving only system objects **/
+  def cleanupSchema(cs:CassandraSession[Task], cassandra:CassandraDefinition)(preserveKeysSpace: String => Boolean):Unit = {
+    cs.queryAll(cassandra.allKeySpaceQuery)
+      .filter(n => !preserveKeysSpace(n))
+      .flatMap { n =>
+        eval(cs.executeCql(s"DROP KEYSPACE $n"))
+      }
+      .run.unsafeRun
   }
 
 

@@ -11,6 +11,7 @@ trait CommonCassandraSpec
     with DeleteSpec
     with PagingSpec
     with BatchSpec
+    with QuerySpec
     with MigrationsSpec
     with DockerCassandra
 

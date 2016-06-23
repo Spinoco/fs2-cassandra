@@ -136,7 +136,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
   )(
     implicit
     ev0:Selector.Aux[CK, K,V]
-    , P:Prepend[Q, FieldType[K,V] :: HNil]
+    , P:Prepend[Q, FieldType[K0,V] :: HNil]
   ): QueryBuilder[R, PK, CK, P.Out, S] = {
     val k = internal.keyOf(column)
     val k0 = internal.keyOf(as)

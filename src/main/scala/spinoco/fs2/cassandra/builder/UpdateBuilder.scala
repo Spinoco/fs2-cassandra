@@ -41,7 +41,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
     *
     * @return
     */
-  def all[P <: HList, C <: HList]:UpdateBuilder[R,PK,CK, R, HNil] =
+  def all:UpdateBuilder[R,PK,CK, R, HNil] =
     UpdateBuilder(table,Nil,Set.empty,Nil,None, None, Nil, false)
 
   /**
@@ -64,7 +64,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   }
 
   /** prepends element to column of list type (i.e. List, Seq, Vector) **/
-  def prepend[C <: Seq[_],K,V](wt:Witness.Aux[K])(
+  def prepend[C <: Seq[_],K](wt:Witness.Aux[K])(
     implicit
     ev0:Selector.Aux[R,K,C]
   ):UpdateBuilder[R,PK,CK,FieldType[K,C] :: Q, RIF] = {
@@ -73,7 +73,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   }
 
   /** sets value at given index in list **/
-  def addAt[C[_],K,K0,V](name:Witness.Aux[K], index:Int)(
+  def addAt[C[_],K,V](name:Witness.Aux[K], index:Int)(
     implicit
     ev0:Selector.Aux[R,K,C[V]]
     ,ev1:ListColumnInstance[C,V]
@@ -226,7 +226,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
     * Causes to update the column(s) only if they already exists.
     * Returns field with key [exists] that either is set to false, if the field existed or false otherwise.
     */
-  def onlyIfExists[K, V, K0]:UpdateBuilder[R,PK,CK,Q, IfExistsField :: RIF] =
+  def onlyIfExists:UpdateBuilder[R,PK,CK,Q, IfExistsField :: RIF] =
     UpdateBuilder(table,collectionUpdates,collectionKeys,ifConditions, timestamp, ttl, counterColumns, true)
 
 

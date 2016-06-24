@@ -53,7 +53,7 @@ case class DeleteBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   /**
     * Deletes column(s), but only if given columns  exists
     */
-  def onlyIfExists[K, V, K0]:DeleteBuilder[R,PK,CK,Q, IfExistsField :: RIF] =
+  def onlyIfExists:DeleteBuilder[R,PK,CK,Q, IfExistsField :: RIF] =
     DeleteBuilder(table,ifConditions, columns, timestamp, ifExistsCondition = true)
 
   /**

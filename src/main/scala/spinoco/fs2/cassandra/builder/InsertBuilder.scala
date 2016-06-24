@@ -4,12 +4,12 @@ import java.nio.ByteBuffer
 
 import com.datastax.driver.core._
 import shapeless.labelled._
-import shapeless.ops.hlist.{Intersection, Prepend}
+import shapeless.ops.hlist.{Align, Prepend}
 import shapeless.ops.record.Selector
 import shapeless.tag.@@
 import shapeless.{::, HList, Witness}
 import spinoco.fs2.cassandra.CType.TTL
-import spinoco.fs2.cassandra.internal.CTypeNonEmptyRecordInstance
+import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, SelectAll}
 import spinoco.fs2.cassandra.{BatchResultReader, Insert, Table, internal}
 
 import scala.concurrent.duration.FiniteDuration
@@ -52,12 +52,13 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
     InsertBuilder(table,ttl,timestamp, ifNotExistsFlag)
 
   /** creates insert statement **/
-  def build[PR <: HList](
+  def build[PR <: HList, PR0 <: HList](
     implicit
     CTI: CTypeNonEmptyRecordInstance[I]
     , CTR: CTypeNonEmptyRecordInstance[R]
     , P:Prepend.Aux[PK,CK,PR]
-    , GETPK:Intersection.Aux[I,PR,PR]
+    , GETPK:SelectAll.Aux[I,PR,PR0]
+    , A:Align[PR0,PR]
     , CTPK: CTypeNonEmptyRecordInstance[PR]
   ):Insert[I,Option[R]] = {
     val columnNames = CTI.types.map(_._1).filterNot(k => ttl.contains(k) || timestamp.contains(k))
@@ -96,7 +97,7 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
 
 
       def readBatchResult(i: I): BatchResultReader[Option[R]] = {
-        val primKey = GETPK(i)
+        val primKey = A(GETPK(i))
         new BatchResultReader[Option[R]] {
           def readsFrom(row: Row, protocolVersion: ProtocolVersion): Boolean =
             CTPK.readByName(row,protocolVersion).fold(_ => false, _  == primKey)

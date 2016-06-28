@@ -147,11 +147,8 @@ object CType {
 
   implicit val bytesInstance:CType[Chunk[Byte]] =
     byteBufferInstance.map(
-      { bb => val bb0 = bb.duplicate(); val arr = Array.ofDim[Byte](bb.remaining); bb.get(arr); Chunk.bytes(arr) } // todo likely we don't have to copy here
-      , { bs =>
-        val target = Array.ofDim[Byte](bs.size)
-        bs.copyToArray(target)
-        ByteBuffer.wrap(target)
+      { bb =>  val bb0 = bb.duplicate(); val arr = Array.ofDim[Byte](bb.remaining); bb.get(arr); Chunk.bytes(arr) } // todo likely we don't have to copy here
+      , { bs => val bs0 = bs.toBytes; ByteBuffer.wrap(bs0.values, bs0.offset, bs0.size)
       }
     )
 

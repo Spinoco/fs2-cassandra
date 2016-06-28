@@ -1,7 +1,7 @@
 package spinoco.fs2.cassandra
 
 import fs2.Stream._
-import fs2.util.Task
+import fs2.Task
 import shapeless.LabelledGeneric
 import spinoco.fs2.cassandra.sample.{ListTableRow, MapTableRow, OptionalTableRow, SimpleTableRow}
 import spinoco.fs2.cassandra.support.{DockerCassandra, Fs2CassandraSpec}

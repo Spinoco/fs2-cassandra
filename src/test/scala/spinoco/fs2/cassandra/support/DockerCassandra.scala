@@ -3,7 +3,7 @@ package spinoco.fs2.cassandra.support
 import com.datastax.driver.core.{Cluster, Session}
 import com.datastax.driver.core.policies.ConstantReconnectionPolicy
 import fs2.Stream._
-import fs2.util.Task
+import fs2.Task
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
 import spinoco.fs2.cassandra.{CassandraCluster, CassandraSession}
 

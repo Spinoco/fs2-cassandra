@@ -105,7 +105,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
   "DDL for table with tuples with " - {
 
 
-    val tableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,tuple2Column tuple<varchar, int>,tuple3Column tuple<varchar, ascii, bigint>,tuple4Column tuple<varchar, ascii, uuid, timeuuid>,tuple5Column tuple<varchar, ascii, uuid, timeuuid, timestamp>,"
+    val tableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,tuple2Column frozen<tuple<varchar, int>>,tuple3Column frozen<tuple<varchar, ascii, bigint>>,tuple4Column frozen<tuple<varchar, ascii, uuid, timeuuid>>,tuple5Column frozen<tuple<varchar, ascii, uuid, timeuuid, timestamp>>,"
 
 
     "partition key" in {
@@ -113,7 +113,6 @@ class TableBuilderSpec extends Fs2CassandraSpec{
         ks.table[TupleTableRow]
           .partition('intColumn)
           .createTable("test_table")
-
 
 
       table.cqlStatement shouldBe  s"$tableDef PRIMARY KEY ((intColumn)))"

@@ -65,6 +65,9 @@ trait CassandraSession[F[_]] {
   /** Executes supplied DML statement (INSERT, UPDATE, DELETE).**/
   def execute[I,R](statement: DMLStatement[I,R], o: DMLOptions = Options.defaultDML)(i:I):F[R]
 
+  /** executes raw statement from the underlying C* driver **/
+  def executeRaw(statement:Statement):F[ResultSet]
+
   /** create bound statement that may be used later to form complex batch **/
   def bindStatement[I](statement: DMLStatement[I,_], o: DMLOptions = Options.defaultDML)(i:I):F[BoundStatement]
 
@@ -245,6 +248,7 @@ object CassandraSession {
           def create(ddl: SchemaDDL): F[Unit] = F.map(executeCql(ddl.cqlStatement))(_ => ())
           def migrateDDL(ddl: SchemaDDL): F[Seq[String]] = _migrateDDL(ddl)
           def execute[I, R](statement: DMLStatement[I, R], o: DMLOptions = Options.defaultDML)(i: I): F[R] = executeDML(statement,o,i)
+          def executeRaw(statement: Statement): F[ResultSet] = F.suspend(cs.executeAsync(statement))
           def executeCql(cql: String, o: DMLOptions = Options.defaultDML): F[ResultSet] = F.suspend(cs.executeAsync(cql))
           def query[Q, R](query: Query[Q, R], o:QueryOptions = Options.defaultQuery)(q: Q): Stream[F, R] = _queryStatement(query,o,q)
           def queryOne[Q, R](query: Query[Q, R], o: QueryOptions)(q: Q): F[Option[R]] = _queryOne(query,o,q)

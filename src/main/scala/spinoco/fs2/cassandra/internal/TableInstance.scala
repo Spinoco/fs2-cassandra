@@ -37,7 +37,7 @@ object TableInstance {
       def table(ks:KeySpace, tn:String, opt:Map[String, String] = Map.empty):Table[R,PK, CK] =
         new Table[R, PK, CK] { self =>
           val fields = CTR.types.map { case (k,tpe) =>
-            s"$k ${tpe.asFunctionParameterString()}"
+            s"$k ${tpe.toString()}"
           }.mkString(",")
           val pkDef = {
             if (cks.isEmpty) s"(${pks.mkString(",")})"

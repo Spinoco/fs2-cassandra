@@ -23,9 +23,9 @@ class TableBuilderSpec extends Fs2CassandraSpec{
      val table =
        ks.table[SimpleTableRow]
          .partition('intColumn)
-         .createTable("test_table")
+         .build("test_table")
 
-     table.cqlStatement shouldBe s"$simpleTableDef PRIMARY KEY ((intColumn)))"
+     table.cqlStatement shouldBe Seq(s"$simpleTableDef PRIMARY KEY ((intColumn)))")
     }
 
     "cluster key" in {
@@ -33,9 +33,9 @@ class TableBuilderSpec extends Fs2CassandraSpec{
         ks.table[SimpleTableRow]
         .partition('intColumn)
         .cluster('longColumn)
-        .createTable("test_table")
+        .build("test_table")
 
-      table.cqlStatement shouldBe s"$simpleTableDef PRIMARY KEY ((intColumn),longColumn))"
+      table.cqlStatement shouldBe Seq(s"$simpleTableDef PRIMARY KEY ((intColumn),longColumn))")
     }
 
     "compound partition key" in {
@@ -43,9 +43,9 @@ class TableBuilderSpec extends Fs2CassandraSpec{
         ks.table[SimpleTableRow]
           .partition('intColumn)
           .partition('longColumn)
-          .createTable("test_table")
+          .build("test_table")
 
-      table.cqlStatement shouldBe s"$simpleTableDef PRIMARY KEY ((intColumn,longColumn)))"
+      table.cqlStatement shouldBe Seq(s"$simpleTableDef PRIMARY KEY ((intColumn,longColumn)))")
     }
 
     "compound cluster key" in {
@@ -54,9 +54,24 @@ class TableBuilderSpec extends Fs2CassandraSpec{
           .partition('intColumn)
           .cluster('longColumn)
           .cluster('stringColumn)
-          .createTable("test_table")
+          .build("test_table")
 
-      table.cqlStatement shouldBe s"$simpleTableDef PRIMARY KEY ((intColumn),longColumn,stringColumn))"
+      table.cqlStatement shouldBe Seq(s"$simpleTableDef PRIMARY KEY ((intColumn),longColumn,stringColumn))")
+    }
+
+    "indexed" in {
+      val table =
+        ks.table[SimpleTableRow]
+          .partition('intColumn)
+          .indexBy('asciiColumn)
+          .indexBy('enumColumn)
+          .build("test_table")
+
+      table.cqlStatement shouldBe Seq(
+        s"$simpleTableDef PRIMARY KEY ((intColumn)))"
+        , "CREATE CUSTOM INDEX enumColumn_idx ON test_ks.test_table (enumColumn) "
+        , "CREATE CUSTOM INDEX asciiColumn_idx ON test_ks.test_table (asciiColumn) "
+      )
     }
 
   }
@@ -71,10 +86,10 @@ class TableBuilderSpec extends Fs2CassandraSpec{
       val table =
         ks.table[OptionalTableRow]
           .partition('intColumn)
-          .createTable("test_table")
+          .build("test_table")
 
 
-      table.cqlStatement shouldBe s"$tableDef PRIMARY KEY ((intColumn)))"
+      table.cqlStatement shouldBe Seq(s"$tableDef PRIMARY KEY ((intColumn)))")
     }
 
 
@@ -91,11 +106,11 @@ class TableBuilderSpec extends Fs2CassandraSpec{
       val table =
         ks.table[ListTableRow]
           .partition('intColumn)
-          .createTable("test_table")
+          .build("test_table")
 
 
 
-      table.cqlStatement shouldBe  s"$tableDef PRIMARY KEY ((intColumn)))"
+      table.cqlStatement shouldBe  Seq(s"$tableDef PRIMARY KEY ((intColumn)))")
     }
 
   }
@@ -112,10 +127,10 @@ class TableBuilderSpec extends Fs2CassandraSpec{
       val table =
         ks.table[TupleTableRow]
           .partition('intColumn)
-          .createTable("test_table")
+          .build("test_table")
 
 
-      table.cqlStatement shouldBe  s"$tableDef PRIMARY KEY ((intColumn)))"
+      table.cqlStatement shouldBe  Seq(s"$tableDef PRIMARY KEY ((intColumn)))")
     }
 
 
@@ -131,14 +146,15 @@ class TableBuilderSpec extends Fs2CassandraSpec{
       val table =
         ks.table[MapTableRow]
           .partition('intColumn)
-          .createTable("test_table")
+          .build("test_table")
 
 
 
-      table.cqlStatement shouldBe s"$tableDef PRIMARY KEY ((intColumn)))"
+      table.cqlStatement shouldBe Seq(s"$tableDef PRIMARY KEY ((intColumn)))")
     }
 
   }
+
 
 
 }

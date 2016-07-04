@@ -25,7 +25,7 @@ import scala.concurrent.duration.FiniteDuration
   * @param ifExistsCondition      flag indicating if this has to be applied only if row exists.
   */
 case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <: HList] (
- table: Table[R,PK, CK]
+ table: Table[R,PK, CK, _ <: HList]
  , collectionUpdates:Seq[String]
  , collectionKeys:Set[String]
  , ifConditions: Seq[(String,String, Comparison.Value)]

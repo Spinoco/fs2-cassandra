@@ -13,8 +13,8 @@ import spinoco.fs2.cassandra.{CQLFunction, CQLFunction0, Comparison, Query, Tabl
 /**
   * Created by pach on 09/06/16.
   */
-case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: HList](
-  table: Table[R,PK, CK]
+case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <: HList, S <: HList](
+  table: Table[R,PK, CK, IDX]
   , columns:Seq[(String,String)]
   , whereConditions: Seq[String]
   , orderColumns:Seq[(String, Boolean)]
@@ -25,7 +25,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
 ) {
 
   /** mark this query to contain all columns in the table as result **/
-  def all:QueryBuilder[R, PK, CK, Q, R] =  {
+  def all:QueryBuilder[R, PK, CK, IDX, Q, R] =  {
     QueryBuilder(
       table = table
       , columns = table.columns.map { case (n,_) => n -> n }
@@ -41,14 +41,14 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
   /** selects given column **/
   def column[K,V](name:Witness.Aux[K])(
     implicit  ev0: Selector.Aux[R,K,V]
-  ) : QueryBuilder[R, PK, CK, Q, FieldType[K,V] :: S] = {
+  ) : QueryBuilder[R, PK, CK, IDX, Q, FieldType[K,V] :: S] = {
     columnAs[K,V,K](name,name)
   }
 
   /** select given column and alias it with `as` **/
   def columnAs[K,V,K0](name:Witness.Aux[K], as:Witness.Aux[K0])(
     implicit  ev0: Selector.Aux[R,K,V]
-  ): QueryBuilder[R, PK, CK,  Q, FieldType[K0,V] :: S] = {
+  ): QueryBuilder[R, PK, CK, IDX, Q, FieldType[K0,V] :: S] = {
     QueryBuilder(
       table = table
       , columns = columns :+ (internal.keyOf(name) -> internal.keyOf(as))
@@ -64,7 +64,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
   /** select function `fn` applied at column `name` with alias `as` **/
   def functionAt[K,V,K0,V0](fn: CQLFunction[V,V0], name:Witness.Aux[K], as:Witness.Aux[K0])(
     implicit ev0: Selector.Aux[R,K,V]
-  ): QueryBuilder[R, PK, CK, Q,  FieldType[K0,V0] :: S] = {
+  ): QueryBuilder[R, PK, CK, IDX, Q, FieldType[K0,V0] :: S] = {
     QueryBuilder(
       table = table
       , columns =  columns :+ (fn(internal.keyOf(name)) -> internal.keyOf(as))
@@ -78,7 +78,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
   }
 
   /** select function from the table that does not take a parameter **/
-  def function[K,V](fn: CQLFunction0[V], as:Witness.Aux[K]): QueryBuilder[R, PK, CK, Q, FieldType[K,V] :: S] = {
+  def function[K,V](fn: CQLFunction0[V], as:Witness.Aux[K]): QueryBuilder[R, PK, CK, IDX, Q, FieldType[K,V] :: S] = {
     QueryBuilder(
       table = table
       , columns =  columns :+ (fn.apply() -> internal.keyOf(as))
@@ -98,7 +98,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
     implicit
     PKK:Keys.Aux[PK, PKK]
     , ev0: ToTraversable.Aux[PKK,List,AnyRef]
-  ) : QueryBuilder[R, PK, CK, PK, S] = {
+  ) : QueryBuilder[R, PK, CK, IDX, PK, S] = {
     val pkStmts = PKK().toList.map(internal.asKeyName).map(k => s"$k = :$k")
     QueryBuilder(
       table = table
@@ -123,7 +123,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
   )(implicit
     ev0:Selector.Aux[CK, K,V]
     , P:Prepend[Q, FieldType[K,V] :: HNil]
-  ): QueryBuilder[R, PK, CK, P.Out, S] =
+  ): QueryBuilder[R, PK, CK, IDX, P.Out, S] =
     cluster(column,column,op)
 
   /**
@@ -137,7 +137,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
     implicit
     ev0:Selector.Aux[CK, K,V]
     , P:Prepend[Q, FieldType[K0,V] :: HNil]
-  ): QueryBuilder[R, PK, CK, P.Out, S] = {
+  ): QueryBuilder[R, PK, CK, IDX, P.Out, S] = {
     val k = internal.keyOf(column)
     val k0 = internal.keyOf(as)
     QueryBuilder(
@@ -158,7 +158,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
    P:Prepend.Aux[PK, CK, PKL]
    , PKK:Keys.Aux[PKL, PKK]
    , ev0: ToTraversable.Aux[PKK,List,AnyRef]
-  ):QueryBuilder[R, PK, CK, PKL, S] = {
+  ):QueryBuilder[R, PK, CK, IDX, PKL, S] = {
     val pkStmts = PKK().toList.map(internal.asKeyName).map(k => s"$k = :$k")
     QueryBuilder(
       table = table
@@ -172,21 +172,60 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
     )
   }
 
+  /**
+    * Returns only rows for which indexed field satisfies the `op`
+    */
+  def byIndex[K,V](
+    column:Witness.Aux[K]
+    , op: Comparison.Value
+  )(implicit
+    ev0:Selector.Aux[IDX, K,V]
+    , P:Prepend[Q, FieldType[K,V] :: HNil]
+  ): QueryBuilder[R, PK, CK, IDX, P.Out, S] =
+    byIndex(column,column,op)
+
+
+  /**
+    * Like `byIndex` but allows to specify alias that will be used in input query
+    */
+  def byIndex[K,K0,V](
+     column:Witness.Aux[K]
+     , as:Witness.Aux[K0]
+     , op:Comparison.Value
+   )(
+     implicit
+     ev0:Selector.Aux[IDX, K,V]
+     , P:Prepend[Q, FieldType[K0,V] :: HNil]
+   ): QueryBuilder[R, PK, CK, IDX, P.Out, S] = {
+    val k = internal.keyOf(column)
+    val k0 = internal.keyOf(as)
+    QueryBuilder(
+      table = table
+      , columns = columns
+      , whereConditions = whereConditions :+ s"$k $op :$k0"
+      , orderColumns = orderColumns
+      , clusterColumns = clusterColumns
+      , limitCount = limitCount
+      , solrQuery = solrQuery
+      , allowFilteringFlag = allowFilteringFlag
+    )
+  }
+
 
   /**
     * Allows to pass limit of records that has to be returned
     */
-  def limit(max:Int):QueryBuilder[R,  PK, CK, Q, S] = {
+  def limit(max:Int):QueryBuilder[R,  PK, CK, IDX, Q, S] = {
     copy(limitCount = Some(max))
   }
 
   /** sets flag to indicate the query may support ALLOW FILTERING **/
-  def allowFiltering:QueryBuilder[R,  PK, CK, Q, S] =
+  def allowFiltering:QueryBuilder[R,  PK, CK, IDX, Q, S] =
     copy(allowFilteringFlag = true)
 
 
   /** allows to configure SOLR query for DSE **/
-  def solrQuery[K](name:Witness.Aux[K]):QueryBuilder[R, PK, CK, FieldType[K,String] :: Q, S] = {
+  def solrQuery[K](name:Witness.Aux[K]):QueryBuilder[R, PK, CK, IDX, FieldType[K,String] :: Q, S] = {
     val k = internal.keyOf(name)
     QueryBuilder(
       table = table
@@ -203,7 +242,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, S <: H
   /** allows to order the results baseon on given cluster column **/
   def orderBy[K, V](name:Witness.Aux[K], ascending:Boolean)(
     implicit ev0:Selector.Aux[CK, K,V]
-  ):QueryBuilder[R, PK, CK,  Q, S] =
+  ):QueryBuilder[R, PK, CK, IDX,  Q, S] =
     copy( orderColumns = orderColumns :+ (internal.keyOf(name) -> ascending))
 
 

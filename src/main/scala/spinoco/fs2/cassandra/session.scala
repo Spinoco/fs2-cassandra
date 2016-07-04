@@ -215,7 +215,7 @@ object CassandraSession {
         def _migrateDDL(ddl: SchemaDDL):F[Seq[String]] = {
           ddl match {
             case ks:KeySpace => F.delay { system.migrateKeySpace(ks, Option(cs.getCluster.getMetadata.getKeyspace(ks.name))) }
-            case t:Table[_,_,_] => F.delay {
+            case t:Table[_,_,_,_] => F.delay {
               val current = Option(cs.getCluster.getMetadata.getKeyspace(t.keySpaceName)).flatMap(km => Option(km.getTable(t.name)))
               system.migrateTable(t, current)
             }
@@ -226,7 +226,7 @@ object CassandraSession {
         def _queryOne[Q,R](query: Query[Q, R], o: QueryOptions, q: Q): F[Option[R]] = {
           F.bind(getOrRegisterStatement(query.cqlStatement)) { ps =>
             val bs = Options.applyQueryOptions(query.fill(q,ps, protocolVersion),o)
-            bs.setFetchSize(1) // only one item we are insterested in
+            bs.setFetchSize(1) // only one item we are interested in no need to fetch more
             F.bind(F.suspend(cs.executeAsync(bs))) { rs =>
               Option(rs.one()) match {
                 case None => F.pure(None)
@@ -244,8 +244,9 @@ object CassandraSession {
         }
 
 
+
         new CassandraSession[F] {
-          def create(ddl: SchemaDDL): F[Unit] = F.map(executeCql(ddl.cqlStatement))(_ => ())
+          def create(ddl: SchemaDDL): F[Unit] = F.map(F.traverse(ddl.cqlStatement)(executeCql(_)))(_ => ())
           def migrateDDL(ddl: SchemaDDL): F[Seq[String]] = _migrateDDL(ddl)
           def execute[I, R](statement: DMLStatement[I, R], o: DMLOptions = Options.defaultDML)(i: I): F[R] = executeDML(statement,o,i)
           def executeRaw(statement: Statement): F[ResultSet] = F.suspend(cs.executeAsync(statement))

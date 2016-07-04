@@ -15,7 +15,8 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
     ks.table[SimpleTableRow]
       .partition('intColumn)
       .cluster('longColumn)
-      .createTable("test_table")
+      .indexBy('asciiColumn)
+      .build("test_table")
 
   val strInsert =
     simpleTable.insert
@@ -42,7 +43,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
 
 
 
-  def createValuesAndSchema[A](cs:CassandraSession[Task])(table:Table[_,_,_], insert:Insert[A,_])(f: (Int,Long) => A):Unit = {
+  def createValuesAndSchema[A](cs:CassandraSession[Task])(table:Table[_,_,_,_], insert:Insert[A,_])(f: (Int,Long) => A):Unit = {
     val records =
       for {
         i <- 0 to 10
@@ -80,7 +81,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
     ks.table[ListTableRow]
       .partition('intColumn)
       .cluster('longColumn)
-      .createTable("list_table")
+      .build("list_table")
 
   val ltInsert =
     listTable.insert
@@ -111,7 +112,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
     ks.table[MapTableRow]
       .partition('intColumn)
       .cluster('longColumn)
-      .createTable("list_table")
+      .build("list_table")
 
   val mtInsert =
     mapTable.insert
@@ -139,7 +140,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
     ks.table[OptionalTableRow]
       .partition('intColumn)
       .cluster('longColumn)
-      .createTable("optional_table")
+      .build("optional_table")
 
   val otInsert =
     optionalTable.insert

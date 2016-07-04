@@ -13,7 +13,7 @@ trait CrudSpec extends SchemaSupport {
       val table =
         ks.table[SimpleTableRow]
           .partition('intColumn)
-          .createTable("simple_table")
+          .build("simple_table")
 
       val insert =
         table.insert.all.build.from[SimpleTableRow]

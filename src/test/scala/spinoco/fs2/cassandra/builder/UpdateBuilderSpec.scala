@@ -15,25 +15,25 @@ class UpdateBuilderSpec extends Fs2CassandraSpec {
       ks.table[SimpleTableRow]
         .partition('intColumn)
         .cluster('longColumn)
-        .createTable("test_table")
+        .build("test_table")
 
     val listTable =
       ks.table[ListTableRow]
         .partition('intColumn)
         .cluster('longColumn)
-        .createTable("list_table")
+        .build("list_table")
 
     val mapTable =
       ks.table[MapTableRow]
         .partition('intColumn)
         .cluster('longColumn)
-        .createTable("map_table")
+        .build("map_table")
 
     val counterTable =
       ks.table[CounterTableRow]
         .partition('intColumn)
         .cluster('longColumn)
-        .createTable("counter_table")
+        .build("counter_table")
 
 
     "will update all columns for PK" in {

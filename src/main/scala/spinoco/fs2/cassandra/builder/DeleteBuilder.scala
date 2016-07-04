@@ -14,7 +14,7 @@ import spinoco.fs2.cassandra.{BatchResultReader, Comparison, Delete, Table, inte
 import collection.JavaConverters._
 
 case class DeleteBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <: HList](
-  table: Table[R,PK, CK]
+  table: Table[R,PK, CK, _ <: HList]
   , ifConditions: Seq[(String,String, Comparison.Value)]
   , columns: Seq[String]
   , timestamp: Option[String]

@@ -9,7 +9,7 @@ package object system {
   /** helper allowing to construct ALTER statement, that will modify keyspaced to `desired` state **/
   def migrateKeySpace(desired:KeySpace, maybeCurrent: Option[KeyspaceMetadata]):Seq[String] = {
     maybeCurrent match {
-      case None => Seq(desired.cqlStatement)
+      case None => desired.cqlStatement
       case Some(current) =>
         if (desired.name.toLowerCase != current.getName.toLowerCase) Nil
         else {
@@ -40,11 +40,11 @@ package object system {
   }
 
   /** migrates table to desired state comparing with current metadata of the table **/
-  def migrateTable(desiredTable:Table[_,_,_], maybeCurrent:Option[TableMetadata]):Seq[String] = {
-
+  def migrateTable(desiredTable:Table[_,_,_,_], maybeCurrent:Option[TableMetadata]):Seq[String] = {
+    // todo: support for index migration
 
     maybeCurrent match {
-      case None => Seq(desiredTable.cqlStatement)
+      case None => desiredTable.cqlStatement
       case Some(current) =>
         def samePrimaryKey:Boolean = {
           val currentPk = current.getPartitionKey.asScala.map(_.getName.toLowerCase)
@@ -70,7 +70,7 @@ package object system {
 
 
         if (desiredTable.name != current.getName) Nil
-        else if (!samePrimaryKey) Seq(s"DROP TABLE $fullTableName", desiredTable.cqlStatement)
+        else if (!samePrimaryKey) s"DROP TABLE $fullTableName" +: desiredTable.cqlStatement
         else {
           val currentColumns =
             current.getColumns.asScala.map { c => c.getName.toLowerCase -> c.getType }
@@ -91,6 +91,7 @@ package object system {
         }
     }
   }
+
 
 
 

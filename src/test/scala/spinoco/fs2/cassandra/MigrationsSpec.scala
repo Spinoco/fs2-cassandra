@@ -6,9 +6,9 @@ trait MigrationsSpec  extends SchemaSupport {
   case class FooTable1(intColumn:Int, longColumn:Long, strColumn:String )
   case class FooTable2(intColumn:Int, longColumn1:Long, strColumn:Int )
 
-  val table1 = ks.table[FooTable1].partition('intColumn).createTable("foo1")
-  val table2 = ks.table[FooTable2].partition('intColumn).createTable("foo1")
-  val table3 = ks.table[FooTable1].partition('intColumn).cluster('longColumn).createTable("foo1")
+  val table1 = ks.table[FooTable1].partition('intColumn).build("foo1")
+  val table2 = ks.table[FooTable2].partition('intColumn).build("foo1")
+  val table3 = ks.table[FooTable1].partition('intColumn).cluster('longColumn).build("foo1")
 
 
   s"Migrations (${cassandra.tag})" - {

@@ -9,7 +9,7 @@ import spinoco.fs2.cassandra.builder._
 
 sealed trait SchemaDDL {
   /** CQL Command representing this SchemaDDL object **/
-  def cqlStatement:String
+  def cqlStatement:Seq[String]
 }
 
 
@@ -25,14 +25,14 @@ case class KeySpace(
       implicit
       G:LabelledGeneric.Aux[A,R]
       , ev:Selector[R,K]
-    ):TableBuilder[R, FieldType[K,ev.Out] :: HNil, HNil] = TableBuilder(self)
+    ):TableBuilder[R, FieldType[K,ev.Out] :: HNil, HNil, HNil] = TableBuilder(self, Nil)
   }
 
   /** construct definition for table specified by type `A`. At least primary key must be specified **/
   def table[A]:KsTblBuilder[A] = new KsTblBuilder[A] {}
 
   /** constructs empty table definition **/
-  def emptyTable:TableBuilder[HNil, HNil, HNil]= TableBuilder(self)
+  def emptyTable:TableBuilder[HNil, HNil, HNil, HNil]= TableBuilder(self, Nil)
 
 
   lazy val cql = {
@@ -41,7 +41,7 @@ case class KeySpace(
     s"CREATE KEYSPACE $name WITH REPLICATION = $replication AND DURABLE_WRITES = $durableWrites "
   }
 
-  def cqlStatement: String = cql
+  def cqlStatement: Seq[String] = Seq(cql)
 
   override def toString: String = s"KeySpace[$cql]"
 }
@@ -68,14 +68,14 @@ object KeySpace {
 
 
 
-trait Table[R <: HList, PK <: HList, CK <: HList] extends SchemaDDL {
+trait Table[R <: HList, PK <: HList, CK <: HList, IDX <: HList] extends SchemaDDL {
 
   type Row = R
   type PartitionKey = PK
   type ClusterKay = CK
 
   /** creates definition of the query against the table **/
-  def query:QueryBuilder[R,PK,CK, HNil, HNil]
+  def query:QueryBuilder[R,PK,CK, IDX, HNil, HNil]
 
   /** definition of delete to delete columns specified by `Q` and eventually returning `R0` as result **/
   def delete[Q,R0]:DeleteBuilder[R, PK, CK, PK, HNil]
@@ -104,6 +104,8 @@ trait Table[R <: HList, PK <: HList, CK <: HList] extends SchemaDDL {
   def partitionKey: Seq[String]
   /** cluster key(s), if any **/
   def clusterKey: Seq[String]
+  /** list of indexes on the table **/
+  def indexes:Seq[IndexEntry]
 
 }
 

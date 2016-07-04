@@ -18,7 +18,7 @@ import scala.concurrent.duration.FiniteDuration
   * Builder for Insert of the columns in table. `I` is at least sum of Partitioning and Cluster Key types
   */
 case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
-  table: Table[R,PK,CK]
+  table: Table[R,PK,CK, _ <: HList]
   , ttl:Option[String]
   , timestamp: Option[String]
   , ifNotExistsFlag: Boolean

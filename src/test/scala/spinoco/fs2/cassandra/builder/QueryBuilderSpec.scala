@@ -15,21 +15,21 @@ class QueryBuilderSpec extends Fs2CassandraSpec {
       ks.table[SimpleTableRow]
         .partition('intColumn)
         .cluster('longColumn)
-        .createTable("test_table")
+        .build("test_table")
 
     val simpleTableCompoundPk =
       ks.table[SimpleTableRow]
         .partition('intColumn)
         .partition('longColumn)
         .cluster('stringColumn)
-        .createTable("test_table")
+        .build("test_table")
 
     val simpleTableCompoundCk =
       ks.table[SimpleTableRow]
         .partition('intColumn)
         .cluster('longColumn)
         .cluster('stringColumn)
-        .createTable("test_table")
+        .build("test_table")
 
 
     "will select all columns from given row" in {

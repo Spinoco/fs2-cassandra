@@ -25,7 +25,7 @@ trait SchemaSpec extends SchemaSupport {
 
     "create SimpleTable" in withCluster { c =>
 
-      val table = ks.table[SimpleTableRow].partition('intColumn).createTable("simple_table")
+      val table = ks.table[SimpleTableRow].partition('intColumn).build("simple_table")
 
       val query =
         if (! cassandra.isV3Compatible) {
@@ -52,7 +52,7 @@ trait SchemaSpec extends SchemaSupport {
         ks.table[SimpleTableRow]
           .partition('intColumn)
           .partition('longColumn)
-          .createTable("simple_compound_pk_table")
+          .build("simple_compound_pk_table")
 
       val query =
         if (! cassandra.isV3Compatible) {
@@ -93,7 +93,7 @@ trait SchemaSpec extends SchemaSupport {
             .partition('longColumn)
             .cluster('stringColumn)
             .cluster('asciiColumn)
-            .createTable("simple_compound_ck_table")
+            .build("simple_compound_ck_table")
 
         val query =
           system.schema.queryAllColumns.map(c => (c.keyspace_name, c.table_name, c.column_name, c.kind))
@@ -134,7 +134,7 @@ trait SchemaSpec extends SchemaSupport {
             .partition('longColumn)
             .cluster('stringColumn)
             .cluster('asciiColumn)
-            .createTable("simple_compound_ck_table")
+            .build("simple_compound_ck_table")
 
         val query =
           system.schema.queryAllColumnsV2

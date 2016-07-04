@@ -15,38 +15,38 @@ object schema {
   val keySpaces =
     system_schema.table[KeySpaceSchema]
       .partition('keyspace_name)
-      .createTable("keyspaces")
+      .build("keyspaces")
 
   val keySpacesV2 =
     system.table[KeySpaceSchemaV2]
       .partition('keyspace_name)
-      .createTable("schema_keyspaces")
+      .build("schema_keyspaces")
 
   val tables =
     system_schema.table[TableSchema]
       .partition('keyspace_name)
       .cluster('table_name)
-      .createTable("tables")
+      .build("tables")
 
   val columnFamiliesV2 =
     system.table[ColumnFamilySchemaV2]
       .partition('keyspace_name)
       .cluster('columnfamily_name)
-      .createTable("schema_columnfamilies")
+      .build("schema_columnfamilies")
 
   val columns =
     system_schema.table[ColumnSchema]
       .partition('keyspace_name)
       .cluster('table_name)
       .cluster('column_name)
-      .createTable("columns")
+      .build("columns")
 
   val columnsV2 =
     system.table[ColumnSchemaV2]
       .partition('keyspace_name)
       .cluster('columnfamily_name)
       .cluster('column_name)
-      .createTable("schema_columns")
+      .build("schema_columns")
 
 
 

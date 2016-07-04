@@ -17,13 +17,13 @@ class DeleteBuilderSpec extends Fs2CassandraSpec {
       ks.table[SimpleTableRow]
         .partition('intColumn)
         .cluster('longColumn)
-        .createTable("test_table")
+        .build("test_table")
 
     val optionalTable =
       ks.table[OptionalTableRow]
         .partition('intColumn)
         .cluster('longColumn)
-        .createTable("optional_table")
+        .build("optional_table")
 
     "will delete whole row" in {
       simpleTable.delete

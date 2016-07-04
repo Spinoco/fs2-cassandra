@@ -5,21 +5,21 @@ import shapeless.ops.hlist.{Prepend, ToTraversable}
 import shapeless.ops.record.Keys
 import shapeless.{HList, HNil}
 import spinoco.fs2.cassandra._
-import spinoco.fs2.cassandra.builder.{DeleteBuilder, InsertBuilder, QueryBuilder, UpdateBuilder}
+import spinoco.fs2.cassandra.builder._
 
 /**
   * Created by pach on 03/06/16.
   */
-trait TableInstance[R <: HList, PK <: HList, CK <: HList] {
+trait TableInstance[R <: HList, PK <: HList, CK <: HList, IDX <: HList] {
 
-  def table(ks:KeySpace,name:String, options:Map[String, String]):Table[R,PK, CK]
+  def table(ks:KeySpace,name:String, options:Map[String, String], indexes:Seq[IndexEntry]):Table[R,PK, CK, IDX]
 }
 
 
 object TableInstance {
 
 
-  implicit def forProduct[R <: HList, PK <: HList, PKK <: HList, CK <: HList, CKK <: HList](
+  implicit def forProduct[R <: HList, PK <: HList, PKK <: HList, CK <: HList, CKK <: HList, IDX <: HList](
     implicit
      RKS: Keys[R]
     , PKS: Keys.Aux[PK, PKK]
@@ -27,15 +27,15 @@ object TableInstance {
     , CTR: CTypeNonEmptyRecordInstance[R]
     , ev0: ToTraversable.Aux[PKK,List,AnyRef]
     , ev1: ToTraversable.Aux[CKK,List,AnyRef]
-  ):TableInstance[R, PK, CK] = {
-    new TableInstance[R,PK,CK] {
+  ):TableInstance[R, PK, CK, IDX] = {
+    new TableInstance[R,PK,CK, IDX] {
 
       val pks:Seq[String] = PKS().toList.map(asKeyName)
       val cks:Seq[String] = CKS().toList.map(asKeyName)
 
 
-      def table(ks:KeySpace, tn:String, opt:Map[String, String] = Map.empty):Table[R,PK, CK] =
-        new Table[R, PK, CK] { self =>
+      def table(ks:KeySpace, tn:String, opt:Map[String, String], idxs:Seq[IndexEntry]):Table[R,PK, CK, IDX] =
+        new Table[R, PK, CK, IDX] { self =>
           val fields = CTR.types.map { case (k,tpe) =>
             s"$k ${tpe.toString()}"
           }.mkString(",")
@@ -47,7 +47,10 @@ object TableInstance {
           val cql:String =
             s"""CREATE TABLE ${ks.name}.$tn ($fields, PRIMARY KEY ($pkDef))"""
 
-          def cqlStatement:String = cql
+          val indexCql =
+            idxs.map(_.cqlStatement(ks.name,tn))
+
+          def cqlStatement:Seq[String] = cql +: indexCql
           def keySpace:KeySpace = ks
           def name:String = tn
           def options:Map[String,String] = opt
@@ -55,7 +58,7 @@ object TableInstance {
           def partitionKey: Seq[String] = pks
           def clusterKey: Seq[String] = cks
 
-          def query: QueryBuilder[R, PK, CK, HNil, HNil] =
+          def query: QueryBuilder[R, PK, CK, IDX, HNil, HNil] =
             QueryBuilder(self, Nil, Nil, Nil, Map.empty, None,None, allowFilteringFlag = false)
 
           def insert(implicit p:Prepend[PK,CK]):InsertBuilder[R,PK,CK,p.Out] =
@@ -67,6 +70,7 @@ object TableInstance {
           def update(implicit p:Prepend[PK,CK]):UpdateBuilder[R, PK, CK, p.Out,HNil] =
             UpdateBuilder(self,Nil,Set.empty,Nil, None, None, Nil, ifExistsCondition = false)
 
+          def indexes:Seq[IndexEntry] = idxs
 
           override def toString: String = s"Table[$cql]"
         }

@@ -427,7 +427,7 @@ trait UpdateSpec extends SchemaSupport {
         ks.table[CounterTableRow]
           .partition('intColumn)
           .cluster('longColumn)
-          .createTable("counter_table")
+          .build("counter_table")
 
       val increment =
         counterTable.update

@@ -30,8 +30,8 @@ lazy val commonSettings = Seq(
     , "org.scalacheck" %% "scalacheck" % "1.13.1" % "test"
     //, "org.slf4j" % "slf4j-simple" % "1.6.1" % "test" // uncomment this for logs when testing
 
-    , "co.fs2" %% "fs2-core" % "0.9.0-M4"
-    , "co.fs2" %% "fs2-io" % "0.9.0-M4"
+    , "co.fs2" %% "fs2-core" % "0.9.0-M5"
+    , "co.fs2" %% "fs2-io" % "0.9.0-M5"
     , "com.datastax.cassandra" % "cassandra-driver-core" % "3.0.1"
     , "com.chuusai" %% "shapeless" % "2.3.1"
 

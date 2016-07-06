@@ -120,8 +120,8 @@ object CassandraSession {
       F.map(F.refOf[SessionState](SessionState(Map.empty))) { state =>
 
         def executeDML[I, R](statement: DMLStatement[I, R],o: DMLOptions,i: I): F[R] = {
-          F.bind(mkStatement(statement,i)) { bs =>
-          F.bind(F.suspend(cs.executeAsync(Options.applyDMLOptions(bs,o)))) { rs =>
+         F.flatMap(mkStatement(statement,i)) { bs =>
+         F.flatMap(F.suspend(cs.executeAsync(Options.applyDMLOptions(bs,o)))) { rs =>
             statement.read(rs,protocolVersion).fold(F.fail, F.pure)
           }}
         }
@@ -147,12 +147,12 @@ object CassandraSession {
         }
 
         def getOrRegisterStatement(cql:String):F[PreparedStatement] = {
-          F.bind(F.get(state)) { s =>
+         F.flatMap(state.get) { s =>
             s.cache.get(cql) match {
               case Some(ps) => F.pure(ps)
               case None =>
-                F.bind(F.suspend(cs.prepareAsync(cql))) { ps =>
-                  F.map(F.modify(state)(s => s.copy(cache = s.cache + (cql -> ps)))) { _ => ps }
+               F.flatMap(F.suspend(cs.prepareAsync(cql))) { ps =>
+                  F.map(state.modify(s => s.copy(cache = s.cache + (cql -> ps)))) { _ => ps }
                 }
             }
           }
@@ -189,18 +189,18 @@ object CassandraSession {
 
 
         def _executeBatch[I,R](batch:BatchStatement[I,R], o:DMLOptions, i:I):F[Option[R]] = {
-          F.bind(F.get(state)) { s =>
+         F.flatMap(state.get) { s =>
             val statements = batch.statements
-            F.bind(
+           F.flatMap(
               F.traverse(statements.filterNot(s.cache.isDefinedAt)) { notPrepared =>
                 F.map(F.suspend(cs.prepareAsync(notPrepared))) { notPrepared -> _ }
               }
             ) { stmts =>
-              F.bind(F.modify(state){ s0 => s0.copy(cache = s0.cache ++ stmts.toMap) }) { c =>
+             F.flatMap(state.modify{ s0 => s0.copy(cache = s0.cache ++ stmts.toMap) }) { c =>
                 // here we have guaranteed that `now` contains all statements, so we can just apply for them
                 val allStatements = statements.map(c.now.cache.apply)
-                F.bind(batch.createStatement(allStatements,i,protocolVersion).fold(F.fail,F.pure)) { bs =>
-                  F.bind(F.suspend(cs.executeAsync(Options.applyDMLOptions(bs,o)))) { rs =>
+               F.flatMap(batch.createStatement(allStatements,i,protocolVersion).fold(F.fail,F.pure)) { bs =>
+                 F.flatMap(F.suspend(cs.executeAsync(Options.applyDMLOptions(bs,o)))) { rs =>
                     batch.read(i)(rs,protocolVersion).fold(F.fail,F.pure)
                   }
                 }
@@ -224,10 +224,10 @@ object CassandraSession {
 
 
         def _queryOne[Q,R](query: Query[Q, R], o: QueryOptions, q: Q): F[Option[R]] = {
-          F.bind(getOrRegisterStatement(query.cqlStatement)) { ps =>
+         F.flatMap(getOrRegisterStatement(query.cqlStatement)) { ps =>
             val bs = Options.applyQueryOptions(query.fill(q,ps, protocolVersion),o)
             bs.setFetchSize(1) // only one item we are interested in no need to fetch more
-            F.bind(F.suspend(cs.executeAsync(bs))) { rs =>
+           F.flatMap(F.suspend(cs.executeAsync(bs))) { rs =>
               Option(rs.one()) match {
                 case None => F.pure(None)
                 case Some(row) => query.read(row,protocolVersion).fold(F.fail,r => F.pure(Some(r)))

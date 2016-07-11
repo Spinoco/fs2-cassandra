@@ -1,6 +1,6 @@
 package spinoco.fs2.cassandra
 
-import java.net.InetAddress
+import java.net.{InetAddress, URI}
 import java.nio.ByteBuffer
 import java.time.{LocalDateTime, ZoneId}
 import java.util.{Date, UUID}
@@ -177,6 +177,12 @@ object CType {
 
   implicit val inetAddressInstance:CType[InetAddress] =
     CType.fromCodec(TypeCodec.inet())
+
+  implicit val uriInstance:CType[URI] =
+    stringInstance.map2 (
+      s => util.Try(URI.create(s))
+      , _.toString
+    )
 
 
   implicit def enumInstance[E <: Enumeration : ClassTag]:CType[E#Value] = {

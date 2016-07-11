@@ -58,18 +58,34 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   def append[C <: Seq[_],K](wt:Witness.Aux[K])(
     implicit
     ev0:Selector.Aux[R,K,C]
-  ):UpdateBuilder[R,PK,CK,FieldType[K,C] :: Q, RIF] = {
+  ):UpdateBuilder[R,PK,CK,FieldType[K,C] :: Q, RIF] =
+    append(wt,wt)
+
+  /** appends element to column of list type (i.e. List, Seq, Vector), allowing input by tagged as `as` **/
+  def append[C <: Seq[_],K, KK](wt:Witness.Aux[K], as:Witness.Aux[KK])(
+    implicit
+    ev0:Selector.Aux[R,K,C]
+  ):UpdateBuilder[R,PK,CK,FieldType[KK,C] :: Q, RIF] = {
     val k = internal.keyOf(wt)
-    collectionOp(k,s"$k = $k + :$k")
+    val kk = internal.keyOf(as)
+    collectionOp(k,s"$k = $k + :$kk")
   }
 
   /** prepends element to column of list type (i.e. List, Seq, Vector) **/
   def prepend[C <: Seq[_],K](wt:Witness.Aux[K])(
     implicit
     ev0:Selector.Aux[R,K,C]
+  ):UpdateBuilder[R,PK,CK,FieldType[K,C] :: Q, RIF] =
+    prepend(wt,wt)
+
+  /** prepends element to column of list type (i.e. List, Seq, Vector), allowing input by tagged as `as` **/
+  def prepend[C <: Seq[_],K, KK](wt:Witness.Aux[K], as:Witness.Aux[KK])(
+    implicit
+    ev0:Selector.Aux[R,K,C]
   ):UpdateBuilder[R,PK,CK,FieldType[K,C] :: Q, RIF] = {
     val k = internal.keyOf(wt)
-    collectionOp(k,s"$k = :$k + $k")
+    val kk = internal.keyOf(as)
+    collectionOp(k,s"$k = :$kk + $k")
   }
 
   /** sets value at given index in list **/
@@ -114,18 +130,34 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   def add[C <: Set[_],K,V](wt:Witness.Aux[K])(
     implicit
     ev0:Selector.Aux[R,K,C]
-  ):UpdateBuilder[R,PK,CK,FieldType[K,C] :: Q, RIF] = {
+  ):UpdateBuilder[R,PK,CK,FieldType[K,C] :: Q, RIF] =
+    add(wt,wt)
+
+  /** adds given value to column of set type, allowing input by tagged as `as` **/
+  def add[C <: Set[_],K,KK,V](wt:Witness.Aux[K],as:Witness.Aux[KK])(
+    implicit
+    ev0:Selector.Aux[R,K,C]
+  ):UpdateBuilder[R,PK,CK,FieldType[KK,C] :: Q, RIF] = {
     val k = internal.keyOf(wt)
-    collectionOp(k,s"$k = $k + :$k")
+    val kk = internal.keyOf(as)
+    collectionOp(k,s"$k = $k + :$kk")
   }
 
   /** removes given value from the set of list collection column **/
   def remove[C <: Iterable[_],K](wt:Witness.Aux[K])(
     implicit
     ev1:Selector.Aux[R,K,C]
-  ):UpdateBuilder[R,PK,CK,FieldType[K,C] :: Q, RIF] = {
+  ):UpdateBuilder[R,PK,CK,FieldType[K,C] :: Q, RIF] =
+    remove(wt,wt)
+
+  /** removes given value from the set of list collection column, allowing input by tagged as `as` **/
+  def remove[C <: Iterable[_],K, KK](wt:Witness.Aux[K], as:Witness.Aux[KK])(
+    implicit
+    ev1:Selector.Aux[R,K,C]
+  ):UpdateBuilder[R,PK,CK,FieldType[KK,C] :: Q, RIF] = {
     val k = internal.keyOf(wt)
-    collectionOp(k,s"$k = $k - :$k")
+    val kk = internal.keyOf(as)
+    collectionOp(k,s"$k = $k - :$kk")
   }
 
   /** removes given keys from the map column. multiple (possibly zero) keys may be specified **/

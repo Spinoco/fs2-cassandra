@@ -69,8 +69,8 @@ class TableBuilderSpec extends Fs2CassandraSpec{
 
       table.cqlStatement.toSet shouldBe Set(
         s"$simpleTableDef PRIMARY KEY ((intColumn)))"
-        , "CREATE CUSTOM INDEX enumColumn_idx ON test_ks.test_table (enumColumn) "
-        , "CREATE CUSTOM INDEX asciiColumn_idx ON test_ks.test_table (asciiColumn) "
+        , "CREATE INDEX enumColumn_idx ON test_ks.test_table (enumColumn)"
+        , "CREATE INDEX asciiColumn_idx ON test_ks.test_table (asciiColumn)"
       )
     }
 

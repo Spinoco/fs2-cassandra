@@ -8,14 +8,13 @@ import java.util.{Date, UUID}
 import com.datastax.driver.core._
 import fs2.Chunk
 import shapeless.{::, HList, HNil, tag}
-import shapeless.syntax.std.tuple._
 import shapeless.tag.@@
 import spinoco.fs2.cassandra.CType.Ascii
 import spinoco.fs2.cassandra.internal.CTypeNonEmptyHListInstance
 
+import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
-import scala.collection.JavaConverters._
 
 /**
   * Used to serialize/deserialize values to c*
@@ -89,24 +88,6 @@ object CType {
       def deserialize(from: ByteBuffer, protocolVersion: ProtocolVersion): Either[Throwable, A] = util.Try(tc.deserialize(from,protocolVersion))
     }
   }
-
-  def toTypeCodec[A](ct:CType[A])(implicit C:ClassTag[A]):TypeCodec[A] = {
-    if (ct.cqlType == DataType.cboolean()) TypeCodec.cboolean().asInstanceOf[TypeCodec[A]]
-    else if (ct.cqlType == DataType.cint()) TypeCodec.cint().asInstanceOf[TypeCodec[A]]
-    else if (ct.cqlType == DataType.bigint()) TypeCodec.bigint().asInstanceOf[TypeCodec[A]]
-    else if (ct.cqlType == DataType.cfloat()) TypeCodec.cfloat().asInstanceOf[TypeCodec[A]]
-    else if (ct.cqlType == DataType.cdouble()) TypeCodec.cfloat().asInstanceOf[TypeCodec[A]]
-    else {
-
-      new TypeCodec[A](ct.cqlType, C.runtimeClass.asInstanceOf[Class[A]]) {
-        def serialize(value: A, protocolVersion: ProtocolVersion): ByteBuffer = ct.serialize(value, protocolVersion)
-        def parse(value: String): A = ct.parse(value).fold(throw _, identity)
-        def format(value: A): String = ct.format(value)
-        def deserialize(bytes: ByteBuffer, protocolVersion: ProtocolVersion): A = ct.deserialize(bytes, protocolVersion).fold(throw _, identity)
-      }
-    }
-  }
-
 
 
 
@@ -217,19 +198,177 @@ object CType {
      }
   }
 
-  implicit def listInstance[A:ClassTag](implicit CT:CType[A]):CType[List[A]] =
-    fromCodec(TypeCodec.list(toTypeCodec(CT))).map(_.asScala.toList,_.asJava)
-
-  implicit def vectorInstance[A](implicit CT:CType[A], C:ClassTag[A]):CType[Vector[A]] =
-    fromCodec(TypeCodec.list(toTypeCodec(CT))).map(_.asScala.toVector,_.asJava)
-
-  implicit def seqInstance[A](implicit CT:CType[A], C:ClassTag[A]):CType[Seq[A]] =
-    fromCodec(TypeCodec.list(toTypeCodec(CT))).map(_.asScala.toSeq,_.asJava)
-
-  implicit def setInstance[A:ClassTag](implicit CT:CType[A]):CType[Set[A]] =
-    fromCodec(TypeCodec.set(toTypeCodec(CT))).map(_.asScala.toSet,_.asJava)
 
 
+  implicit def collectionInstance[C[_],A:ClassTag](implicit CT:CType[A], C:CollectionType[C]):CType[C[A]] = {
+    new CType[C[A]] {
+      def cqlType: DataType = C.cqlType(CT.cqlType)
+      def serialize(a: C[A], protocolVersion: ProtocolVersion): ByteBuffer = {
+        val serialized = C.toArray(C.map[A,ByteBuffer](a,el => CT.serialize(el, protocolVersion)))
+        CodecUtils.pack(serialized, serialized.length, protocolVersion)
+      }
+      def deserialize(from: ByteBuffer, protocolVersion: ProtocolVersion): Either[Throwable, C[A]] = {
+        if (from == null || from.remaining() == 0) Right(C.zero)
+        else {
+          @tailrec
+          def go(acc: C[A], rem: Int, buff: ByteBuffer): Either[Throwable, C[A]] = { // note buff is mutable
+            if (rem == 0) Right(acc)
+            else {
+              val decoded =
+                util.Try(CodecUtils.readValue(buff, protocolVersion)).right.flatMap { bs =>
+                  CT.deserialize(bs, protocolVersion)
+                }
+
+              decoded match {
+                case Left(err) => Left(err)
+                case Right(a) => go(C.append(acc,a), rem = rem - 1, buff)
+              }
+            }
+          }
+
+          val input: ByteBuffer = from.duplicate // this is what java driver does, not sure if this is really necessary
+          util.Try(CodecUtils.readSize(input, protocolVersion)).right.flatMap { sz =>
+            go(C.zero, sz, input)
+          }
+        }
+      }
+
+      def format(a: C[A]): String = C.mkCqlString(C.map(a,CT.format))
+
+      def parse(from: String): Either[Throwable, C[A]] = {
+        if (from == null || from.isEmpty || from == "NULL") Right(C.zero)
+        else {
+          val start = ParseUtils.skipSpaces(from, 0)
+          if (from.charAt(start) != C.cqlOpeningChar) {
+            Left(new Throwable(s"Invalid char at $start expected ${C.cqlOpeningChar}, got ${from.charAt(start)}"))
+          } else {
+            @tailrec
+            def go(acc:C[A], idx:Int):Either[Throwable, C[A]] = {
+              if (idx >= from.length ) Left(new Throwable(s"Missing closing character in CQL : $from"))
+              else {
+                val start2 = ParseUtils.skipSpaces(from, idx)
+                if (from.charAt(start2) == C.cqlClosingChar) Right(acc)
+                else {
+                  val parseValueResult =
+                    for {
+                      endOfCql <- util.Try(ParseUtils.skipCQLValue(from, start2)).right
+                      parsed <- CT.parse(from.substring(start2,endOfCql)).right
+                    } yield (parsed, endOfCql)
+
+                  parseValueResult match {
+                    case Left(err) => Left(err)
+                    case Right((a,next)) => go(C.append(acc,a), next)
+
+                  }
+                }
+              }
+            }
+
+            go(C.zero,start+1)
+          }
+
+        }
+      }
+    }
+  }
+
+
+  implicit def mapInstance[K,V](implicit KT: MapKeyCType[K], VT:CType[V]):CType[Map[K,V]] = {
+    new CType[Map[K, V]] {
+      def cqlType: DataType = DataType.map(KT.cqlType,VT.cqlType)
+      def serialize(a: Map[K, V], protocolVersion: ProtocolVersion): ByteBuffer = {
+        val buff = Array.ofDim[ByteBuffer](a.size * 2)
+        a.foldLeft(0){
+          case (idx,(k,v)) =>
+            buff.update(idx*2, KT.serialize(k,protocolVersion))
+            buff.update(idx*2+1, VT.serialize(v, protocolVersion))
+            idx + 1
+        }
+        CodecUtils.pack(buff,a.size,protocolVersion)
+      }
+      def deserialize(from: ByteBuffer, protocolVersion: ProtocolVersion): Either[Throwable, Map[K, V]] = {
+        if (from == null || from.remaining() == 0) Right(Map.empty)
+        else {
+          @tailrec
+          def go(acc: Map[K,V], rem: Int, buff: ByteBuffer): Either[Throwable, Map[K,V]] = { // note buff is mutable
+            if (rem == 0) Right(acc)
+            else {
+              val decoded =
+                for {
+                  bsK <- util.Try(CodecUtils.readValue(buff, protocolVersion)).right
+                  k <- KT.deserialize(bsK, protocolVersion).right
+                  bsV <- util.Try(CodecUtils.readValue(buff, protocolVersion)).right
+                  v <- VT.deserialize(bsV, protocolVersion).right
+                } yield k -> v
+
+              decoded match {
+                case Left(err) => Left(err)
+                case Right(kv) => go(acc + kv, rem = rem - 1, buff)
+              }
+            }
+          }
+
+          val input: ByteBuffer = from.duplicate // this is what java driver does, not sure if this is really necessary
+          util.Try(CodecUtils.readSize(input, protocolVersion)).right.flatMap { sz =>
+            go(Map.empty, sz, input)
+          }
+
+        }
+
+      }
+
+      def format(a: Map[K, V]): String = {
+        a.toSeq
+          .map { case (k, v) => s"${KT.format(k)} : ${VT.format(v)}"}
+          .mkString("{",",","}")
+      }
+
+      def parse(from: String): Either[Throwable, Map[K, V]] = {
+        if (from == null || from.isEmpty || from == "NULL") Right(Map.empty)
+        else {
+          val start = ParseUtils.skipSpaces(from, 0)
+          if (from.charAt(start) != '{') {
+            Left(new Throwable(s"Invalid char at $start expected {, got ${from.charAt(start)}"))
+          } else {
+            @tailrec
+            def go(acc:Map[K,V], idx:Int):Either[Throwable, Map[K,V]] = {
+              if (idx >= from.length ) Left(new Throwable(s"Missing closing character in CQL (}) : $from"))
+              else {
+                val startOfKey = ParseUtils.skipSpaces(from, idx)
+                if (from.charAt(startOfKey) == '}') Right(acc)
+                else {
+                  val parseValueResult =
+                    for {
+                      endOfKey <- util.Try(ParseUtils.skipCQLValue(from, startOfKey)).right
+                      k <- KT.parse(from.substring(startOfKey,endOfKey)).right
+                      startSplit <- Right(ParseUtils.skipSpaces(from, endOfKey)).right
+                      _ <-  if (from.charAt(startSplit) != ':') Left(new Throwable(s"Expected : at $startSplit but got ${from.charAt(startSplit)}")).right
+                            else Right(()).right
+                      startOfValue <- Right(ParseUtils.skipSpaces(from, startSplit + 1)).right
+                      endOfValue <- util.Try(ParseUtils.skipCQLValue(from, startOfValue)).right
+                      v <- VT.parse(from.substring(startOfValue,endOfValue)).right
+                    } yield (k -> v, endOfValue)
+
+                  parseValueResult match {
+                    case Left(err) => Left(err)
+                    case Right((kv,next)) =>  go(acc + kv, next)
+                  }
+                }
+              }
+            }
+
+            go(Map.empty,start+1)
+          }
+
+        }
+      }
+
+    }
+  }
+
+
+
+  import shapeless.syntax.std.tuple._
 
   implicit def tuple2Instance[A,B](implicit hinstance: CType[A :: B :: HNil]):CType[(A,B)] =
     hinstance.map(_.tupled,_.productElements)
@@ -267,23 +406,67 @@ object CType {
   }
 
 
-  implicit def stringMapInstance[V:ClassTag]( implicit VT: CType[V] ):CType[Map[String,V]] =
-    fromCodec(TypeCodec.map(TypeCodec.varchar(),toTypeCodec(VT)))
-    .map( _.asScala.toMap , _.asJava )
 
-  implicit def intMapInstance[V:ClassTag]( implicit VT: CType[V] ):CType[Map[Int,V]] =
-    fromCodec(TypeCodec.map(TypeCodec.cint(),toTypeCodec(VT)))
-      .map(
-        _.asScala.toMap.map{ case(i,v) => i.toInt -> v }
-        ,_.map{ case(i,v) => Integer.valueOf(i) -> v }.asJava
-      )
 
-  implicit def longMapInstance[V:ClassTag]( implicit VT: CType[V] ):CType[Map[Long,V]] =
-    fromCodec(TypeCodec.map(TypeCodec.bigint(),toTypeCodec(VT)))
-      .map(
-        _.asScala.toMap.map{ case(l,v) => l.toLong -> v }
-        ,_.map{ case(l,v) => java.lang.Long.valueOf(l) -> v }.asJava
-      )
+}
+
+/** helper to deserialize collections **/
+trait CollectionType[F[_]] {
+  def zero[A] : F[A]
+  def append[A](f:F[A],a:A):F[A]
+  def map[A,B](f:F[A], fm: A => B):F[B]
+  def cqlType(el:DataType):DataType
+  def toArray[A:ClassTag](f:F[A]):Array[A]
+  def mkCqlString(f:F[String]):String
+  def cqlOpeningChar:Char
+  def cqlClosingChar:Char
+}
+
+object CollectionType {
+
+  implicit val listInstance:CollectionType[List] = new CollectionType[List] {
+    def zero[A]: List[A] = List.empty
+    def append[A](f: List[A], a: A): List[A] = f :+ a
+    def map[A,B](f: List[A], fm: A => B):List[B] = f map fm
+    def cqlType(el: DataType): DataType = DataType.list(el)
+    def toArray[A :ClassTag](f:List[A]):Array[A] = f.toArray
+    def mkCqlString(f: List[String]): String = f.mkString("[",",","]")
+    val cqlOpeningChar:Char = '['
+    val cqlClosingChar:Char = ']'
+  }
+
+  implicit val vectorInstance:CollectionType[Vector] = new CollectionType[Vector] {
+    def zero[A]: Vector[A] = Vector.empty
+    def append[A](f: Vector[A], a: A): Vector[A] = f :+ a
+    def map[A,B](f: Vector[A], fm: A => B):Vector[B] = f map fm
+    def cqlType(el: DataType): DataType = DataType.list(el)
+    def toArray[A:ClassTag](f:Vector[A]):Array[A] = f.toArray
+    def mkCqlString(f: Vector[String]): String = f.mkString("[",",","]")
+    val cqlOpeningChar:Char = '['
+    val cqlClosingChar:Char = ']'
+  }
+
+  implicit val setInstance:CollectionType[Set] = new CollectionType[Set] {
+    def zero[A]: Set[A] = Set.empty
+    def append[A](f: Set[A], a: A): Set[A] = f + a
+    def map[A,B](f: Set[A], fm: A => B):Set[B] = f map fm
+    def cqlType(el: DataType): DataType = DataType.set(el)
+    def toArray[A:ClassTag](f:Set[A]):Array[A] = f.toArray
+    def mkCqlString(f: Set[String]): String = f.mkString("[",",","]")
+    val cqlOpeningChar:Char = '['
+    val cqlClosingChar:Char = ']'
+  }
+
+  implicit val seqInstance:CollectionType[Seq] = new CollectionType[Seq] {
+    def zero[A]: Seq[A] = Seq.empty
+    def append[A](f: Seq[A], a: A): Seq[A] = f :+ a
+    def map[A,B](f: Seq[A], fm: A => B):Seq[B] = f map fm
+    def cqlType(el: DataType): DataType = DataType.list(el)
+    def toArray[A:ClassTag](f:Seq[A]):Array[A] = f.toArray
+    def mkCqlString(f: Seq[String]): String = f.mkString("[",",","]")
+    val cqlOpeningChar:Char = '['
+    val cqlClosingChar:Char = ']'
+  }
 
 
 
@@ -310,10 +493,10 @@ object MapKeyCType {
   implicit lazy val booleanInstance: MapKeyCType[Boolean] = MapKeyCType(CType.booleanInstance)
   implicit lazy val intInstance : MapKeyCType[Int] = MapKeyCType(CType.intInstance)
   implicit lazy val longInstance: CType[Long] =  MapKeyCType(CType.longInstance)
-  implicit lazy val floatInstance:CType[Float] = MapKeyCType(CType.floatInstance)
-  implicit lazy val doubleInstance:CType[Double] = MapKeyCType(CType.doubleInstance)
-  implicit lazy val bigDecimalInstance:CType[BigDecimal] =  MapKeyCType(CType.bigDecimalInstance)
-  implicit lazy val bigIntInstance:CType[BigInt] = MapKeyCType(CType.bigIntInstance)
+  implicit lazy val floatInstance: CType[Float] = MapKeyCType(CType.floatInstance)
+  implicit lazy val doubleInstance: CType[Double] = MapKeyCType(CType.doubleInstance)
+  implicit lazy val bigDecimalInstance: CType[BigDecimal] =  MapKeyCType(CType.bigDecimalInstance)
+  implicit lazy val bigIntInstance: CType[BigInt] = MapKeyCType(CType.bigIntInstance)
 
 
 }

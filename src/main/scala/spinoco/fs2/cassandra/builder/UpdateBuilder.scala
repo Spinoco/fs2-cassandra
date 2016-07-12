@@ -68,7 +68,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   ):UpdateBuilder[R,PK,CK,FieldType[KK,C] :: Q, RIF] = {
     val k = internal.keyOf(wt)
     val kk = internal.keyOf(as)
-    collectionOp(k,s"$k = $k + :$kk")
+    collectionOp(kk,s"$k = $k + :$kk")
   }
 
   /** prepends element to column of list type (i.e. List, Seq, Vector) **/
@@ -85,7 +85,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   ):UpdateBuilder[R,PK,CK,FieldType[K,C] :: Q, RIF] = {
     val k = internal.keyOf(wt)
     val kk = internal.keyOf(as)
-    collectionOp(k,s"$k = :$kk + $k")
+    collectionOp(kk,s"$k = :$kk + $k")
   }
 
   /** sets value at given index in list **/
@@ -157,7 +157,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   ):UpdateBuilder[R,PK,CK,FieldType[KK,C] :: Q, RIF] = {
     val k = internal.keyOf(wt)
     val kk = internal.keyOf(as)
-    collectionOp(k,s"$k = $k - :$kk")
+    collectionOp(kk,s"$k = $k - :$kk")
   }
 
   /** removes given keys from the map column. multiple (possibly zero) keys may be specified **/

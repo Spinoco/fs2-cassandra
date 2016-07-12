@@ -85,24 +85,25 @@ lazy val scaladocSettings = Seq(
 )
 
 lazy val publishingSettings = Seq(
-  publishTo := {
+  publishArtifact in Test := true
+  , publishTo := {
     val nexus = "https://oss.sonatype.org/"
     if (version.value.trim.endsWith("SNAPSHOT"))
       Some("snapshots" at nexus + "content/repositories/snapshots")
     else
       Some("releases" at nexus + "service/local/staging/deploy/maven2")
   },
-  credentials ++= (for {
+  credentials ++= Seq(Credentials(Path.userHome / ".ivy2" / ".credentials.sonatype")) ++ (for {
     username <- Option(System.getenv().get("SONATYPE_USERNAME"))
     password <- Option(System.getenv().get("SONATYPE_PASSWORD"))
   } yield Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", username, password)).toSeq,
   publishMavenStyle := true,
   pomIncludeRepository := { _ => false },
   pomExtra := {
-    <url>https://github.com/Spinoco/fs2-zk</url>
+    <url>https://github.com/Spinoco/fs2-cassandra.git</url>
     <scm>
-      <url>git@github.com:functional-streams-for-scala/fs2.git</url>
-      <connection>scm:git:git@github.com:Spinoco/fs2-zk.git</connection>
+      <url>git@github.com:Spinoco/fs2-cassandra.git</url>
+      <connection>scm:git:git@github.com:Spinoco/fs2-cassandra.git</connection>
     </scm>
     <developers>
       {for ((username, name) <- contributors) yield
@@ -113,16 +114,6 @@ lazy val publishingSettings = Seq(
       </developer>
       }
     </developers>
-  },
-  pomPostProcess := { node =>
-    import scala.xml._
-    import scala.xml.transform._
-    def stripIf(f: Node => Boolean) = new RewriteRule {
-      override def transform(n: Node) =
-        if (f(n)) NodeSeq.Empty else n
-    }
-    val stripTestScope = stripIf { n => n.label == "dependency" && (n \ "scope").text == "test" }
-    new RuleTransformer(stripTestScope).transform(node)(0)
   }
 )
 

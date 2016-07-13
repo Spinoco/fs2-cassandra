@@ -25,20 +25,6 @@ lazy val commonSettings = Seq(
   ),
   scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
   scalacOptions in (Test, console) <<= (scalacOptions in (Compile, console)),
-  libraryDependencies ++= Seq(
-    "org.scalatest" %% "scalatest" % "3.0.0-M16-SNAP4" % "test"
-    , "org.scalacheck" %% "scalacheck" % "1.13.1" % "test"
-    //, "org.slf4j" % "slf4j-simple" % "1.6.1" % "test" // uncomment this for logs when testing
-
-    , "co.fs2" %% "fs2-core" % "0.9.0-M5"
-    , "co.fs2" %% "fs2-io" % "0.9.0-M5"
-    , "com.datastax.cassandra" % "cassandra-driver-core" % "3.0.1"
-    , "com.chuusai" %% "shapeless" % "2.3.1"
-
-    // as per https://github.com/google/guava/issues/1095
-    , "com.google.code.findbugs" % "jsr305" % "1.3.+" % "compile"
-
-  ),
   scmInfo := Some(ScmInfo(url("https://github.com/Spinoco/fs2-cassandra"), "git@github.com:Spinoco/fs2-cassandra.git")),
   homepage := None,
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
@@ -53,9 +39,8 @@ lazy val testSettings = Seq(
   parallelExecution in Test := false,
   fork in Test := true,
   testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDF"),
-  publishArtifact in Test := true,
   testGrouping in Test <<= definedTests in Test map { tests =>
-    // group tests indivduially to fork them in JVM.
+    // group tests individually to fork them in JVM.
     // essentially any CassandraIntegration_* id having its own group, all others share a group
     // this is necessary hence JavaDriver seems to share some sort of global state preventing to switch
     // different cluster versions correctly in single JVM
@@ -85,7 +70,7 @@ lazy val scaladocSettings = Seq(
 )
 
 lazy val publishingSettings = Seq(
-  publishArtifact in Test := true
+  publishArtifact in Test := false
   , publishTo := {
     val nexus = "https://oss.sonatype.org/"
     if (version.value.trim.endsWith("SNAPSHOT"))
@@ -122,12 +107,52 @@ lazy val releaseSettings = Seq(
   releasePublishArtifactsAction := PgpKeys.publishSigned.value
 )
 
-lazy val root = 
-  project.in(file("."))
+lazy val core =
+  project.in(file("core"))
   .settings(commonSettings)
   .settings(
    name := "fs2.cassandra"
-  ) 
+    , libraryDependencies ++= Seq(
+      "co.fs2" %% "fs2-core" % "0.9.0-M5"
+      , "co.fs2" %% "fs2-io" % "0.9.0-M5"
+      , "com.datastax.cassandra" % "cassandra-driver-core" % "3.0.1"
+      , "com.chuusai" %% "shapeless" % "2.3.1"
+
+      // as per https://github.com/google/guava/issues/1095
+      , "com.google.code.findbugs" % "jsr305" % "1.3.+" % "compile"
+
+    )
+  )
+
+lazy val testSupport =
+  project.in(file("test-support"))
+  .settings(commonSettings)
+  .settings(
+    name := "fs2.cassandra-test-support"
+    , libraryDependencies ++= Seq(
+      "co.fs2" %% "fs2-core" % "0.9.0-M5"
+      , "co.fs2" %% "fs2-io" % "0.9.0-M5"
+      , "com.datastax.cassandra" % "cassandra-driver-core" % "3.0.1"
+      , "com.chuusai" %% "shapeless" % "2.3.1"
+
+      , "org.scalatest" %% "scalatest" % "3.0.0-M16-SNAP4"
+      , "org.scalacheck" %% "scalacheck" % "1.13.1"
+      //, "org.slf4j" % "slf4j-simple" % "1.6.1"  // uncomment this for logs when testing
+    )
+  )
+  .dependsOn(core)
+
+lazy val coreTests =
+  project.in(file("test"))
+  .settings(commonSettings)
+  .settings(
+    name := "fs2.cassandra-test"
+  )
+  .dependsOn(
+    core
+    , testSupport % "test"
+  )
+
  
  
 

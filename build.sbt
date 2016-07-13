@@ -142,7 +142,7 @@ lazy val testSupport =
   )
   .dependsOn(core)
 
-lazy val coreTests =
+lazy val coreTest =
   project.in(file("test"))
   .settings(commonSettings)
   .settings(

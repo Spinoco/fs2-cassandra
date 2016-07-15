@@ -25,14 +25,14 @@ case class KeySpace(
       implicit
       G:LabelledGeneric.Aux[A,R]
       , ev:Selector[R,K]
-    ):TableBuilder[R, FieldType[K,ev.Out] :: HNil, HNil, HNil] = TableBuilder(self, Nil)
+    ):TableBuilder[R, FieldType[K,ev.Out] :: HNil, HNil, HNil] = TableBuilder(self, Nil, Seq(internal.keyOf(name)), Nil)
   }
 
   /** construct definition for table specified by type `A`. At least primary key must be specified **/
   def table[A]:KsTblBuilder[A] = new KsTblBuilder[A] {}
 
   /** constructs empty table definition **/
-  def emptyTable:TableBuilder[HNil, HNil, HNil, HNil]= TableBuilder(self, Nil)
+  def emptyTable:TableBuilder[HNil, HNil, HNil, HNil]= TableBuilder(self, Nil, Nil, Nil)
 
 
   lazy val cql = {

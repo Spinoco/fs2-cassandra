@@ -100,6 +100,16 @@ lazy val publishingSettings = Seq(
       }
     </developers>
   }
+  ,pomPostProcess := { node =>
+    import scala.xml._
+    import scala.xml.transform._
+    def stripIf(f: Node => Boolean) = new RewriteRule {
+      override def transform(n: Node) =
+        if (f(n)) NodeSeq.Empty else n
+    }
+    val stripTestScope = stripIf { n => n.label == "dependency" && (n \ "scope").text == "test" }
+    new RuleTransformer(stripTestScope).transform(node)(0)
+  }
 )
 
 lazy val releaseSettings = Seq(
@@ -119,7 +129,7 @@ lazy val core =
       , "com.chuusai" %% "shapeless" % "2.3.1"
 
       // as per https://github.com/google/guava/issues/1095
-      , "com.google.code.findbugs" % "jsr305" % "1.3.+" % "compile"
+      , "com.google.code.findbugs" % "jsr305" % "3.0.1" % "compile"
 
     )
   )

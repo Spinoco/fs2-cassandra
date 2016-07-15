@@ -1,7 +1,7 @@
 package spinoco.fs2.cassandra.internal
 
 import com.datastax.driver.core.DataType
-import shapeless.ops.hlist.{Prepend, ToTraversable}
+import shapeless.ops.hlist.Prepend
 import shapeless.ops.record.Keys
 import shapeless.{HList, HNil}
 import spinoco.fs2.cassandra._
@@ -12,29 +12,35 @@ import spinoco.fs2.cassandra.builder._
   */
 trait TableInstance[R <: HList, PK <: HList, CK <: HList, IDX <: HList] {
 
-  def table(ks:KeySpace,name:String, options:Map[String, String], indexes:Seq[IndexEntry]):Table[R,PK, CK, IDX]
+  def table(
+     ks:KeySpace
+     , name:String
+     , options:Map[String, String]
+     , indexes:Seq[IndexEntry]
+     , partitionKeys:Seq[String]
+     , clusterKeys:Seq[String]
+  ):Table[R,PK, CK, IDX]
 }
 
 
 object TableInstance {
 
 
-  implicit def forProduct[R <: HList, PK <: HList, PKK <: HList, CK <: HList, CKK <: HList, IDX <: HList](
+  implicit def forProduct[R <: HList, PK <: HList,  CK <: HList,  IDX <: HList](
     implicit
      RKS: Keys[R]
-    , PKS: Keys.Aux[PK, PKK]
-    , CKS: Keys.Aux[CK, CKK]
     , CTR: CTypeNonEmptyRecordInstance[R]
-    , ev0: ToTraversable.Aux[PKK,List,AnyRef]
-    , ev1: ToTraversable.Aux[CKK,List,AnyRef]
   ):TableInstance[R, PK, CK, IDX] = {
     new TableInstance[R,PK,CK, IDX] {
 
-      val pks:Seq[String] = PKS().toList.map(asKeyName)
-      val cks:Seq[String] = CKS().toList.map(asKeyName)
-
-
-      def table(ks:KeySpace, tn:String, opt:Map[String, String], idxs:Seq[IndexEntry]):Table[R,PK, CK, IDX] =
+      def table(
+        ks:KeySpace
+        , tn:String
+        , opt:Map[String, String]
+        , idxs:Seq[IndexEntry]
+        , pks:Seq[String]
+        , cks:Seq[String]
+      ):Table[R,PK, CK, IDX] =
         new Table[R, PK, CK, IDX] { self =>
           val fields = CTR.types.map { case (k,tpe) =>
             s"$k ${tpe.toString()}"

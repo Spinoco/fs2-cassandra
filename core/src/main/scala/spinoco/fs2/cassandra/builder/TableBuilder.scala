@@ -20,11 +20,11 @@ case class TableBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList](
 
   /** Register supplied name as partitioning key for this table **/
   def partition[K, V](name:Witness.Aux[K])( implicit S: Selector.Aux[R,K,V], P:Prepend[PK,FieldType[K,V] :: HNil])
-  :TableBuilder[R, P.Out, CK, IDX] = TableBuilder(ks, indexes, internal.keyOf(name) +: partitionKeys, clusterKeys)
+  :TableBuilder[R, P.Out, CK, IDX] = TableBuilder(ks, indexes,  partitionKeys :+ internal.keyOf(name), clusterKeys)
 
   /** Register supplied name as clustering key for this table **/
   def cluster[K,V](name:Witness.Aux[K])( implicit S: Selector.Aux[R,K,V], P:Prepend[CK,FieldType[K,V] :: HNil])
-  :TableBuilder[R,  PK, P.Out, IDX] = TableBuilder(ks, indexes, partitionKeys, internal.keyOf(name) +: clusterKeys)
+  :TableBuilder[R,  PK, P.Out, IDX] = TableBuilder(ks, indexes, partitionKeys, clusterKeys :+  internal.keyOf(name) )
 
   /** registers given `V` as column of this table with name `name` **/
   def column[K,V](name:Witness.Aux[K])(implicit ev:CType[V])

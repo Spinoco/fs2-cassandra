@@ -50,14 +50,20 @@ object CassandraDefinition {
       , allKeySpaceQuery = system.schema.queryAllKeySpaces.map(_.keyspace_name)
     )
 
+  val `3.7`:CassandraDefinition =
+    latest.copy(
+      tag = "3.7"
+      , allKeySpaceQuery = system.schema.queryAllKeySpaces.map(_.keyspace_name)
+    )
+
   lazy val All:Seq[CassandraDefinition] = Seq(
-    `2.1`, `2.2`, `3.0`, `3.5`
+    `2.1`, `2.2`, `3.0`, `3.5`, `3.7`
   )
 
 
   implicit class CassandraDefinitionSnytax (val self: CassandraDefinition) extends AnyVal {
     def isV3Compatible:Boolean = {
-      self == `3.0` || self == `3.5`
+      self == `3.0` || self == `3.5` || self == `3.7`
     }
   }
 

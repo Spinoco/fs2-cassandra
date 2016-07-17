@@ -1,6 +1,6 @@
 package spinoco.fs2
 import com.google.common.util.concurrent.{FutureCallback, Futures, ListenableFuture}
-import fs2.Async
+import fs2.util.Async
 
 
 package object cassandra {

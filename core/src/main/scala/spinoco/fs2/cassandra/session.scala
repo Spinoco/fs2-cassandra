@@ -4,7 +4,7 @@ package spinoco.fs2.cassandra
 import com.datastax.driver.core._
 import com.datastax.driver.core.{BatchStatement => CBatchStatement}
 import fs2._
-import fs2.Async
+import fs2.util.Async
 import fs2.Stream._
 import shapeless.HNil
 

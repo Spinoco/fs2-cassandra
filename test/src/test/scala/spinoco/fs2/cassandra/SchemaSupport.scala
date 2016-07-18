@@ -15,7 +15,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
     ks.table[SimpleTableRow]
       .partition('intColumn)
       .cluster('longColumn)
-      .indexBy('asciiColumn)
+      .indexBy('asciiColumn, "asciiColumn_idx")
       .build("test_table")
 
   val strInsert =

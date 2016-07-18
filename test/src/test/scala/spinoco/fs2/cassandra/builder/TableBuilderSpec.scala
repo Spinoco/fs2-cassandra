@@ -63,8 +63,8 @@ class TableBuilderSpec extends Fs2CassandraSpec{
       val table =
         ks.table[SimpleTableRow]
           .partition('intColumn)
-          .indexBy('asciiColumn)
-          .indexBy('enumColumn)
+          .indexBy('asciiColumn, "asciiColumn_idx")
+          .indexBy('enumColumn, "enumColumn_idx")
           .build("test_table")
 
       table.cqlStatement.toSet shouldBe Set(
@@ -72,6 +72,26 @@ class TableBuilderSpec extends Fs2CassandraSpec{
         , "CREATE INDEX enumColumn_idx ON test_ks.test_table (enumColumn)"
         , "CREATE INDEX asciiColumn_idx ON test_ks.test_table (asciiColumn)"
       )
+    }
+
+    "sasi indexes" in {
+      val table =
+        ks.table[SimpleTableRow]
+          .partition('intColumn)
+          .indexByPrefix('asciiColumn, "prefix_index")
+          .indexBySparse('floatColumn, "sparse_index")
+          .indexByContains('doubleColumn, "contains_index")
+          .build("test_table")
+
+      table.cqlStatement.toSet.foreach(println)
+
+      table.cqlStatement.toSet shouldBe Set(
+        s"$simpleTableDef PRIMARY KEY ((intColumn)))"
+        , "CREATE CUSTOM INDEX contains_index ON test_ks.test_table (doubleColumn) USING org.apache.cassandra.index.sasi.SASIIndex WITH OPTIONS = {'mode': 'CONTAINS'}"
+        , "CREATE CUSTOM INDEX sparse_index ON test_ks.test_table (floatColumn) USING org.apache.cassandra.index.sasi.SASIIndex WITH OPTIONS = {'mode': 'SPARSE'}"
+        , "CREATE CUSTOM INDEX prefix_index ON test_ks.test_table (asciiColumn) USING org.apache.cassandra.index.sasi.SASIIndex"
+      )
+
     }
 
   }

@@ -65,7 +65,7 @@ object TableInstance {
           def clusterKey: Seq[String] = cks
 
           def query: QueryBuilder[R, PK, CK, IDX, HNil, HNil] =
-            QueryBuilder(self, Nil, Nil, Nil, Map.empty, None,None, allowFilteringFlag = false)
+            QueryBuilder(self, Nil, Nil, Nil, Map.empty, None, allowFilteringFlag = false)
 
           def insert(implicit p:Prepend[PK,CK]):InsertBuilder[R,PK,CK,p.Out] =
             InsertBuilder(self, None, None, ifNotExistsFlag = false)

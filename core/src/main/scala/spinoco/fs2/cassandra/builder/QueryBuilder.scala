@@ -10,9 +10,7 @@ import shapeless.{::, HList, HNil, Witness}
 import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, CTypeRecordInstance}
 import spinoco.fs2.cassandra.{CQLFunction, CQLFunction0, Comparison, Query, Table, internal}
 
-/**
-  * Created by pach on 09/06/16.
-  */
+
 case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <: HList, S <: HList](
   table: Table[R,PK, CK, IDX]
   , columns:Seq[(String,String)]
@@ -20,7 +18,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
   , orderColumns:Seq[(String, Boolean)]
   , clusterColumns:Map[Comparison.Value, Seq[(String, String)]]
   , limitCount:Option[Int]
-  , solrQuery:Option[String]
   , allowFilteringFlag:Boolean
 ) {
 
@@ -33,7 +30,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
       , limitCount = limitCount
-      , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
     )
   }
@@ -56,7 +52,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
       , limitCount = limitCount
-      , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
     )
   }
@@ -72,7 +67,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
       , limitCount = limitCount
-      , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
     )
   }
@@ -86,7 +80,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
       , limitCount = limitCount
-      , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
     )
   }
@@ -107,7 +100,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
       , limitCount = limitCount
-      , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
     )
   }
@@ -147,7 +139,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns + (op -> (clusterColumns.getOrElse(op, Nil) :+ (k -> k0)))
       , limitCount = limitCount
-      , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
     )
   }
@@ -167,7 +158,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
       , limitCount = limitCount
-      , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
     )
   }
@@ -206,7 +196,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
       , limitCount = limitCount
-      , solrQuery = solrQuery
       , allowFilteringFlag = allowFilteringFlag
     )
   }
@@ -223,21 +212,6 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
   def allowFiltering:QueryBuilder[R,  PK, CK, IDX, Q, S] =
     copy(allowFilteringFlag = true)
 
-
-  /** allows to configure SOLR query for DSE **/
-  def solrQuery[K](name:Witness.Aux[K]):QueryBuilder[R, PK, CK, IDX, FieldType[K,String] :: Q, S] = {
-    val k = internal.keyOf(name)
-    QueryBuilder(
-      table = table
-      , columns = columns
-      , whereConditions = whereConditions
-      , orderColumns = orderColumns
-      , clusterColumns = clusterColumns
-      , limitCount = limitCount
-      , solrQuery = Some(k)
-      , allowFilteringFlag = allowFilteringFlag
-    )
-  }
 
   /** allows to order the results baseon on given cluster column **/
   def orderBy[K, V](name:Witness.Aux[K], ascending:Boolean)(
@@ -281,8 +255,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
     val whereStmt :String = {
       val cond = (
         whereConditions ++
-          clusterKeyStatements ++
-          solrQuery.toSeq.map(c => s"solr_query = :$c")
+          clusterKeyStatements
         )
       .filter(_.nonEmpty)
       .mkString(" AND ")

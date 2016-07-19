@@ -15,7 +15,7 @@ case class IndexEntry(
           if (options.isEmpty) ""
           else options.map { case (k,v) => s"'$k': '$v'"}.mkString(" WITH OPTIONS = {",",","}")
 
-        s"CREATE CUSTOM INDEX $name ON $ks.$table ($field) USING $clz$withOptions"
+        s"CREATE CUSTOM INDEX $name ON $ks.$table ($field) USING '$clz'$withOptions"
 
     }
   }

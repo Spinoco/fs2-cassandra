@@ -87,9 +87,9 @@ class TableBuilderSpec extends Fs2CassandraSpec{
 
       table.cqlStatement.toSet shouldBe Set(
         s"$simpleTableDef PRIMARY KEY ((intColumn)))"
-        , "CREATE CUSTOM INDEX contains_index ON test_ks.test_table (doubleColumn) USING org.apache.cassandra.index.sasi.SASIIndex WITH OPTIONS = {'mode': 'CONTAINS'}"
-        , "CREATE CUSTOM INDEX sparse_index ON test_ks.test_table (floatColumn) USING org.apache.cassandra.index.sasi.SASIIndex WITH OPTIONS = {'mode': 'SPARSE'}"
-        , "CREATE CUSTOM INDEX prefix_index ON test_ks.test_table (asciiColumn) USING org.apache.cassandra.index.sasi.SASIIndex"
+        , "CREATE CUSTOM INDEX contains_index ON test_ks.test_table (doubleColumn) USING 'org.apache.cassandra.index.sasi.SASIIndex' WITH OPTIONS = {'mode': 'CONTAINS'}"
+        , "CREATE CUSTOM INDEX sparse_index ON test_ks.test_table (floatColumn) USING 'org.apache.cassandra.index.sasi.SASIIndex' WITH OPTIONS = {'mode': 'SPARSE'}"
+        , "CREATE CUSTOM INDEX prefix_index ON test_ks.test_table (asciiColumn) USING 'org.apache.cassandra.index.sasi.SASIIndex'"
       )
 
     }

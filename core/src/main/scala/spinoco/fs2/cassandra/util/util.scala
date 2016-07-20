@@ -49,14 +49,13 @@ package object util {
     go(0,"")
   }
 
-  implicit class ThrowableRethrowSyntax(self: Throwable){
-    def rethrow(format: String, str: String*): Throwable = {
-      val msg = String.format(format, str:_*)
-      new Throwable(msg + s"\n    got: ${self.getMessage}")
+  object ExceptionWrapper {
+    def fromStmt(err: Throwable, stmt: String): Throwable = {
+      new Throwable(s"In statement: '$stmt'", err)
     }
 
-    def rethrowStmtInfo[A,B](row: A, stmt: B): Throwable = {
-      self.rethrow(s"At row '%s'\n    in statement: '%s'", row.toString, stmt.toString)
+    def fromField(err: Throwable, field: String): Throwable = {
+      new Throwable(s"At field: '$field'", err)
     }
   }
 }

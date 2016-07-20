@@ -7,6 +7,7 @@ import shapeless.labelled._
 import shapeless.{::, HList, HNil, Witness}
 import spinoco.fs2.cassandra.CType
 import spinoco.fs2.cassandra.util
+import spinoco.fs2.cassandra.util.ExceptionWrapper
 
 /**
   * Created by pach on 04/06/16.
@@ -29,11 +30,11 @@ object CTypeNonEmptyRecordInstance {
       val k = keyOf(wt)
       val types = Seq(k -> tpe.cqlType)
       def readAt(index:Int, data: GettableByIndexData, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], HNil]] =
-        tpe.deserialize(data.getBytesUnsafe(index), protocolVersion).right.map(v => field[K](v) :: HNil)
+        tpe.deserialize(data.getBytesUnsafe(index), protocolVersion).right.map(v => field[K](v) :: HNil).left.map(ExceptionWrapper.fromField(_, k))
       def read(data: GettableByIndexData, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], HNil]] =
-        readAt(0,data,protocolVersion)
+        readAt(0,data,protocolVersion).left.map(ExceptionWrapper.fromField(_, k))
       def readByName(data: GettableByNameData, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], HNil]] = {
-        tpe.deserialize(data.getBytesUnsafe(k), protocolVersion).right.map(v => field[K](v) :: HNil)
+        tpe.deserialize(data.getBytesUnsafe(k), protocolVersion).left.map(ExceptionWrapper.fromField(_, k)).right.map(v => field[K](v) :: HNil)
       }
       def readByNameIfExists(keys: Set[String], data: GettableByNameData, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], HNil]] = {
         (for {

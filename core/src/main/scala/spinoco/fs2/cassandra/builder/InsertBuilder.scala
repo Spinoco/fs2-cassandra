@@ -14,6 +14,8 @@ import spinoco.fs2.cassandra.{BatchResultReader, Insert, Table, internal}
 
 import scala.concurrent.duration.FiniteDuration
 
+import spinoco.fs2.cassandra.util.ThrowableRethrowSyntax
+
 /**
   * Builder for Insert of the columns in table. `I` is at least sum of Partitioning and Cluster Key types
   */
@@ -74,11 +76,12 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
       def cqlStatement: String = cql
       def cqlFor(s: I): String = spinoco.fs2.cassandra.util.replaceInCql(cql,CTI.writeCql(s))
 
+
       def writeRaw(s: I, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = CTI.writeRaw(s, protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
         if (ifNotExistsFlag) {
           if (r.getBool("[applied]")) Right(None)
-          else CTR.readByName(r, protocolVersion).right.map(Some(_))
+          else CTR.readByName(r, protocolVersion).left.map(_.rethrowStmtInfo(r, cql)).right.map(Some(_))
         }
         else Right(None)
       }

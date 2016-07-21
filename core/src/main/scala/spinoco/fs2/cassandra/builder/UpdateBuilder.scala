@@ -15,7 +15,7 @@ import spinoco.fs2.cassandra.{BatchResultReader, Comparison, Table, Update, inte
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.FiniteDuration
-import spinoco.fs2.cassandra.util.ExceptionWrapper
+import spinoco.fs2.cassandra.util.AnnotatedException
 
 /**
   * Builder of update statement
@@ -334,7 +334,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
       def cqlFor(q: Q): String = spinoco.fs2.cassandra.util.replaceInCql(cql,CTQ.writeCql(q))
       def writeRaw(q: Q, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = CTQ.writeRaw(q, protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
-        CTR.readByName(r,protocolVersion).left.map(ExceptionWrapper.fromStmt(_, cql))
+        CTR.readByName(r,protocolVersion).left.map(AnnotatedException.withStmt(_, cql))
       }
       def fill(i: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {
         val bs = s.bind()
@@ -349,7 +349,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
           case Some(row) =>
             val columns = r.getColumnDefinitions.asList().asScala.map(_.getName).toSet
             CTR.readByNameIfExists(columns,row,protocolVersion)
-        }).left.map(ExceptionWrapper.fromStmt(_, cql))
+        }).left.map(AnnotatedException.withStmt(_, cql))
       }
 
 

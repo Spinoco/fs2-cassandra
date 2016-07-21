@@ -49,12 +49,12 @@ package object util {
     go(0,"")
   }
 
-  object ExceptionWrapper {
-    def fromStmt(err: Throwable, stmt: String): Throwable = {
+  object AnnotatedException {
+    def withStmt(err: Throwable, stmt: String): Throwable = {
       new Throwable(s"In statement: '$stmt'", err)
     }
 
-    def fromField(err: Throwable, field: String): Throwable = {
+    def withField(err: Throwable, field: String): Throwable = {
       new Throwable(s"At field: '$field'", err)
     }
   }

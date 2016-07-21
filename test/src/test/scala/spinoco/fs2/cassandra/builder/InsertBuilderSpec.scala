@@ -63,6 +63,11 @@ class InsertBuilderSpec extends Fs2CassandraSpec {
       "INSERT INTO test_ks.test_table (stringColumn,intColumn,longColumn) VALUES (:stringColumn,:intColumn,:longColumn)   "
     }
 
+    "will fill cqlFor" in {
+      table.insert.column('stringColumn).build.fromHList.fromTuple[(String, Int, Long)].cqlFor(("Hello", 1 ,2)) shouldBe
+        "INSERT INTO test_ks.test_table (stringColumn,intColumn,longColumn) VALUES ('Hello',1,2)   "
+    }
+
   }
 
 }

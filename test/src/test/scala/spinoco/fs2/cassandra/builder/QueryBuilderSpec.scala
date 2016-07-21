@@ -222,6 +222,18 @@ class QueryBuilderSpec extends Fs2CassandraSpec {
           " FROM test_ks.test_table ORDER BY longColumn DESC"
     }
 
+    "will fill in cqlFor" in {
+      simpleTableCompoundPk.query
+        .column('stringColumn)
+        .partition
+        .build
+        .fromHList
+        .fromTuple[(Int, Long)]
+        .cqlFor((1, 2l)) shouldBe
+        "SELECT stringColumn FROM test_ks.test_table" +
+          " WHERE intColumn = 1 AND longColumn = 2"
+
+    }
 
   }
 

@@ -74,6 +74,19 @@ class DeleteBuilderSpec extends Fs2CassandraSpec {
 
     }
 
+    "will fill cqlFor" in {
+      simpleTable.delete
+      .row
+      .primary
+      .onlyIf('stringColumn, "as_string", Comparison.EQ)
+      .build
+      .fromHList
+      .fromTuple[(String, Int, Long)].cqlFor(("Hello", 1, 2l)) shouldBe
+        "DELETE FROM test_ks.test_table" +
+          "  WHERE intColumn = 1 AND longColumn = 2" +
+          " IF stringColumn = 'Hello'"
+
+    }
 
 
   }

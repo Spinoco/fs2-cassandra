@@ -32,7 +32,7 @@ package object util {
       else {
         val end =
           cql.indexWhere(ch => !(ch.isLetterOrDigit || ch == '_'), start+1) match {
-            case idx if idx < 0 => cql.length - 1
+            case idx if idx < 0 => cql.length
             case idx => idx
           }
 
@@ -42,7 +42,7 @@ package object util {
           case None => s":"+key
           case Some(v) => v
         }
-        go(end,acc + cql.substring(pos, start) + value + " ")
+        go(end,acc + cql.substring(pos, start) + value)
       }
     }
 

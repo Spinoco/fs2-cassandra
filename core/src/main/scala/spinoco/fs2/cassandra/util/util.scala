@@ -49,4 +49,13 @@ package object util {
     go(0,"")
   }
 
+  object AnnotatedException {
+    def withStmt(err: Throwable, stmt: String): Throwable = {
+      new Throwable(s"In statement: '$stmt'", err)
+    }
+
+    def withField(err: Throwable, field: String): Throwable = {
+      new Throwable(s"At field: '$field'", err)
+    }
+  }
 }

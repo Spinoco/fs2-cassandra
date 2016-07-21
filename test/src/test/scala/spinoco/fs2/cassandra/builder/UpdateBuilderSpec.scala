@@ -258,6 +258,17 @@ class UpdateBuilderSpec extends Fs2CassandraSpec {
           " WHERE intColumn = :intColumn AND longColumn = :longColumn"
     }
 
+    "will fill in cqlFor" in {
+      counterTable.update
+      .decrement('counterColumn)
+      .build
+      .fromHList.fromTuple[(Long, Int, Long)]
+      .cqlFor((1l, 2, 3l)) shouldBe
+        "UPDATE test_ks.counter_table SET counterColumn = counterColumn - 1" +
+          " WHERE intColumn = 2 AND longColumn = 3"
+
+    }
+
   }
 
 

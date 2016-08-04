@@ -5,6 +5,7 @@ import java.nio.ByteBuffer
 
 import com.datastax.driver.core._
 import shapeless.labelled._
+import shapeless.ops.hlist.Prepend
 import shapeless.{::, HList, HNil, Witness}
 import shapeless.ops.record.Selector
 import shapeless.tag._
@@ -54,6 +55,13 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   )
   :UpdateBuilder[R,PK,CK,FieldType[K,V] :: Q, RIF] =
     UpdateBuilder(table,collectionUpdates,collectionKeys,ifConditions,timestamp, ttl, counterColumns, ifExistsCondition)
+
+  /** Sets all columns in a given list **/
+  def setColumns[C <: HList](
+    implicit sel: SelectAll[R, C]
+    , PP: Prepend[C, Q]
+  ): UpdateBuilder[R, PK, CK, PP.Out, RIF] =
+  UpdateBuilder(table,collectionUpdates,collectionKeys,ifConditions,timestamp, ttl, counterColumns, ifExistsCondition)
 
   /** appends element to column of list type (i.e. List, Seq, Vector) **/
   def append[C <: Seq[_],K](wt:Witness.Aux[K])(

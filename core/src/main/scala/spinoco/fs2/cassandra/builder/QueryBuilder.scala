@@ -7,7 +7,7 @@ import shapeless.labelled._
 import shapeless.ops.hlist.{Prepend, ToTraversable}
 import shapeless.ops.record.{Keys, Selector}
 import shapeless.{::, HList, HNil, Witness}
-import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, CTypeRecordInstance}
+import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, CTypeRecordInstance, ColumnsKeys, SelectAll}
 import spinoco.fs2.cassandra.{CQLFunction, CQLFunction0, Comparison, Query, Table, internal}
 import spinoco.fs2.cassandra.util.AnnotatedException
 
@@ -49,6 +49,23 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
     QueryBuilder(
       table = table
       , columns = columns :+ (internal.keyOf(name) -> internal.keyOf(as))
+      , whereConditions = whereConditions
+      , orderColumns = orderColumns
+      , clusterColumns = clusterColumns
+      , limitCount = limitCount
+      , allowFilteringFlag = allowFilteringFlag
+    )
+  }
+
+  /** selects all columms in a given list **/
+  def columnsIn[C <: HList](
+    implicit CA: ColumnsKeys[C]
+    , sel: SelectAll[R, C]
+    , PP: Prepend[C, S]
+  ): QueryBuilder[R, PK, CK, IDX, Q, PP.Out] = {
+    QueryBuilder(
+      table = table
+      , columns =  columns ++ CA.keys.map(k => k -> k)
       , whereConditions = whereConditions
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns

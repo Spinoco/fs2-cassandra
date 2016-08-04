@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 
 import com.datastax.driver.core._
 import shapeless.labelled._
-import shapeless.ops.hlist.{Align, Prepend}
+import shapeless.ops.hlist.{Align, Prepend, Union}
 import shapeless.ops.record.Selector
 import shapeless.tag.@@
 import shapeless.{::, HList, Witness}
@@ -13,7 +13,7 @@ import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, SelectAll}
 import spinoco.fs2.cassandra.{BatchResultReader, Insert, Table, internal}
 
 import scala.concurrent.duration.FiniteDuration
-import spinoco.fs2.cassandra.util.{AnnotatedException}
+import spinoco.fs2.cassandra.util.AnnotatedException
 
 /**
   * Builder for Insert of the columns in table. `I` is at least sum of Partitioning and Cluster Key types
@@ -50,6 +50,13 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
     */
   def column[K,V](wt:Witness.Aux[K])(implicit ev:Selector.Aux[R,K,V])
   :InsertBuilder[R, PK,CK, FieldType[K,V] :: I] =
+    InsertBuilder(table,ttl,timestamp, ifNotExistsFlag)
+
+  /** Inserts all columns in a given list to the table **/
+  def columns[C <: HList](
+    implicit s: SelectAll[R, C]
+    , U: Union[C, I]
+  ): InsertBuilder[R, PK, CK, U.Out] =
     InsertBuilder(table,ttl,timestamp, ifNotExistsFlag)
 
   /** creates insert statement **/

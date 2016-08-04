@@ -106,7 +106,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
 
       ks.table[SimpleTableRow]
       .partition('intColumn)
-      .columnsIn[generic.Repr]
+      .columns[generic.Repr]
       .build("test_table").cqlStatement shouldBe Seq(tableDef)
     }
 

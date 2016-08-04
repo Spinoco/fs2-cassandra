@@ -31,7 +31,7 @@ case class TableBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList](
   : TableBuilder[FieldType[K,V] :: R, PK, CK, IDX] = TableBuilder(ks, indexes, partitionKeys, clusterKeys)
 
   /** registers all columns in a given list to the table **/
-  def columnsIn[C <: HList](
+  def columns[C <: HList](
     implicit CTR: CTypeNonEmptyRecordInstance[C]
     , PP: Prepend[C, R]
   ): TableBuilder[PP.Out, PK, CK, IDX] = TableBuilder(ks, indexes, partitionKeys, clusterKeys)

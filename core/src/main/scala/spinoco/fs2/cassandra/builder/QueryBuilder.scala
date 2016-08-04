@@ -14,7 +14,7 @@ import spinoco.fs2.cassandra.util.AnnotatedException
 
 case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <: HList, S <: HList](
   table: Table[R,PK, CK, IDX]
-  , columns:Seq[(String,String)]
+  , queryColumns:Seq[(String,String)]
   , whereConditions: Seq[String]
   , orderColumns:Seq[(String, Boolean)]
   , clusterColumns:Map[Comparison.Value, Seq[(String, String)]]
@@ -26,7 +26,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
   def all:QueryBuilder[R, PK, CK, IDX, Q, R] =  {
     QueryBuilder(
       table = table
-      , columns = table.columns.map { case (n,_) => n -> n }
+      , queryColumns = table.columns.map { case (n,_) => n -> n }
       , whereConditions = whereConditions
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
@@ -48,7 +48,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
   ): QueryBuilder[R, PK, CK, IDX, Q, FieldType[K0,V] :: S] = {
     QueryBuilder(
       table = table
-      , columns = columns :+ (internal.keyOf(name) -> internal.keyOf(as))
+      , queryColumns = queryColumns :+ (internal.keyOf(name) -> internal.keyOf(as))
       , whereConditions = whereConditions
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
@@ -58,14 +58,14 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
   }
 
   /** selects all columms in a given list **/
-  def columnsIn[C <: HList](
+  def columns[C <: HList](
     implicit CA: ColumnsKeys[C]
     , sel: SelectAll[R, C]
     , PP: Prepend[C, S]
   ): QueryBuilder[R, PK, CK, IDX, Q, PP.Out] = {
     QueryBuilder(
       table = table
-      , columns =  columns ++ CA.keys.map(k => k -> k)
+      , queryColumns = queryColumns ++ CA.keys.map(k => k -> k)
       , whereConditions = whereConditions
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
@@ -80,7 +80,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
   ): QueryBuilder[R, PK, CK, IDX, Q, FieldType[K0,V0] :: S] = {
     QueryBuilder(
       table = table
-      , columns =  columns :+ (fn(internal.keyOf(name)) -> internal.keyOf(as))
+      , queryColumns = queryColumns :+ (fn(internal.keyOf(name)) -> internal.keyOf(as))
       , whereConditions = whereConditions
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
@@ -93,7 +93,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
   def function[K,V](fn: CQLFunction0[V], as:Witness.Aux[K]): QueryBuilder[R, PK, CK, IDX, Q, FieldType[K,V] :: S] = {
     QueryBuilder(
       table = table
-      , columns =  columns :+ (fn.apply() -> internal.keyOf(as))
+      , queryColumns = queryColumns :+ (fn.apply() -> internal.keyOf(as))
       , whereConditions = whereConditions
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
@@ -113,7 +113,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
     val pkStmts = PKK().toList.map(internal.asKeyName).map(k => s"$k = :$k")
     QueryBuilder(
       table = table
-      , columns = columns
+      , queryColumns = queryColumns
       , whereConditions = whereConditions ++ pkStmts
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
@@ -152,7 +152,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
     val k0 = internal.keyOf(as)
     QueryBuilder(
       table = table
-      , columns = columns
+      , queryColumns = queryColumns
       , whereConditions = whereConditions
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns + (op -> (clusterColumns.getOrElse(op, Nil) :+ (k -> k0)))
@@ -171,7 +171,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
     val pkStmts = PKK().toList.map(internal.asKeyName).map(k => s"$k = :$k")
     QueryBuilder(
       table = table
-      , columns = columns
+      , queryColumns = queryColumns
       , whereConditions = pkStmts
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
@@ -209,7 +209,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
     val k0 = internal.keyOf(as)
     QueryBuilder(
       table = table
-      , columns = columns
+      , queryColumns = queryColumns
       , whereConditions = whereConditions :+ s"$k $op :$k0"
       , orderColumns = orderColumns
       , clusterColumns = clusterColumns
@@ -282,7 +282,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
     }
 
     val selectColumns:String = {
-      columns.map { case (sel,as) =>
+      queryColumns.map { case (sel,as) =>
         if (sel == as) sel
         else s"$sel AS $as"
       }.mkString(",")

@@ -239,7 +239,7 @@ class QueryBuilderSpec extends Fs2CassandraSpec {
     "will select columns of list" in {
       val generic = LabelledGeneric[SimpleTableRow]
       simpleTable.query
-      .columnsIn[generic.Repr]
+      .columns[generic.Repr]
       .build
       .cqlStatement shouldBe
         "SELECT intColumn,longColumn,stringColumn,asciiColumn,floatColumn,doubleColumn,bigDecimalColumn,bigIntColumn,blobColumn,uuidColumn,timeUuidColumn,durationColumn,inetAddressColumn,enumColumn" +

@@ -1,5 +1,6 @@
 package spinoco.fs2.cassandra.builder
 
+import shapeless.LabelledGeneric
 import spinoco.fs2.cassandra.KeySpace
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 import spinoco.fs2.cassandra.support.Fs2CassandraSpec
@@ -66,6 +67,13 @@ class InsertBuilderSpec extends Fs2CassandraSpec {
     "will fill cqlFor" in {
       table.insert.column('stringColumn).build.fromHList.fromTuple[(String, Int, Long)].cqlFor(("Hello", 1 ,2)) shouldBe
         "INSERT INTO test_ks.test_table (stringColumn,intColumn,longColumn) VALUES ('Hello',1,2)   "
+    }
+
+    "will insert colums of a list " in {
+      val generic = LabelledGeneric[SimpleTableRow]
+      table.insert.columns[generic.Repr].build.cqlStatement shouldBe
+        "INSERT INTO test_ks.test_table (intColumn,longColumn,stringColumn,asciiColumn,floatColumn,doubleColumn,bigDecimalColumn,bigIntColumn,blobColumn,uuidColumn,timeUuidColumn,durationColumn,inetAddressColumn,enumColumn)" +
+          " VALUES (:intColumn,:longColumn,:stringColumn,:asciiColumn,:floatColumn,:doubleColumn,:bigDecimalColumn,:bigIntColumn,:blobColumn,:uuidColumn,:timeUuidColumn,:durationColumn,:inetAddressColumn,:enumColumn)   "
     }
 
   }

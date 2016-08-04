@@ -1,5 +1,6 @@
 package spinoco.fs2.cassandra.builder
 
+import shapeless.LabelledGeneric
 import spinoco.fs2.cassandra.{Comparison, KeySpace}
 import spinoco.fs2.cassandra.sample.{CounterTableRow, ListTableRow, MapTableRow, SimpleTableRow}
 import spinoco.fs2.cassandra.support.Fs2CassandraSpec
@@ -267,6 +268,17 @@ class UpdateBuilderSpec extends Fs2CassandraSpec {
         "UPDATE test_ks.counter_table SET counterColumn = counterColumn - 1" +
           " WHERE intColumn = 2 AND longColumn = 3"
 
+    }
+
+    "will update columns" in {
+
+      val generic = LabelledGeneric[SimpleTableRow]
+
+      simpleTable
+      .update.setColumns[generic.Repr]
+      .build.cqlStatement shouldBe
+        "UPDATE test_ks.test_table SET stringColumn = :stringColumn,asciiColumn = :asciiColumn,floatColumn = :floatColumn,doubleColumn = :doubleColumn,bigDecimalColumn = :bigDecimalColumn,bigIntColumn = :bigIntColumn,blobColumn = :blobColumn,uuidColumn = :uuidColumn,timeUuidColumn = :timeUuidColumn,durationColumn = :durationColumn,inetAddressColumn = :inetAddressColumn,enumColumn = :enumColumn" +
+          " WHERE intColumn = :intColumn AND longColumn = :longColumn"
     }
 
   }

@@ -1,6 +1,7 @@
 package spinoco.fs2.cassandra.builder
 
 
+import shapeless.LabelledGeneric
 import spinoco.fs2.cassandra.KeySpace
 import spinoco.fs2.cassandra.sample._
 import spinoco.fs2.cassandra.support.Fs2CassandraSpec
@@ -83,8 +84,6 @@ class TableBuilderSpec extends Fs2CassandraSpec{
           .indexByContains('doubleColumn, "contains_index")
           .build("test_table")
 
-      table.cqlStatement.toSet.foreach(println)
-
       table.cqlStatement.toSet shouldBe Set(
         s"$simpleTableDef PRIMARY KEY ((intColumn)))"
         , "CREATE CUSTOM INDEX contains_index ON test_ks.test_table (doubleColumn) USING 'org.apache.cassandra.index.sasi.SASIIndex' WITH OPTIONS = {'mode': 'CONTAINS'}"
@@ -92,6 +91,23 @@ class TableBuilderSpec extends Fs2CassandraSpec{
         , "CREATE CUSTOM INDEX prefix_index ON test_ks.test_table (asciiColumn) USING 'org.apache.cassandra.index.sasi.SASIIndex'"
       )
 
+    }
+
+    "add colums" in {
+
+      case class DummyClass(
+        name: String
+        , height: String
+      )
+
+      val generic = LabelledGeneric[DummyClass]
+
+      val tableDef = "CREATE TABLE test_ks.test_table (name varchar,height varchar,intColumn int,longColumn bigint,stringColumn varchar,asciiColumn ascii,floatColumn float,doubleColumn double,bigDecimalColumn decimal,bigIntColumn varint,blobColumn blob,uuidColumn uuid,timeUuidColumn timeuuid,durationColumn bigint,inetAddressColumn inet,enumColumn varchar, PRIMARY KEY ((intColumn)))"
+
+      ks.table[SimpleTableRow]
+      .partition('intColumn)
+      .columns[generic.Repr]
+      .build("test_table").cqlStatement shouldBe Seq(tableDef)
     }
 
   }

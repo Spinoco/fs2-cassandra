@@ -1,5 +1,6 @@
 package spinoco.fs2.cassandra.builder
 
+import shapeless.LabelledGeneric
 import spinoco.fs2.cassandra.{Comparison, KeySpace, functions}
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 import spinoco.fs2.cassandra.support.Fs2CassandraSpec
@@ -233,6 +234,16 @@ class QueryBuilderSpec extends Fs2CassandraSpec {
         "SELECT stringColumn FROM test_ks.test_table" +
           " WHERE intColumn = 1 AND longColumn = 2"
 
+    }
+
+    "will select columns of list" in {
+      val generic = LabelledGeneric[SimpleTableRow]
+      simpleTable.query
+      .columns[generic.Repr]
+      .build
+      .cqlStatement shouldBe
+        "SELECT intColumn,longColumn,stringColumn,asciiColumn,floatColumn,doubleColumn,bigDecimalColumn,bigIntColumn,blobColumn,uuidColumn,timeUuidColumn,durationColumn,inetAddressColumn,enumColumn" +
+          " FROM test_ks.test_table"
     }
 
   }

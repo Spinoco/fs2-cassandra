@@ -5,7 +5,7 @@ import shapeless.ops.hlist.Prepend
 import shapeless.ops.record.Selector
 import shapeless.{::, HList, HNil, Witness}
 import spinoco.fs2.cassandra.internal
-import spinoco.fs2.cassandra.internal.TableInstance
+import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, TableInstance}
 import spinoco.fs2.cassandra.{CType, KeySpace, Table}
 
 /**
@@ -29,6 +29,12 @@ case class TableBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList](
   /** registers given `V` as column of this table with name `name` **/
   def column[K,V](name:Witness.Aux[K])(implicit ev:CType[V])
   : TableBuilder[FieldType[K,V] :: R, PK, CK, IDX] = TableBuilder(ks, indexes, partitionKeys, clusterKeys)
+
+  /** registers all columns in a given list to the table **/
+  def columns[C <: HList](
+    implicit CTR: CTypeNonEmptyRecordInstance[C]
+    , PP: Prepend[C, R]
+  ): TableBuilder[PP.Out, PK, CK, IDX] = TableBuilder(ks, indexes, partitionKeys, clusterKeys)
 
   /** creates secondary index on specified table column **/
   def indexBy[K,V](column:Witness.Aux[K], name:String, clazz:Option[String] = None, options:Map[String, String] = Map.empty)(

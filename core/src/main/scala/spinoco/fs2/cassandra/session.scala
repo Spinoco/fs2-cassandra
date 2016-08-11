@@ -219,6 +219,10 @@ object CassandraSession {
               val current = Option(cs.getCluster.getMetadata.getKeyspace(t.keySpaceName)).flatMap(km => Option(km.getTable(t.name)))
               system.migrateTable(t, current)
             }
+            case m: MaterializedView[_,_,_] => F.delay{
+              val current = Option(cs.getCluster.getMetadata.getKeyspace(m.keySpaceName)).flatMap(km => Option(km.getMaterializedView(m.name)))
+              system.migrateMaterializedView(m, current)
+            }
           }
         }
 

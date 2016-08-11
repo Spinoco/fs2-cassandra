@@ -1,6 +1,6 @@
 package spinoco.fs2.cassandra
 
-import com.datastax.driver.core.{DataType, KeyspaceMetadata, TableMetadata}
+import com.datastax.driver.core._
 
 import scala.collection.JavaConverters._
 
@@ -39,38 +39,40 @@ package object system {
 
   }
 
+  /** checks whether these two columns are of the same name and type **/
+  def sameColumnDef(nameA:String, tpeA:DataType)(nameB:String, tpeB:DataType):Boolean = {
+    lazy val argsA = tpeA.getTypeArguments.asScala.map(_.getName)
+    lazy val argsB = tpeB.getTypeArguments.asScala.map(_.getName)
+    lazy val sameArgs:Boolean = {
+      if (argsA.size != argsB.size) false
+      else {
+        (argsA zip argsB).forall{ case (nA,nB) => nA.isCompatibleWith(nB) }
+      }
+    }
+
+    nameA.equalsIgnoreCase(nameB) &&
+      tpeA.getName.isCompatibleWith(tpeB.getName) &&
+      sameArgs
+  }
+
+  /** checks whether the primary keys of given tables are the same **/
+  def samePrimaryKey(current: AbstractTableMetadata, desired: AbstractTable):Boolean = {
+    val currentPk = current.getPartitionKey.asScala.map(_.getName.toLowerCase)
+    val currentCk = current.getClusteringColumns.asScala.map(_.getName.toLowerCase)
+    desired.clusterKey.map(_.toLowerCase) == currentCk && desired.partitionKey.map(_.toLowerCase) == currentPk
+  }
+
   /** migrates table to desired state comparing with current metadata of the table **/
   def migrateTable(desiredTable:Table[_,_,_,_], maybeCurrent:Option[TableMetadata]):Seq[String] = {
-    // todo: support for index migration
+    // todo: support for index migration, AND options
 
     maybeCurrent match {
       case None => desiredTable.cqlStatement
       case Some(current) =>
-        def samePrimaryKey:Boolean = {
-          val currentPk = current.getPartitionKey.asScala.map(_.getName.toLowerCase)
-          val currentCk = current.getClusteringColumns.asScala.map(_.getName.toLowerCase)
-          desiredTable.clusterKey.map(_.toLowerCase) == currentCk && desiredTable.partitionKey.map(_.toLowerCase) == currentPk
-        }
-
-        def sameColumnDef(nameA:String, tpeA:DataType)(nameB:String, tpeB:DataType):Boolean = {
-          lazy val argsA = tpeA.getTypeArguments.asScala.map(_.getName)
-          lazy val argsB = tpeB.getTypeArguments.asScala.map(_.getName)
-          lazy val sameArgs:Boolean = {
-            if (argsA.size != argsB.size) false
-            else {
-              (argsA zip argsB).forall{ case (nA,nB) => nA.isCompatibleWith(nB) }
-            }
-          }
-
-          nameA.equalsIgnoreCase(nameB) &&
-            tpeA.getName.isCompatibleWith(tpeB.getName) &&
-            sameArgs
-        }
         val fullTableName = s"${desiredTable.keySpaceName}.${desiredTable.name}"
 
-
         if (desiredTable.name != current.getName) Nil
-        else if (!samePrimaryKey) s"DROP TABLE $fullTableName" +: desiredTable.cqlStatement
+        else if (!samePrimaryKey(current, desiredTable)) s"DROP TABLE $fullTableName" +: desiredTable.cqlStatement
         else {
           val currentColumns =
             current.getColumns.asScala.map { c => c.getName.toLowerCase -> c.getType }
@@ -92,8 +94,25 @@ package object system {
     }
   }
 
+  /** migrates materialized view to desired state while comparing with current metadata of the table **/
+  def migrateMaterializedView(desiredView: MaterializedView[_,_,_], maybeCurrent: Option[MaterializedViewMetadata]): Seq[String] = {
+    //TODO support for options migration
 
+    maybeCurrent match {
+      case None => desiredView.cqlStatement
+      case Some(current) =>
 
+        def sameColumns: Boolean = {
+          val currentColumns =
+            current.getColumns.asScala.map { c => c.getName.toLowerCase -> c.getType }.sortBy(_._1)
+          if(desiredView.columns.size != currentColumns.size) false
+          else desiredView.columns.sortBy(_._1).zip(currentColumns).forall{case (dc, cc) => (sameColumnDef _).tupled(dc).tupled(cc)}
+        }
 
-
+        if (desiredView.name != current.getName) Nil
+        else if (!samePrimaryKey(current.getBaseTable, desiredView.table)) desiredView.cqlStatement
+        else if (!samePrimaryKey(current, desiredView) || !sameColumns) s"DROP MATERIALIZED VIEW ${desiredView.fullName}" +: desiredView.cqlStatement
+        else Nil
+    }
+  }
 }

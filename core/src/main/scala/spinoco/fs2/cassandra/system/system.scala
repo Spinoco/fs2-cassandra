@@ -56,7 +56,7 @@ package object system {
   }
 
   /** checks whether the primary keys of given tables are the same **/
-  def samePrimaryKey(current: AbstractTableMetadata, desired: AbstractTable):Boolean = {
+  def samePrimaryKey(current: AbstractTableMetadata, desired: AbstractTable[_,_,_,_]):Boolean = {
     val currentPk = current.getPartitionKey.asScala.map(_.getName.toLowerCase)
     val currentCk = current.getClusteringColumns.asScala.map(_.getName.toLowerCase)
     desired.clusterKey.map(_.toLowerCase) == currentCk && desired.partitionKey.map(_.toLowerCase) == currentPk

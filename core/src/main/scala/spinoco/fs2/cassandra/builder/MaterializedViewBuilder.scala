@@ -13,8 +13,8 @@ import scala.language.existentials
 /**
   * Helper to build type safe definition of a materialized view
   */
-case class MaterializedViewBuilder[R <: HList, QPK <: HList, QCK <: HList , S <: HList, PK <: HList, CK <: HList, QA <: AbstractTable](
-  query: QueryBuilder[R, QPK, QCK, _ <: HList, _ <: HList , S, QA]
+case class MaterializedViewBuilder[R <: HList, QPK <: HList, QCK <: HList , S <: HList, PK <: HList, CK <: HList](
+  query: QueryBuilder[R, QPK, QCK, _ <: HList, _ <: HList , S, _]
   , partitionKeys: Seq[String]
   , clusterKeys: Seq[String]
 ){ self =>
@@ -22,13 +22,13 @@ case class MaterializedViewBuilder[R <: HList, QPK <: HList, QCK <: HList , S <:
   /** Sets a partition key for the view **/
   def partition[K, V, QPKK <: HList](name: Witness.Aux[K])(
     implicit ev0: Selector.Aux[R, K, V]
-  ): MaterializedViewBuilder[R, QPK, QCK, S, FieldType[K, V] :: PK, CK, QA] =
+  ): MaterializedViewBuilder[R, QPK, QCK, S, FieldType[K, V] :: PK, CK] =
     MaterializedViewBuilder(query, partitionKeys :+ internal.keyOf(name), clusterKeys)
 
   /** Sets a cluster key for the view **/
   def cluster[K, V](name: Witness.Aux[K])(
     implicit ev0: Selector.Aux[R, K, V]
-  ): MaterializedViewBuilder[R, QPK, QCK, S, PK, FieldType[K, V] :: CK , QA] =
+  ): MaterializedViewBuilder[R, QPK, QCK, S, PK, FieldType[K, V] :: CK] =
     MaterializedViewBuilder(query, partitionKeys, clusterKeys :+ internal.keyOf(name))
 
   /** Builds this view **/
@@ -79,7 +79,7 @@ case class MaterializedViewBuilder[R <: HList, QPK <: HList, QCK <: HList , S <:
       def options: Map[String, String] = viewOptions
       def partitionKey: Seq[String] = partitionKeys
       def clusterKey: Seq[String] = clusterKeys
-      def table: AbstractTable = query.table
+      def table: AbstractTable[_,_,_,_] = query.table
     }
   }
 }

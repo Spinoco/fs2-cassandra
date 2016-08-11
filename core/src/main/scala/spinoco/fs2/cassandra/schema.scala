@@ -6,12 +6,12 @@ import shapeless.ops.hlist.Prepend
 import shapeless.ops.record.Selector
 import shapeless.{::, HList, HNil, LabelledGeneric, Witness}
 import spinoco.fs2.cassandra.builder._
+import spinoco.fs2.cassandra.internal.{Materializable, NotMaterializable}
 
 sealed trait SchemaDDL {
   /** CQL Command representing this SchemaDDL object **/
   def cqlStatement:Seq[String]
 }
-
 
 case class KeySpace(
   name:String
@@ -63,19 +63,32 @@ object KeySpace {
 
 }
 
+sealed trait AbstractTable[R <: HList, PK <: HList, CK <: HList, IDX <: HList] extends SchemaDDL {
 
+  /** name of the keyspace **/
+  def keySpaceName:String = keySpace.name
+  /** reference to keyspace **/
+  def keySpace: KeySpace
+  /** full name of the table **/
+  def fullName:String = s"$keySpaceName.$name"
+  /** name of the table **/
+  def name:String
+  /** any table specific options **/
+  def options:Map[String,String]
+  /** all columns and their datatype **/
+  def columns: Seq[(String, DataType)]
+  /** partitioning key of primary key, possibly compound when more values. Guaranteed nonempty **/
+  def partitionKey: Seq[String]
+  /** cluster key(s), if any **/
+  def clusterKey: Seq[String]
 
+}
 
-
-
-trait Table[R <: HList, PK <: HList, CK <: HList, IDX <: HList] extends SchemaDDL {
+trait Table[R <: HList, PK <: HList, CK <: HList, IDX <: HList] extends AbstractTable[R, PK, CK, IDX] {
 
   type Row = R
   type PartitionKey = PK
   type ClusterKay = CK
-
-  /** creates definition of the query against the table **/
-  def query:QueryBuilder[R,PK,CK, IDX, HNil, HNil]
 
   /** definition of delete to delete columns specified by `Q` and eventually returning `R0` as result **/
   def delete[Q,R0]:DeleteBuilder[R, PK, CK, PK, HNil]
@@ -88,24 +101,35 @@ trait Table[R <: HList, PK <: HList, CK <: HList, IDX <: HList] extends SchemaDD
 
   ///////////////////////////////////////
 
-  /** name of the keyspace **/
-  def keySpaceName:String = keySpace.name
-  /** reference to keyspace **/
-  def keySpace: KeySpace
-  /** full name of the table **/
-  def fullName:String = s"$keySpaceName.$name"
-  /** name of the table **/
-  def name:String
-  /** any table specificc options **/
-  def options:Map[String,String]
-  /** all columns and their datatype **/
-  def columns: Seq[(String, DataType)]
-  /** partitioning key of primary key, possibly compound when more values. Guaranteed nonempty **/
-  def partitionKey: Seq[String]
-  /** cluster key(s), if any **/
-  def clusterKey: Seq[String]
   /** list of indexes on the table **/
   def indexes:Seq[IndexEntry]
+}
+
+object Table{
+
+  implicit class TableSyntax[R <:HList, PK <: HList, CK <: HList, IDX <: HList](val self: Table[R, PK, CK, IDX]) extends AnyVal {
+
+    /** Creates a query definition against this table **/
+    def query: QueryBuilder[R, PK, CK, IDX, HNil, HNil, Materializable] =
+      QueryBuilder(self, Nil, Nil, Nil, Map.empty, None, allowFilteringFlag = false)
+
+  }
+}
+
+trait MaterializedView[R <: HList, PK <: HList, CK <: HList] extends AbstractTable[R, PK, CK, HNil] {
+
+  /** This is the base table from which the view was created from **/
+  def table: AbstractTable[_,_,_,_]
 
 }
 
+object MaterializedView{
+
+  implicit class MaterializedViewSyntax[R <:HList, PK <: HList, CK <: HList](val self: MaterializedView[R, PK, CK]) extends AnyVal {
+
+    /** Creates a query definition against this view **/
+    def query: QueryBuilder[R, PK, CK, HNil, HNil, HNil, NotMaterializable] =
+      QueryBuilder(self, Nil, Nil, Nil, Map.empty, None, allowFilteringFlag = false)
+
+  }
+}

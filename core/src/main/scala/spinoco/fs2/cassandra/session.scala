@@ -4,7 +4,7 @@ package spinoco.fs2.cassandra
 import com.datastax.driver.core._
 import com.datastax.driver.core.{BatchStatement => CBatchStatement}
 import fs2._
-import fs2.util.Async
+import fs2.util.{Async, Traverse}
 import fs2.Stream._
 import shapeless.HNil
 
@@ -104,6 +104,8 @@ object CassandraSession {
 
   object impl {
 
+    val L = implicitly[Traverse[List]]
+
     implicit class ResultSetSyntax(val self:ResultSet) extends AnyVal {
       def drain:Vector[Row] = {
         val count = self.getAvailableWithoutFetching
@@ -189,10 +191,11 @@ object CassandraSession {
 
 
         def _executeBatch[I,R](batch:BatchStatement[I,R], o:DMLOptions, i:I):F[Option[R]] = {
+
          F.flatMap(state.get) { s =>
             val statements = batch.statements
            F.flatMap(
-              F.traverse(statements.filterNot(s.cache.isDefinedAt)) { notPrepared =>
+             L.traverse(statements.filterNot(s.cache.isDefinedAt).toList) { notPrepared =>
                 F.map(F.suspend(cs.prepareAsync(notPrepared))) { notPrepared -> _ }
               }
             ) { stmts =>
@@ -250,7 +253,7 @@ object CassandraSession {
 
 
         new CassandraSession[F] {
-          def create(ddl: SchemaDDL): F[Unit] = F.map(F.traverse(ddl.cqlStatement)(executeCql(_)))(_ => ())
+          def create(ddl: SchemaDDL): F[Unit] = F.map(L.traverse(ddl.cqlStatement.toList)(executeCql(_)))(_ => ())
           def migrateDDL(ddl: SchemaDDL): F[Seq[String]] = _migrateDDL(ddl)
           def execute[I, R](statement: DMLStatement[I, R], o: DMLOptions = Options.defaultDML)(i: I): F[R] = executeDML(statement,o,i)
           def executeRaw(statement: Statement): F[ResultSet] = F.suspend(cs.executeAsync(statement))

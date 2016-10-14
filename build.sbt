@@ -97,10 +97,6 @@ lazy val publishingSettings = Seq(
   pomIncludeRepository := { _ => false },
   pomExtra := {
     <url>https://github.com/Spinoco/fs2-cassandra.git</url>
-    <scm>
-      <url>git@github.com:Spinoco/fs2-cassandra.git</url>
-      <connection>scm:git:git@github.com:Spinoco/fs2-cassandra.git</connection>
-    </scm>
     <developers>
       {for ((username, name) <- contributors) yield
       <developer>
@@ -132,14 +128,14 @@ lazy val core =
   project.in(file("core"))
   .settings(commonSettings)
   .settings(
-   name := "fs2.cassandra"
+   name := "fs2-cassandra"
   )
 
 lazy val testSupport =
   project.in(file("test-support"))
   .settings(commonSettings)
   .settings(
-    name := "fs2.cassandra-test-support"
+    name := "fs2-cassandra-test-support"
     , libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.0.0-M16-SNAP4"
       , "org.scalacheck" %% "scalacheck" % "1.13.1"
@@ -152,7 +148,7 @@ lazy val coreTest =
   project.in(file("test"))
   .settings(commonSettings)
   .settings(
-    name := "fs2.cassandra-test"
+    name := "fs2-cassandra-test"
   )
   .dependsOn(
     core

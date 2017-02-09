@@ -38,7 +38,7 @@ lazy val commonSettings = Seq(
     "co.fs2" %% "fs2-core" % "0.9.2"
     , "co.fs2" %% "fs2-io" % "0.9.2"
     , "com.datastax.cassandra" % "cassandra-driver-core" % "3.0.1"
-    , "com.chuusai" %% "shapeless" % "2.3.1"
+    , "com.chuusai" %% "shapeless" % "2.3.2"
 
     // as per https://github.com/google/guava/issues/1095
     , "com.google.code.findbugs" % "jsr305" % "3.0.1" % "compile"

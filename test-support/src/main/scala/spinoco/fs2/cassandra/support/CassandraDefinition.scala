@@ -69,7 +69,7 @@ object CassandraDefinition {
 
   implicit class CassandraDefinitionSnytax (val self: CassandraDefinition) extends AnyVal {
     def isV3Compatible:Boolean = {
-      self == `3.0` || self == `3.5` || self == `3.7` || self = `3.9`
+      ! (self == `2.1` || self == `2.2`)
     }
   }
 

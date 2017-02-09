@@ -20,11 +20,11 @@ trait DockerCassandra
   import DockerCassandra._
 
   // override this to indicate whether containers shall be removed (true) once the test with C* is done.
-  lazy val clearContainers:Boolean = false
+  lazy val clearContainers:Boolean = true
 
   // override this if the C* container has to be started before invocation
   // when developing tests, this likely shall be false, so there is no additional overhead starting C*
-  lazy val startContainers:Boolean = false
+  lazy val startContainers:Boolean = true
 
   // this has to be overridden to provide exact casandra definition. latest is default
   lazy val cassandra: CassandraDefinition = CassandraDefinition.latest

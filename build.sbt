@@ -155,6 +155,12 @@ lazy val coreTest =
     , testSupport % "test"
   )
 
+lazy val fs2Cassandra =
+  project.in(file("."))
+  .settings(commonSettings)
+  .aggregate(
+    core, testSupport, coreTest
+  )
  
  
 

@@ -197,7 +197,7 @@ object CassandraSession {
          F.flatMap(state.get) { s =>
             val statements = batch.statements
            F.flatMap(
-             L.traverse(statements.filterNot(s.cache.isDefinedAt).toList.reverse) { notPrepared => //TODO remove reverse once traverse works in proper direction
+             L.traverse(statements.filterNot(s.cache.isDefinedAt).toList) { notPrepared =>
                 F.map(F.suspend(cs.prepareAsync(notPrepared))) { notPrepared -> _ }
               }
             ) { stmts =>
@@ -255,7 +255,7 @@ object CassandraSession {
 
 
         new CassandraSession[F] {
-          def create(ddl: SchemaDDL): F[Unit] = F.map(L.traverse(ddl.cqlStatement.toList.reverse)(executeCql(_)))(_ => ()) //TODO remove reverse once traverse works in proper direction
+          def create(ddl: SchemaDDL): F[Unit] = F.map(L.traverse(ddl.cqlStatement.toList)(executeCql(_)))(_ => ())
           def migrateDDL(ddl: SchemaDDL): F[Seq[String]] = _migrateDDL(ddl)
           def execute[I, R](statement: DMLStatement[I, R], o: DMLOptions = Options.defaultDML)(i: I): F[R] = executeDML(statement,o,i)
           def executeRaw(statement: Statement): F[ResultSet] = F.suspend(cs.executeAsync(statement))

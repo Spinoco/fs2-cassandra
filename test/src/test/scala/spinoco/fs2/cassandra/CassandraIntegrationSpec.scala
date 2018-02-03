@@ -3,6 +3,11 @@ package spinoco.fs2.cassandra
 import spinoco.fs2.cassandra.support.CassandraDefinition
 
 
+class CassandraIntegration_3_9_Spec
+  extends CommonCassandraSpec {
+  override lazy val cassandra: CassandraDefinition = CassandraDefinition.`3.9`
+}
+
 class CassandraIntegration_3_7_Spec
   extends CommonCassandraSpec {
   override lazy val cassandra: CassandraDefinition = CassandraDefinition.`3.7`

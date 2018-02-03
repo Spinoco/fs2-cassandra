@@ -1,8 +1,8 @@
 package spinoco.fs2.cassandra
 
+import cats.effect.IO
 import com.datastax.driver.core.PagingState
 import fs2._
-import fs2.Task
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 trait PagingSpec extends SchemaSupport {
@@ -15,7 +15,7 @@ trait PagingSpec extends SchemaSupport {
 
       val fetchOneOptions = Options.defaultQuery.withFetchSize(1)
 
-      def go(lastPage:Option[PagingState]):Stream[Task,SimpleTableRow] = {
+      def go(lastPage:Option[PagingState]):Stream[IO,SimpleTableRow] = {
         val o = lastPage.map(fetchOneOptions.startFrom).getOrElse(fetchOneOptions)
         cs.pageAll(strSelectAll,o).flatMap {
           case Right(str) => Stream.emit(str)
@@ -24,7 +24,7 @@ trait PagingSpec extends SchemaSupport {
         }
       }
 
-      val result = go(None).runLog.unsafeRun
+      val result = go(None).compile.toVector.unsafeRunSync()
 
 
       result should have size(11*11)
@@ -34,7 +34,7 @@ trait PagingSpec extends SchemaSupport {
     s"will fetch up to fetchSize in single batch" in withSessionAndSimpleSchema { cs =>
       val fetchOneOptions = Options.defaultQuery.withFetchSize(1)
 
-      def go(lastPage:Option[PagingState], cnt:Int):Stream[Task,Int] = {
+      def go(lastPage:Option[PagingState], cnt:Int):Stream[IO,Int] = {
         val o = lastPage.map(fetchOneOptions.startFrom).getOrElse(fetchOneOptions)
         cs.pageAll(strSelectAll,o).flatMap {
           case Right(str) => Stream.empty
@@ -43,7 +43,7 @@ trait PagingSpec extends SchemaSupport {
         }
       }
 
-      val result = go(None,0).runLog.unsafeRun
+      val result = go(None,0).compile.toVector.unsafeRunSync()
 
       result should have size(11*11)
 

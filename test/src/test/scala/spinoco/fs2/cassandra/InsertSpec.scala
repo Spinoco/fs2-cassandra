@@ -27,9 +27,9 @@ trait InsertSpec extends SchemaSupport {
           .from[SimpleTableRow]
           .as[SimpleTableRow]
 
-      val result1 = cs.execute(insert)(SimpleTableRow.simpleInstance).unsafeRun
+      val result1 = cs.execute(insert)(SimpleTableRow.simpleInstance).unsafeRunSync()
 
-      val result2 = cs.execute(insert)(SimpleTableRow.simpleInstance).unsafeRun
+      val result2 = cs.execute(insert)(SimpleTableRow.simpleInstance).unsafeRunSync()
 
       result1 shouldBe None
       result2 shouldBe Some(SimpleTableRow.simpleInstance)
@@ -45,10 +45,10 @@ trait InsertSpec extends SchemaSupport {
           .mapIn[(FiniteDuration, SimpleTableRow)] { case (dur, row) => ('ttl ->> tag[TTL](dur)) +: strGen.to(row) }
 
       //insert filed with ttl
-      cs.execute(insert)(1.hour -> SimpleTableRow.simpleInstance).unsafeRun
+      cs.execute(insert)(1.hour -> SimpleTableRow.simpleInstance).unsafeRunSync()
 
       //insert filed without ttl
-      cs.execute(strInsert)(SimpleTableRow.simpleInstance.copy(intColumn = 2)).unsafeRun
+      cs.execute(strInsert)(SimpleTableRow.simpleInstance.copy(intColumn = 2)).unsafeRunSync()
 
 
       val selectTTL =
@@ -59,8 +59,8 @@ trait InsertSpec extends SchemaSupport {
           .fromA
           .asA
 
-      val resultTTL = cs.query(selectTTL)(1).runLog.unsafeRun
-      val resultNoTTL = cs.query(selectTTL)(2).runLog.unsafeRun
+      val resultTTL = cs.query(selectTTL)(1).compile.toVector.unsafeRunSync()
+      val resultNoTTL = cs.query(selectTTL)(2).compile.toVector.unsafeRunSync()
 
       resultTTL.map(_.nonEmpty) shouldBe Vector(true)
       resultNoTTL.map(_.nonEmpty) shouldBe Vector(false)
@@ -79,7 +79,7 @@ trait InsertSpec extends SchemaSupport {
 
 
       //insert filed with ts
-      cs.execute(insert)(999l-> SimpleTableRow.simpleInstance).unsafeRun
+      cs.execute(insert)(999l-> SimpleTableRow.simpleInstance).unsafeRunSync()
 
 
       val select =
@@ -90,7 +90,7 @@ trait InsertSpec extends SchemaSupport {
           .fromA
           .asA
 
-      val result = cs.query(select)(1).runLog.unsafeRun
+      val result = cs.query(select)(1).compile.toVector.unsafeRunSync()
 
      result shouldBe Vector(999l)
 
@@ -109,7 +109,7 @@ trait InsertSpec extends SchemaSupport {
           .mapIn[(FiniteDuration, Long, SimpleTableRow)] { case (dur, ts, row) => ('ttl ->> tag[TTL](dur)) +: (('ts ->> ts) +: strGen.to(row)) }
 
 
-      cs.execute(insert)((1.hour,999l, SimpleTableRow.simpleInstance)).unsafeRun
+      cs.execute(insert)((1.hour,999l, SimpleTableRow.simpleInstance)).unsafeRunSync()
 
       val select =
         simpleTable.query
@@ -121,7 +121,7 @@ trait InsertSpec extends SchemaSupport {
           .asTuple
 
 
-      val resultQ = cs.query(select)(1).runLog.unsafeRun
+      val resultQ = cs.query(select)(1).compile.toVector.unsafeRunSync()
 
       resultQ.map{ case (ttl, ts) => ttl.nonEmpty -> ts} shouldBe Vector(true -> 999l)
 

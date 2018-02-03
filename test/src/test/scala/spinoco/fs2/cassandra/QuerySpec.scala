@@ -19,7 +19,7 @@ trait QuerySpec extends SchemaSupport {
           .fromTuple[(Int, Long)]
           .as[SimpleTableRow]
 
-      val r = cs.query(query)(1 -> 9l).runLog.unsafeRun
+      val r = cs.query(query)(1 -> 9l).compile.toVector.unsafeRunSync()
 
       r.size shouldBe 2
       r.map(_.longColumn) shouldBe Vector(9, 10)
@@ -32,7 +32,7 @@ trait QuerySpec extends SchemaSupport {
           .build
           .fromHList.fromTuple[(String @@ Ascii, Int, Long)]
 
-      cs.execute(update)((tag[Ascii]("ascii1"), 1, 1)).unsafeRun()
+      cs.execute(update)((tag[Ascii]("ascii1"), 1, 1)).unsafeRunSync()
 
       val query =
         simpleTable.query.all
@@ -41,7 +41,7 @@ trait QuerySpec extends SchemaSupport {
           .fromA[String @@ Ascii]
           .as[SimpleTableRow]
 
-      val r = cs.query(query)(tag[Ascii]("ascii1")).runLog.unsafeRun
+      val r = cs.query(query)(tag[Ascii]("ascii1")).compile.toVector.unsafeRunSync()
 
       r.size shouldBe 1
       r.map(_.asciiColumn) shouldBe Vector(tag[Ascii]("ascii1"))

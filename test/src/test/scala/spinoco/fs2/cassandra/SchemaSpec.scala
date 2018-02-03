@@ -18,7 +18,7 @@ trait SchemaSpec extends SchemaSupport {
 
       val result =
         c.session.flatMap { cs => eval_(cs.create(ks)) ++ cs.queryAll(query) }
-        .runLog.unsafeRun
+        .compile.toVector.unsafeRunSync()
 
       result should contain ("spec_ks")
     }
@@ -41,7 +41,7 @@ trait SchemaSpec extends SchemaSupport {
           eval_(cs.create(table)) ++
           cs.queryAll(query)
       }
-      .runLog.unsafeRun
+      .compile.toVector.unsafeRunSync()
 
       result should contain ("spec_ks" -> "simple_table")
     }
@@ -69,7 +69,7 @@ trait SchemaSpec extends SchemaSupport {
             eval_(cs.create(table)) ++
             cs.queryAll(query)
         }
-        .runLog.unsafeRun
+        .compile.toVector.unsafeRunSync()
 
       val columnSpecs =
       result
@@ -106,7 +106,7 @@ trait SchemaSpec extends SchemaSupport {
                 eval_(cs.create(table)) ++
                 cs.queryAll(query)
             }
-            .runLog.unsafeRun
+            .compile.toVector.unsafeRunSync()
 
 
         val columnSpecs =
@@ -148,7 +148,7 @@ trait SchemaSpec extends SchemaSupport {
                 eval_(cs.create(table)) ++
                 cs.queryAll(query)
             }
-            .runLog.unsafeRun
+            .compile.toVector.unsafeRunSync()
 
 
         val columnSpecs =

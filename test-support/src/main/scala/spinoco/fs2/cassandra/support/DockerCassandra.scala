@@ -1,9 +1,9 @@
 package spinoco.fs2.cassandra.support
 
+import cats.effect.IO
 import com.datastax.driver.core.{Cluster, Session}
 import com.datastax.driver.core.policies.ConstantReconnectionPolicy
 import fs2.Stream._
-import fs2.Task
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
 import spinoco.fs2.cassandra.{CassandraCluster, CassandraSession}
 
@@ -46,20 +46,20 @@ trait DockerCassandra
 
   private var dockerInstanceId:Option[String] = None
   private var clusterInstance:Option[Cluster] = None
-   var sessionInstance:Option[(Session, CassandraSession[Task])] = None
+   var sessionInstance:Option[(Session, CassandraSession[IO])] = None
 
 
-  def withCluster(f: CassandraCluster[Task] => Any): Unit = {
+  def withCluster(f: CassandraCluster[IO] => Any): Unit = {
     clusterInstance match {
       case None => throw new Throwable("Cassandra Cluster not ready")
       case Some(c) =>
-        val ct = CassandraCluster.impl.create[Task](c).unsafeRun
+        val ct = CassandraCluster.impl.create[IO](c).unsafeRunSync()
         f(ct)
         ()
     }
   }
 
-  def withSession(f: CassandraSession[Task] => Any):Unit = {
+  def withSession(f: CassandraSession[IO] => Any):Unit = {
     sessionInstance match {
       case None => throw new Throwable("Cassandra session not yet ready")
       case Some((_,cs)) => f(cs); ()
@@ -77,7 +77,7 @@ trait DockerCassandra
     val cluster = clusterConfig.build()
     clusterInstance = Some(cluster)
     val session = cluster.connect()
-    val cs = CassandraSession.impl.mkSession[Task](session,cluster.getConfiguration.getProtocolOptions.getProtocolVersion).unsafeRun
+    val cs = CassandraSession.impl.mkSession[IO](session,cluster.getConfiguration.getProtocolOptions.getProtocolVersion).unsafeRunSync()
     sessionInstance = Some(session -> cs)
   }
 
@@ -124,13 +124,13 @@ object DockerCassandra {
   }
 
   /** cleans schema, leaving only system objects **/
-  def cleanupSchema(cs:CassandraSession[Task], cassandra:CassandraDefinition)(preserveKeysSpace: String => Boolean):Unit = {
+  def cleanupSchema(cs:CassandraSession[IO], cassandra:CassandraDefinition)(preserveKeysSpace: String => Boolean):Unit = {
     cs.queryAll(cassandra.allKeySpaceQuery)
       .filter(n => !preserveKeysSpace(n))
       .flatMap { n =>
         eval(cs.executeCql(s"DROP KEYSPACE $n"))
       }
-      .run.unsafeRun
+      .compile.drain.unsafeRunSync()
   }
 
 

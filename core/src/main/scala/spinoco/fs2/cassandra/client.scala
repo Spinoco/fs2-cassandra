@@ -1,8 +1,8 @@
 package spinoco.fs2.cassandra
 
+import cats.effect.Async
 import com.datastax.driver.core.Cluster
 import fs2._
-import fs2.util.Async
 
 
 object client {

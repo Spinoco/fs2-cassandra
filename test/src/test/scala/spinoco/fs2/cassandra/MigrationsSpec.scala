@@ -19,7 +19,7 @@ trait MigrationsSpec  extends SchemaSupport {
 
     "will emit create for KeySpace that does not exists" in withSession { cs =>
 
-      cs.migrateDDL(ks).unsafeRun shouldBe Seq(
+      cs.migrateDDL(ks).unsafeRunSync() shouldBe Seq(
         "CREATE KEYSPACE crud_ks WITH REPLICATION = {'class':'org.apache.cassandra.locator.SimpleStrategy','replication_factor':'1'} AND DURABLE_WRITES = true "
         )
 
@@ -27,45 +27,45 @@ trait MigrationsSpec  extends SchemaSupport {
 
     "will not emit create//alter if KeySpace is same" in withSession { cs =>
 
-      cs.create(ks).unsafeRun
+      cs.create(ks).unsafeRunSync()
 
-      cs.migrateDDL(ks).unsafeRun shouldBe Nil
+      cs.migrateDDL(ks).unsafeRunSync() shouldBe Nil
 
     }
 
     "will update KeySpace DURABLE_WRITES" in withSession { cs =>
 
-      cs.create(ks).unsafeRun
+      cs.create(ks).unsafeRunSync()
 
-      val migrate = cs.migrateDDL(ks.withDurableWrites(durable = false)).unsafeRun
+      val migrate = cs.migrateDDL(ks.withDurableWrites(durable = false)).unsafeRunSync()
 
       migrate shouldBe Seq("ALTER KEYSPACE crud_ks WITH DURABLE_WRITES = false")
 
-      migrate.foreach(cs.executeCql(_).unsafeRun)
+      migrate.foreach(cs.executeCql(_).unsafeRunSync())
 
-      cs.migrateDDL(ks.withDurableWrites(durable = false)).unsafeRun shouldBe Nil
+      cs.migrateDDL(ks.withDurableWrites(durable = false)).unsafeRunSync() shouldBe Nil
 
     }
 
     "will update KeySpace REPLICATION" in withSession { cs =>
 
-      cs.create(ks).unsafeRun
+      cs.create(ks).unsafeRunSync()
 
-      val migrate = cs.migrateDDL(ks.copy(strategyOptions = Seq("replication_factor" -> "2"))).unsafeRun
+      val migrate = cs.migrateDDL(ks.copy(strategyOptions = Seq("replication_factor" -> "2"))).unsafeRunSync()
 
       migrate shouldBe Seq("ALTER KEYSPACE crud_ks WITH REPLICATION = {'replication_factor':'2','class':'org.apache.cassandra.locator.SimpleStrategy'}")
 
-      migrate.foreach(cs.executeCql(_).unsafeRun)
+      migrate.foreach(cs.executeCql(_).unsafeRunSync())
 
-      cs.migrateDDL(ks.copy(strategyOptions = Seq("replication_factor" -> "2"))).unsafeRun shouldBe Nil
+      cs.migrateDDL(ks.copy(strategyOptions = Seq("replication_factor" -> "2"))).unsafeRunSync() shouldBe Nil
 
     }
 
 
     "will emit create table if table does not exists" in withSession { cs =>
-      cs.create(ks).unsafeRun
+      cs.create(ks).unsafeRunSync()
 
-      val migrate = cs.migrateDDL(table1).unsafeRun
+      val migrate = cs.migrateDDL(table1).unsafeRunSync()
 
       migrate shouldBe Seq(
         "CREATE TABLE crud_ks.foo1 (intColumn int,longColumn bigint,strColumn varchar, PRIMARY KEY ((intColumn)))"
@@ -73,20 +73,20 @@ trait MigrationsSpec  extends SchemaSupport {
     }
 
     "will not emit update if schema is same" in withSession { cs =>
-      cs.create(ks).unsafeRun
-      cs.create(table1).unsafeRun
+      cs.create(ks).unsafeRunSync()
+      cs.create(table1).unsafeRunSync()
 
-      val migrate = cs.migrateDDL(table1).unsafeRun
+      val migrate = cs.migrateDDL(table1).unsafeRunSync()
 
       migrate shouldBe Nil
 
     }
 
     "will update column defs if they have changed" in withSession { cs =>
-      cs.create(ks).unsafeRun
-      cs.create(table1).unsafeRun
+      cs.create(ks).unsafeRunSync()
+      cs.create(table1).unsafeRunSync()
 
-      val migrate = cs.migrateDDL(table2).unsafeRun
+      val migrate = cs.migrateDDL(table2).unsafeRunSync()
 
       migrate shouldBe Seq(
         "ALTER TABLE crud_ks.foo1 DROP longcolumn"
@@ -99,10 +99,10 @@ trait MigrationsSpec  extends SchemaSupport {
 
 
     "will drop and create table if primary key has changed" in withSession { cs =>
-      cs.create(ks).unsafeRun
-      cs.create(table1).unsafeRun
+      cs.create(ks).unsafeRunSync()
+      cs.create(table1).unsafeRunSync()
 
-      val migrate = cs.migrateDDL(table3).unsafeRun
+      val migrate = cs.migrateDDL(table3).unsafeRunSync()
 
       migrate shouldBe Seq(
         "DROP TABLE crud_ks.foo1"
@@ -113,11 +113,11 @@ trait MigrationsSpec  extends SchemaSupport {
 
     "will create materialized view if base table dropped" in withSession { cs =>
       if(cassandra.isV3Compatible){
-        cs.create(ks).unsafeRun
-        cs.create(table1).unsafeRun
-        cs.create(view1).unsafeRun
+        cs.create(ks).unsafeRunSync()
+        cs.create(table1).unsafeRunSync()
+        cs.create(view1).unsafeRunSync()
 
-        val migrate = cs.migrateDDL(view3).unsafeRun
+        val migrate = cs.migrateDDL(view3).unsafeRunSync()
 
         migrate shouldBe Seq(
           """CREATE MATERIALIZED VIEW crud_ks.bar1 AS SELECT strColumn FROM crud_ks.foo1 """
@@ -128,11 +128,11 @@ trait MigrationsSpec  extends SchemaSupport {
 
     "will drop and create materialized view if select changed" in withSession { cs =>
       if(cassandra.isV3Compatible) {
-        cs.create(ks).unsafeRun
-        cs.create(table1).unsafeRun
-        cs.create(view1).unsafeRun
+        cs.create(ks).unsafeRunSync()
+        cs.create(table1).unsafeRunSync()
+        cs.create(view1).unsafeRunSync()
 
-        val migrate = cs.migrateDDL(view2).unsafeRun
+        val migrate = cs.migrateDDL(view2).unsafeRunSync()
 
         migrate shouldBe Seq(
           "DROP MATERIALIZED VIEW crud_ks.bar1"
@@ -143,11 +143,11 @@ trait MigrationsSpec  extends SchemaSupport {
 
     "will drop and create materialized view if primary key changed" in withSession { cs =>
       if(cassandra.isV3Compatible) {
-        cs.create(ks).unsafeRun
-        cs.create(table1).unsafeRun
-        cs.create(view1).unsafeRun
+        cs.create(ks).unsafeRunSync()
+        cs.create(table1).unsafeRunSync()
+        cs.create(view1).unsafeRunSync()
 
-        val migrate = cs.migrateDDL(view4).unsafeRun
+        val migrate = cs.migrateDDL(view4).unsafeRunSync()
 
         migrate shouldBe Seq(
           "DROP MATERIALIZED VIEW crud_ks.bar1"
@@ -158,11 +158,11 @@ trait MigrationsSpec  extends SchemaSupport {
 
     "will not emit anything in case nothing changes" in withSession { cs =>
       if(cassandra.isV3Compatible) {
-        cs.create(ks).unsafeRun
-        cs.create(table1).unsafeRun
-        cs.create(view1).unsafeRun
+        cs.create(ks).unsafeRunSync()
+        cs.create(table1).unsafeRunSync()
+        cs.create(view1).unsafeRunSync()
 
-        val migrate = cs.migrateDDL(view1).unsafeRun
+        val migrate = cs.migrateDDL(view1).unsafeRunSync()
 
         migrate shouldBe Nil
       }

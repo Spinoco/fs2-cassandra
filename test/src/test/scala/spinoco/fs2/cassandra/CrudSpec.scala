@@ -30,24 +30,24 @@ trait CrudSpec extends SchemaSupport {
       val entries = for (i <- 0 to 100) yield SimpleTableRow.simpleInstance.copy(intColumn = i)
 
       // create table
-      c.session .flatMap { cs => eval_(cs.create(ks)) ++ eval_(cs.create(table)) }.run.unsafeRun
+      c.session .flatMap { cs => eval_(cs.create(ks)) ++ eval_(cs.create(table)) }.compile.drain.unsafeRunSync()
 
       // insert all
-      c.session .flatMap { cs => emits(entries).flatMap { e => eval_(cs.execute(insert)(e)) }}.run.unsafeRun
+      c.session .flatMap { cs => emits(entries).flatMap { e => eval_(cs.execute(insert)(e)) }}.compile.drain.unsafeRunSync()
 
       // query all
-      val result1 = c.session.flatMap { _.queryAll(query) }.runLog.unsafeRun
+      val result1 = c.session.flatMap { _.queryAll(query) }.compile.toVector.unsafeRunSync()
 
       // update some
-      c.session.flatMap { cs => eval_(cs.execute(update)("UPDATED" -> 99)) }.run.unsafeRun
+      c.session.flatMap { cs => eval_(cs.execute(update)("UPDATED" -> 99)) }.compile.toVector.unsafeRunSync()
 
       // query with updated
-      val result2 = c.session.flatMap { _.queryAll(query) }.runLog.unsafeRun
+      val result2 = c.session.flatMap { _.queryAll(query) }.compile.toVector.unsafeRunSync()
 
       // delete some
-      c.session.flatMap { cs => eval_(cs.execute(delete)(99)) }.run.unsafeRun
+      c.session.flatMap { cs => eval_(cs.execute(delete)(99)) }.compile.drain.unsafeRunSync()
 
-      val result3 = c.session.flatMap { _.queryAll(query) }.runLog.unsafeRun
+      val result3 = c.session.flatMap { _.queryAll(query) }.compile.toVector.unsafeRunSync()
 
       result1.toSet shouldBe entries.toSet
       result2.find(_.intColumn == 99).map(_.stringColumn) shouldBe Some("UPDATED")

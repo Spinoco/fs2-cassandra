@@ -20,7 +20,7 @@ trait BatchSpec extends SchemaSupport {
         SimpleTableRow.simpleInstance ::
           SimpleTableRow.simpleInstance.copy(intColumn = 2) ::
           HNil
-      )
+      ).unsafeRunSync()
 
       val result = cs.queryAll(strSelectAll).compile.toVector.unsafeRunSync()
 

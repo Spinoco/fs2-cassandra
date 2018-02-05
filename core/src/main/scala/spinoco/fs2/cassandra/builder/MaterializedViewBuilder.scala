@@ -8,8 +8,6 @@ import shapeless.{::, HList, Witness}
 import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, SelectAll}
 import spinoco.fs2.cassandra.{KeySpace, MaterializedView, AbstractTable, internal}
 
-import scala.language.existentials
-
 /**
   * Helper to build type safe definition of a materialized view
   */

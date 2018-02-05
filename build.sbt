@@ -11,7 +11,7 @@ lazy val contributors = Seq(
 lazy val commonSettings = Seq(
   organization := "com.spinoco",
   scalaVersion := "2.11.8",
-  crossScalaVersions := Seq("2.11.8"),
+  crossScalaVersions := Seq("2.11.8", "2.12.1"),
   scalacOptions ++= Seq(
     "-feature",
     "-deprecation",
@@ -137,8 +137,8 @@ lazy val testSupport =
   .settings(
     name := "fs2-cassandra-test-support"
     , libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.0.0-M16-SNAP4"
-      , "org.scalacheck" %% "scalacheck" % "1.13.1"
+      "org.scalatest" %% "scalatest" % "3.0.4"
+      , "org.scalacheck" %% "scalacheck" % "1.13.4"
       //, "org.slf4j" % "slf4j-simple" % "1.6.1"  // uncomment this for logs when testing
     )
   )

@@ -28,15 +28,13 @@ trait MaterializedSpec extends SchemaSupport{
             id :: HNil
           }.asHlist
 
-        val t =
-          for {
-            _ <- cs.create(matView)
-            _ <- cs.execute(strInsert)(SimpleTableRow.simpleInstance)
-          } yield ()
+        (for {
+          _ <- cs.create(matView)
+          _ <- cs.execute(strInsert)(SimpleTableRow.simpleInstance)
+        } yield ()).unsafeRunSync()
 
-        t.unsafeRun()
 
-        val result = cs.query(matQuery)(SimpleTableRow.simpleInstance.uuidColumn).runLog.unsafeRun
+        val result = cs.query(matQuery)(SimpleTableRow.simpleInstance.uuidColumn).compile.toVector.unsafeRunSync()
 
         result shouldBe Vector(1.1f :: HNil)
 

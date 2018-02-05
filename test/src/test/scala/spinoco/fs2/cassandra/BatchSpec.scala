@@ -20,9 +20,9 @@ trait BatchSpec extends SchemaSupport {
         SimpleTableRow.simpleInstance ::
           SimpleTableRow.simpleInstance.copy(intColumn = 2) ::
           HNil
-      ).unsafeRun
+      ).unsafeRunSync()
 
-      val result = cs.queryAll(strSelectAll).runLog.unsafeRun
+      val result = cs.queryAll(strSelectAll).compile.toVector.unsafeRunSync()
 
       result.toSet shouldBe Set(
         SimpleTableRow.simpleInstance
@@ -44,9 +44,9 @@ trait BatchSpec extends SchemaSupport {
         SimpleTableRow.simpleInstance ::
           SimpleTableRow.simpleInstance.copy(intColumn = 2) ::
           HNil
-      ).unsafeRun
+      ).unsafeRunSync()
 
-      val result = cs.queryAll(strSelectAll).runLog.unsafeRun
+      val result = cs.queryAll(strSelectAll).compile.toVector.unsafeRunSync()
 
       result.toSet shouldBe Set(
         SimpleTableRow.simpleInstance
@@ -65,8 +65,8 @@ trait BatchSpec extends SchemaSupport {
         .from[SimpleTableRow]
         .as[SimpleTableRow]
 
-      cs.execute(strInsert)(SimpleTableRow.simpleInstance).unsafeRun
-      cs.execute(strInsert)(SimpleTableRow.simpleInstance.copy(longColumn = 20)).unsafeRun
+      cs.execute(strInsert)(SimpleTableRow.simpleInstance).unsafeRunSync()
+      cs.execute(strInsert)(SimpleTableRow.simpleInstance.copy(longColumn = 20)).unsafeRunSync()
 
       val bs =
         batch.unLogged
@@ -79,7 +79,7 @@ trait BatchSpec extends SchemaSupport {
         SimpleTableRow.simpleInstance ::
           SimpleTableRow.simpleInstance.copy(longColumn = 30) ::
           HNil
-      ).unsafeRun
+      ).unsafeRunSync()
 
       result shouldBe Some(Some(Some(SimpleTableRow.simpleInstance)) :: None :: HNil)
 
@@ -94,8 +94,8 @@ trait BatchSpec extends SchemaSupport {
           .from[SimpleTableRow]
           .as[SimpleTableRow]
 
-      cs.execute(strInsert)(SimpleTableRow.simpleInstance).unsafeRun
-      cs.execute(strInsert)(SimpleTableRow.simpleInstance.copy(longColumn = 20)).unsafeRun
+      cs.execute(strInsert)(SimpleTableRow.simpleInstance).unsafeRunSync()
+      cs.execute(strInsert)(SimpleTableRow.simpleInstance.copy(longColumn = 20)).unsafeRunSync()
 
       val bs =
         batch.unLogged
@@ -108,7 +108,7 @@ trait BatchSpec extends SchemaSupport {
           SimpleTableRow.simpleInstance ::
             SimpleTableRow.simpleInstance.copy(longColumn = 20) ::
             HNil
-        ).unsafeRun
+        ).unsafeRunSync()
 
 
       result shouldBe Some(Some(Some(SimpleTableRow.simpleInstance)) :: Some(Some(SimpleTableRow.simpleInstance.copy(longColumn = 20))) :: HNil)

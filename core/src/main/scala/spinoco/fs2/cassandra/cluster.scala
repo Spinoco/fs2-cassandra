@@ -25,9 +25,8 @@ object CassandraCluster {
 
   def apply[F[_]](config:Cluster.Builder)(implicit F:Async[F]):Stream[F,CassandraCluster[F]] = {
     bracket(F.delay { config.build() })(
-      { c => eval(impl.create(c)) }
-      , c => F.map{ F.suspend{ c.closeAsync() }}{_ => () }
-    )
+      c => F.map{ F.suspend{ c.closeAsync() }}{_ => () }
+    ).evalMap(impl.create[F])
   }
 
 

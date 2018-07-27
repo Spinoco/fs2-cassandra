@@ -1,6 +1,5 @@
 package spinoco.fs2.cassandra.support
 
-import fs2.Scheduler
 import org.scalatest.concurrent.{Eventually, TimeLimitedTests}
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import org.scalatest.time.{Seconds, Span}
@@ -29,7 +28,7 @@ class Fs2CassandraSpec extends FreeSpec
 
 
   implicit val EC: ExecutionContext = spinoco.fs2.cassandra.support.EC
-  implicit val Sch: Scheduler =  spinoco.fs2.cassandra.support.Sch
+//  implicit val Sch: Scheduler =  spinoco.fs2.cassandra.support.Sch
 
 
 }

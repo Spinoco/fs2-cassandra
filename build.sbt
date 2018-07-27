@@ -25,7 +25,7 @@ lazy val commonSettings = Seq(
     "-Ywarn-unused-import"
   ),
   scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
-  scalacOptions in (Test, console) <<= (scalacOptions in (Compile, console)),
+  scalacOptions in (Test, console) := (scalacOptions in (Compile, console)).value,
   scmInfo := Some(ScmInfo(url("https://github.com/Spinoco/fs2-cassandra"), "git@github.com:Spinoco/fs2-cassandra.git")),
   homepage := None,
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
@@ -35,8 +35,8 @@ lazy val commonSettings = Seq(
     import spinoco.fs2.cassandra._
   """
   , libraryDependencies ++= Seq(
-    "co.fs2" %% "fs2-core" % "0.10.0"
-    , "co.fs2" %% "fs2-io" % "0.10.0"
+    "co.fs2" %% "fs2-core" % "1.0.0-SNAPSHOT"
+    , "co.fs2" %% "fs2-io" % "1.0.0-SNAPSHOT"
     , "com.datastax.cassandra" % "cassandra-driver-core" % "3.0.1"
     , "com.chuusai" %% "shapeless" % "2.3.3"
 
@@ -50,7 +50,7 @@ lazy val testSettings = Seq(
   parallelExecution in Test := false,
   fork in Test := true,
   testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDF"),
-  testGrouping in Test <<= definedTests in Test map { tests =>
+  testGrouping in Test := (definedTests in Test).map { tests =>
     // group tests individually to fork them in JVM.
     // essentially any CassandraIntegration_* id having its own group, all others share a group
     // this is necessary hence JavaDriver seems to share some sort of global state preventing to switch
@@ -60,13 +60,13 @@ lazy val testSettings = Seq(
         td.name
       } else "default_group"
     }.map { case (groupName, tests) =>
-      new Group(
+      Group(
         name = groupName
         , tests = tests
         , runPolicy = Tests.SubProcess(ForkOptions())
       )
     }.toSeq
-  }
+  }.value
 )
 
 lazy val scaladocSettings = Seq(

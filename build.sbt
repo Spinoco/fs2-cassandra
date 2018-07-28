@@ -39,11 +39,13 @@ lazy val commonSettings = Seq(
     , "co.fs2" %% "fs2-io" % "1.0.0-M2"
     , "com.datastax.cassandra" % "cassandra-driver-core" % "3.0.1"
     , "com.chuusai" %% "shapeless" % "2.3.3"
+    , "com.github.mpilquist" %% "simulacrum" % "0.13.0"
 
     // as per https://github.com/google/guava/issues/1095
     , "com.google.code.findbugs" % "jsr305" % "3.0.1" % "compile"
 
   )
+  , addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 ) ++ testSettings ++ scaladocSettings ++ publishingSettings ++ releaseSettings
 
 lazy val testSettings = Seq(

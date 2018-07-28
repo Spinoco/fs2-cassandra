@@ -9,10 +9,12 @@ import com.datastax.driver.core.{BatchStatement => CBatchStatement}
 import fs2._
 import fs2.Stream._
 import shapeless.HNil
+import simulacrum.typeclass
 
 import scala.language.higherKinds
 import scala.collection.JavaConverters._
 
+@typeclass
 trait CassandraSession[F[_]] {
 
   /** Creates given Schema object with DDL statement **/

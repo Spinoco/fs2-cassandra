@@ -4,7 +4,6 @@ package spinoco.fs2.cassandra
 import java.net.InetAddress
 
 import fs2.Chunk
-import fs2.Stream._
 import shapeless.tag
 import spinoco.fs2.cassandra.CType.{Ascii, Counter, TTL, Type1}
 import spinoco.fs2.cassandra.sample._
@@ -13,11 +12,7 @@ import scala.concurrent.duration._
 import com.datastax.driver.core.utils.UUIDs.timeBased
 import shapeless.tag.{apply => _, _}
 
-
-
 trait UpdateSpec extends SchemaSupport {
-
-
 
   s"UPDATE statement (${cassandra.tag})" - {
 

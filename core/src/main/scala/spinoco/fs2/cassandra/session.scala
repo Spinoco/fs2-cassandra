@@ -1,19 +1,20 @@
 package spinoco.fs2.cassandra
 
-
 import cats.Traverse
 import cats.instances.list._
 import cats.effect.Async
+import cats.effect.concurrent.Ref
 import com.datastax.driver.core._
 import com.datastax.driver.core.{BatchStatement => CBatchStatement}
 import fs2._
 import fs2.Stream._
 import shapeless.HNil
+import simulacrum.typeclass
 
 import scala.language.higherKinds
 import scala.collection.JavaConverters._
 
-
+@typeclass
 trait CassandraSession[F[_]] {
 
   /** Creates given Schema object with DDL statement **/
@@ -90,19 +91,14 @@ trait CassandraSession[F[_]] {
 
 object CassandraSession {
 
-
-
   /** given cluster this will create a single element stream with session **/
-  def apply[F[_]](cluster:Cluster)(implicit F:Async[F]):Stream[F,CassandraSession[F]] = {
-    Stream.bracket[F,Session,CassandraSession[F]](cluster.connectAsync())(
-      {cs => Stream.eval(impl.mkSession(cs, cluster.getConfiguration.getProtocolOptions.getProtocolVersion))}
-      , cs => F.suspend(F.map(cs.closeAsync())(_ => ()))
-    )
-
+  def apply[F[_]](cluster:Cluster)(implicit F:Async[F]): Stream[F,CassandraSession[F]] = {
+    Stream.bracket[F,Session](cluster.connectAsync())(
+      cs => F.suspend(F.map(cs.closeAsync())(_ => ()))
+    ).flatMap { cs =>
+      Stream.eval(impl.mkSession(cs, cluster.getConfiguration.getProtocolOptions.getProtocolVersion))
+    }
   }
-
-
-
 
   object impl {
 
@@ -121,7 +117,7 @@ object CassandraSession {
     )
 
     def mkSession[F[_]](cs:Session, protocolVersion: ProtocolVersion)(implicit F:Async[F]):F[CassandraSession[F]] = {
-      F.map(fs2.async.refOf(SessionState(Map.empty))) { state =>
+      F.map(Ref.of[F, SessionState](SessionState(Map.empty))) { state =>
 
         def executeDML[I, R](statement: DMLStatement[I, R],o: DMLOptions,i: I): F[R] = {
          F.flatMap(mkStatement(statement,i)) { bs =>
@@ -156,7 +152,7 @@ object CassandraSession {
               case Some(ps) => F.pure(ps)
               case None =>
                F.flatMap(F.suspend(cs.prepareAsync(cql))) { ps =>
-                  F.map(state.modify(s => s.copy(cache = s.cache + (cql -> ps)))) { _ => ps }
+                  F.map(state.modify(s => s.copy(cache = s.cache + (cql -> ps)) -> (()))) { _ => ps }
                 }
             }
           }
@@ -201,9 +197,12 @@ object CassandraSession {
                 F.map(F.suspend(cs.prepareAsync(notPrepared))) { notPrepared -> _ }
               }
             ) { stmts =>
-             F.flatMap(state.modify{ s0 => s0.copy(cache = s0.cache ++ stmts.toMap) }) { c =>
-                // here we have guaranteed that `now` contains all statements, so we can just apply for them
-                val allStatements = statements.map(c.now.cache.apply)
+             F.flatMap(state.modify { s0 =>
+               val now = s0.copy(cache = s0.cache ++ stmts.toMap)
+               now -> now
+             }) { now =>
+               // here we have guaranteed that `now` contains all statements, so we can just apply for them
+               val allStatements = statements.map(now.cache.apply)
                F.flatMap(batch.createStatement(allStatements,i,protocolVersion).fold(F.raiseError[CBatchStatement], F.pure)) { bs =>
                  F.flatMap(F.suspend(cs.executeAsync(Options.applyDMLOptions(bs,o)))) { rs =>
                     batch.read(i)(rs,protocolVersion).fold(F.raiseError[Option[R]],F.pure)

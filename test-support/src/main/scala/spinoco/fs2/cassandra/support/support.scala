@@ -2,8 +2,6 @@ package spinoco.fs2.cassandra
 
 import java.util.concurrent.{Executors, ThreadFactory}
 
-import fs2.Scheduler
-
 import scala.concurrent.ExecutionContext
 
 /**
@@ -21,6 +19,6 @@ package object support {
   }
 
   implicit val EC: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(8, factory))
-  implicit val Sch: Scheduler =  Scheduler.fromScheduledExecutorService(Executors.newScheduledThreadPool(4, factory))
+//  implicit val C: Concurrent[IO] = .fromScheduledExecutorService(Executors.newScheduledThreadPool(4, factory))
 
 }

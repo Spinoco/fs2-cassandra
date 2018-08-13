@@ -1,5 +1,6 @@
 import com.typesafe.sbt.pgp.PgpKeys.publishSigned
 import sbt.Tests.{Group, SubProcess}
+import microsites.ExtraMdFileConfig
 
 val ReleaseTag = """^release/([\d\.]+a?)$""".r
 
@@ -163,6 +164,43 @@ lazy val fs2Cassandra =
   .aggregate(
     core, testSupport, coreTest
   )
- 
- 
 
+lazy val noPublish = Seq(
+  publish := {},
+  publishLocal := {},
+  publishArtifact := false,
+  skip in publish := true
+)
+
+lazy val microsite = project.in(file("site"))
+  .enablePlugins(MicrositesPlugin)
+  .settings(commonSettings)
+  .settings(noPublish)
+  .settings(
+    micrositeName := "Fs2 Cassandra",
+    micrositeDescription := "Cassandra stream-based client",
+    micrositeAuthor := "Spinoco",
+    micrositeGithubOwner := "Spinoco",
+    micrositeGithubRepo := "fs2-cassandra",
+    micrositeBaseUrl := "/fs2-cassandra",
+    micrositeExtraMdFiles := Map(
+      file("README.md") -> ExtraMdFileConfig(
+        "index.md",
+        "home",
+        Map("title" -> "Home", "position" -> "0")
+      )
+    ),
+    micrositeGitterChannel := true,
+    micrositeGitterChannelUrl := "fs2-cassand/Lobby",
+    micrositePushSiteWith := GitHub4s,
+    micrositeGithubToken := sys.env.get("GITHUB_TOKEN"),
+    fork in tut := true,
+    scalacOptions in Tut --= Seq(
+      "-Xfatal-warnings",
+      "-Ywarn-unused-import",
+      "-Ywarn-numeric-widen",
+      "-Ywarn-dead-code",
+      "-Xlint:-missing-interpolator,_",
+    )
+  )
+  .dependsOn(core)

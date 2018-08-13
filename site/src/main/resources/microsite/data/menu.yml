@@ -1,0 +1,9 @@
+options:
+  - title: Guide
+    url: guide.html
+    menu_section: guide
+
+    nested_options:
+      - title: Connection
+        url: connection.html
+        menu_section: guide

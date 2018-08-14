@@ -126,6 +126,13 @@ lazy val releaseSettings = Seq(
   releasePublishArtifactsAction := PgpKeys.publishSigned.value
 )
 
+lazy val noPublish = Seq(
+  publish := (()),
+  publishLocal := (()),
+  publishSigned := (()),
+  publishArtifact := false
+)
+
 lazy val core =
   project.in(file("core"))
   .settings(commonSettings)
@@ -148,7 +155,7 @@ lazy val testSupport =
 
 lazy val coreTest =
   project.in(file("test"))
-  .settings(commonSettings)
+  .settings(commonSettings ++ noPublish)
   .settings(
     name := "fs2-cassandra-test"
   )
@@ -159,7 +166,7 @@ lazy val coreTest =
 
 lazy val fs2Cassandra =
   project.in(file("."))
-  .settings(commonSettings)
+  .settings(commonSettings ++ noPublish)
   .aggregate(
     core, testSupport, coreTest
   )

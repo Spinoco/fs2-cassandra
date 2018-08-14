@@ -2,7 +2,7 @@ package spinoco.fs2.cassandra
 
 import cats.Traverse
 import cats.instances.list._
-import cats.effect.Async
+import cats.effect.{Async, Timer}
 import cats.effect.concurrent.Ref
 import com.datastax.driver.core._
 import com.datastax.driver.core.{BatchStatement => CBatchStatement}
@@ -92,7 +92,7 @@ trait CassandraSession[F[_]] {
 object CassandraSession {
 
   /** given cluster this will create a single element stream with session **/
-  def apply[F[_]](cluster:Cluster)(implicit F:Async[F]): Stream[F,CassandraSession[F]] = {
+  def apply[F[_]](cluster:Cluster)(implicit F:Async[F], T: Timer[F]): Stream[F,CassandraSession[F]] = {
     Stream.bracket[F,Session](cluster.connectAsync())(
       cs => F.suspend(F.map(cs.closeAsync())(_ => ()))
     ).flatMap { cs =>
@@ -116,7 +116,7 @@ object CassandraSession {
       cache:Map[String, PreparedStatement]
     )
 
-    def mkSession[F[_]](cs:Session, protocolVersion: ProtocolVersion)(implicit F:Async[F]):F[CassandraSession[F]] = {
+    def mkSession[F[_]: Timer](cs:Session, protocolVersion: ProtocolVersion)(implicit F:Async[F]):F[CassandraSession[F]] = {
       F.map(Ref.of[F, SessionState](SessionState(Map.empty))) { state =>
 
         def executeDML[I, R](statement: DMLStatement[I, R],o: DMLOptions,i: I): F[R] = {

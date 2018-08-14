@@ -11,7 +11,7 @@ lazy val contributors = Seq(
 lazy val commonSettings = Seq(
   organization := "com.spinoco",
   scalaVersion := "2.11.8",
-  crossScalaVersions := Seq("2.11.8", "2.12.1"),
+  crossScalaVersions := Seq("2.11.8", "2.12.6"),
   scalacOptions ++= Seq(
     "-feature",
     "-deprecation",
@@ -35,9 +35,9 @@ lazy val commonSettings = Seq(
     import spinoco.fs2.cassandra._
   """
   , libraryDependencies ++= Seq(
-    "co.fs2" %% "fs2-core" % "1.0.0-M2"
-    , "co.fs2" %% "fs2-io" % "1.0.0-M2"
-    , "com.datastax.cassandra" % "cassandra-driver-core" % "3.0.1"
+    "co.fs2" %% "fs2-core" % "1.0.0-M3"
+    , "co.fs2" %% "fs2-io" % "1.0.0-M3"
+    , "com.datastax.cassandra" % "cassandra-driver-core" % "3.5.0"
     , "com.chuusai" %% "shapeless" % "2.3.3"
     , "com.github.mpilquist" %% "simulacrum" % "0.13.0"
 

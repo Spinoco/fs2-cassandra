@@ -8,3 +8,4 @@ position: 1
 # Getting Started
 
 - **[Connection](./connection-channel)**: Establishing connection with `cassandra`.
+- **[Datatypes](./datatypes)**: Supported datatypes.

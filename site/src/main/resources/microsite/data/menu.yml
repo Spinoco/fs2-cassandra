@@ -12,3 +12,31 @@ options:
         url: datatypes.html
         menu_section: guide
 
+  - title: Builders
+    url: builders/
+    menu_section: builders
+
+    nested_options:
+      - title: Table Builder
+        url: builders/table.html
+        menu_section: builders
+
+      - title: Query Builder
+        url: builders/query.html
+        menu_section: builders
+
+      - title: Insert Builder
+        url: builders/insert.html
+        menu_section: builders
+
+      - title: Update Builder
+        url: builders/update.html
+        menu_section: builders
+
+      - title: Delete Builder
+        url: builders/delete.html
+        menu_section: builders
+
+      - title: Materialized View Builder
+        url: builders/view.html
+        menu_section: builders

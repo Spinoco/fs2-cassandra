@@ -1,6 +1,6 @@
 ---
 layout: docs
-title:  "Table"
+title:  "Datatypes"
 number: 2
 ---
 

@@ -13,10 +13,15 @@ Given a `KeySpace` it is possible to define a `Table` by using the provided dsl.
 Given a simple table definition (must be a `case class`):
 
 ```tut:book:silent
+import java.util.UUID
+import shapeless.tag._
+import spinoco.fs2.cassandra.CType.Type1
+
 case class SimpleTable (
   intColumn: Int,
   longColumn: Long,
-  stringColumn: String
+  stringColumn: String,
+  timeUuidColumn: UUID @@ Type1
 )
 ```
 

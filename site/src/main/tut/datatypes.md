@@ -46,7 +46,6 @@ import java.net.InetAddress
 import java.util.UUID
 
 import fs2.Chunk
-import shapeless.tag
 import shapeless.tag._
 import spinoco.fs2.cassandra.CType.{Ascii, Type1}
 

@@ -7,3 +7,8 @@ options:
       - title: Connection
         url: connection.html
         menu_section: guide
+
+      - title: Datatypes
+        url: datatypes.html
+        menu_section: guide
+

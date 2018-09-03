@@ -193,7 +193,7 @@ lazy val microsite = project.in(file("site"))
     micrositeGitterChannel := true,
     micrositeGitterChannelUrl := "fs2-cassand/Lobby",
     micrositePushSiteWith := GitHub4s,
-    micrositeGithubToken := sys.env.get("GITHUB_TOKEN"),
+    micrositeGithubToken := sys.env.get("GITHUB_TOKEN_FS2_CASSANDRA"),
     fork in tut := true,
     scalacOptions in Tut --= Seq(
       "-Xfatal-warnings",

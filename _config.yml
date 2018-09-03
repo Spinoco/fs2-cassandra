@@ -1,0 +1,11 @@
+name: Fs2 Cassandra
+baseurl: /fs2-cassandra
+description: Cassandra stream-based client
+highlighter: rouge
+docs: true
+collections:
+  tut:
+    output: true
+version: 0.3.0-M2
+org: com.spinoco
+markdown: kramdown

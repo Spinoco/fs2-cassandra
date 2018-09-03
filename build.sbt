@@ -165,7 +165,7 @@ lazy val fs2Cassandra =
     core, testSupport, coreTest
   )
 
-lazy val noPublish = Seq(
+lazy val doNotPublish = Seq(
   publish := {},
   publishLocal := {},
   publishArtifact := false,
@@ -175,7 +175,7 @@ lazy val noPublish = Seq(
 lazy val microsite = project.in(file("site"))
   .enablePlugins(MicrositesPlugin)
   .settings(commonSettings)
-  .settings(noPublish)
+  .settings(doNotPublish)
   .settings(
     micrositeName := "Fs2 Cassandra",
     micrositeDescription := "Cassandra stream-based client",
@@ -193,7 +193,7 @@ lazy val microsite = project.in(file("site"))
     micrositeGitterChannel := true,
     micrositeGitterChannelUrl := "fs2-cassand/Lobby",
     micrositePushSiteWith := GitHub4s,
-    micrositeGithubToken := sys.env.get("GITHUB_TOKEN_FS2_CASSANDRA"),
+    micrositeGithubToken := sys.env.get("GITHUB_TOKEN"),
     fork in tut := true,
     scalacOptions in Tut --= Seq(
       "-Xfatal-warnings",

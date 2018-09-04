@@ -6,6 +6,6 @@ docs: true
 collections:
   tut:
     output: true
-version: 0.3.0-M2
+version: 0.4.0-M4
 org: com.spinoco
 markdown: kramdown

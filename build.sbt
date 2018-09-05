@@ -213,4 +213,4 @@ lazy val microsite = project.in(file("site"))
   .dependsOn(core)
 
 // CI build
-addCommandAlias("ciBuild", ";clean;project coreTest;test;tut")
+addCommandAlias("ciBuild", ";clean;project coreTest;test;project microsite;tut")

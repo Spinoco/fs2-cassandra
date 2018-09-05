@@ -26,6 +26,8 @@ import com.datastax.driver.core.Cluster
 import fs2.Stream
 import spinoco.fs2.cassandra.{CassandraCluster, CassandraSession}
 
+import scala.concurrent.ExecutionContext.Implicits.global
+
 val config = Cluster.builder().addContactPoints("127.0.0.1")
 
 def doSomething(session: CassandraSession[IO]) = {
@@ -34,7 +36,7 @@ def doSomething(session: CassandraSession[IO]) = {
 
 val program: Stream[IO, Unit] =
   for {
-    cluster <- CassandraCluster[IO](config)
+    cluster <- CassandraCluster[IO](config, None)
     session <- cluster.session
     _       <- doSomething(session)
   } yield ()

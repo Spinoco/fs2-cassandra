@@ -17,6 +17,5 @@ jdk:
   - oraclejdk8
 
 script:
-  - sbt ++$TRAVIS_SCALA_VERSION -Dfile.encoding=UTF8 "project coreTest" test
-
+  - sbt ++$TRAVIS_SCALA_VERSION -Dfile.encoding=UTF8 ciBuild
 

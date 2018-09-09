@@ -1,6 +1,6 @@
 package spinoco.fs2.cassandra.support
 
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import com.datastax.driver.core.{Cluster, Session}
 import com.datastax.driver.core.policies.ConstantReconnectionPolicy
 import fs2.Stream._
@@ -77,6 +77,7 @@ trait DockerCassandra
     val cluster = clusterConfig.build()
     clusterInstance = Some(cluster)
     val session = cluster.connect()
+    implicit val contextShift: ContextShift[IO] = spinoco.fs2.cassandra.support.cs
     val cs = CassandraSession.impl.mkSession[IO](session,cluster.getConfiguration.getProtocolOptions.getProtocolVersion).unsafeRunSync()
     sessionInstance = Some(session -> cs)
   }
@@ -106,7 +107,6 @@ object DockerCassandra {
   val systemKeySpaces:Set[String]=  Set(
     "system_auth", "system_schema", "system_distributed", "system", "system_traces"
   )
-
 
   /** asserts that docker is available on host os **/
   def assertDockerAvailable:Unit = {

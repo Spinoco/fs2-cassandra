@@ -2,6 +2,8 @@ package spinoco.fs2.cassandra
 
 import java.util.concurrent.{Executors, ThreadFactory}
 
+import cats.effect.{ContextShift, IO}
+
 import scala.concurrent.ExecutionContext
 
 /**
@@ -18,7 +20,7 @@ package object support {
     }
   }
 
-  implicit val EC: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(8, factory))
-//  implicit val C: Concurrent[IO] = .fromScheduledExecutorService(Executors.newScheduledThreadPool(4, factory))
+  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(8, factory))
+  implicit val cs: ContextShift[IO] = IO.contextShift(ec)
 
 }

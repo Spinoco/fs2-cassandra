@@ -21,12 +21,13 @@ It acquires a single session, that can be used to execute statements. Note that 
 Given a `CassandraSession` execute a statement (eg. insert statements).
 
 ```tut:book:silent
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import com.datastax.driver.core.Cluster
 import fs2.Stream
 import spinoco.fs2.cassandra.{CassandraCluster, CassandraSession}
 
-import scala.concurrent.ExecutionContext.Implicits.global
+val ec = scala.concurrent.ExecutionContext.global
+implicit val cs = IO.contextShift(ec)
 
 val config = Cluster.builder().addContactPoints("127.0.0.1")
 

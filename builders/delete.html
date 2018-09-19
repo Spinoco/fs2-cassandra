@@ -1,0 +1,148 @@
+<html><head><title>Fs2 Cassandra: Delete Builder</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Spinoco" /><meta name="description" content="Cassandra stream-based client" /><meta name="og:image" content="/fs2-cassandra/img/poster.png" /><meta name="og:title" content="Fs2 Cassandra: Delete Builder" /><meta name="og:site_name" content="Fs2 Cassandra" /><meta name="og:url" content="" /><meta name="og:type" content="website" /><meta name="og:description" content="Cassandra stream-based client" /><link rel="icon" type="image/png" href="/fs2-cassandra/img/favicon.png" /><meta name="twitter:title" content="Fs2 Cassandra: Delete Builder" /><meta name="twitter:image" content="img/poster.png" /><meta name="twitter:description" content="Cassandra stream-based client" /><meta name="twitter:card" content="summary_large_image" /><link rel="icon" type="image/png" sizes="16x16" href="/fs2-cassandra/img/favicon16x16.png" /><link rel="icon" type="image/png" sizes="24x24" href="/fs2-cassandra/img/favicon24x24.png" /><link rel="icon" type="image/png" sizes="32x32" href="/fs2-cassandra/img/favicon32x32.png" /><link rel="icon" type="image/png" sizes="48x48" href="/fs2-cassandra/img/favicon48x48.png" /><link rel="icon" type="image/png" sizes="57x57" href="/fs2-cassandra/img/favicon57x57.png" /><link rel="icon" type="image/png" sizes="60x60" href="/fs2-cassandra/img/favicon60x60.png" /><link rel="icon" type="image/png" sizes="64x64" href="/fs2-cassandra/img/favicon64x64.png" /><link rel="icon" type="image/png" sizes="70x70" href="/fs2-cassandra/img/favicon70x70.png" /><link rel="icon" type="image/png" sizes="72x72" href="/fs2-cassandra/img/favicon72x72.png" /><link rel="icon" type="image/png" sizes="76x76" href="/fs2-cassandra/img/favicon76x76.png" /><link rel="icon" type="image/png" sizes="96x96" href="/fs2-cassandra/img/favicon96x96.png" /><link rel="icon" type="image/png" sizes="114x114" href="/fs2-cassandra/img/favicon114x114.png" /><link rel="icon" type="image/png" sizes="120x120" href="/fs2-cassandra/img/favicon120x120.png" /><link rel="icon" type="image/png" sizes="128x128" href="/fs2-cassandra/img/favicon128x128.png" /><link rel="icon" type="image/png" sizes="144x144" href="/fs2-cassandra/img/favicon144x144.png" /><link rel="icon" type="image/png" sizes="150x150" href="/fs2-cassandra/img/favicon150x150.png" /><link rel="icon" type="image/png" sizes="152x152" href="/fs2-cassandra/img/favicon152x152.png" /><link rel="icon" type="image/png" sizes="196x196" href="/fs2-cassandra/img/favicon196x196.png" /><link rel="icon" type="image/png" sizes="310x310" href="/fs2-cassandra/img/favicon310x310.png" /><link rel="icon" type="image/png" sizes="310x150" href="/fs2-cassandra/img/favicon310x150.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/fs2-cassandra/highlight/styles/default.css" /><link rel="stylesheet" href="/fs2-cassandra/css/style.css" /><link rel="stylesheet" href="/fs2-cassandra/css/palette.css" /><link rel="stylesheet" href="/fs2-cassandra/css/codemirror.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><ul id="sidebar" class="sidebar-nav"><li class="sidebar-brand"><a href="/fs2-cassandra/" class="brand"><div class="brand-wrapper"><span>Fs2 Cassandra</span></div></a></li> <li><a href="/fs2-cassandra/guide.html" class="">Guide</a> <ul class="sub_section"> <li><a href="/fs2-cassandra/connection.html" class="">Connection</a></li> <li><a href="/fs2-cassandra/datatypes.html" class="">Datatypes</a></li></ul></li> <li><a href="/fs2-cassandra/builders/" class="">Builders</a> <ul class="sub_section"> <li><a href="/fs2-cassandra/builders/table.html" class="">Table Builder</a></li> <li><a href="/fs2-cassandra/builders/query.html" class="">Query Builder</a></li> <li><a href="/fs2-cassandra/builders/insert.html" class="">Insert Builder</a></li> <li><a href="/fs2-cassandra/builders/update.html" class="">Update Builder</a></li> <li><a href="/fs2-cassandra/builders/delete.html" class=" active ">Delete Builder</a></li> <li><a href="/fs2-cassandra/builders/view.html" class="">Materialized View Builder</a></li></ul></li></ul></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/Spinoco/fs2-cassandra"><i class="fa fa-eye"></i><span>WATCH<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/Spinoco/fs2-cassandra"><i class="fa fa-star-o"></i><span>STARS<span id="stars" class="label label-default">--</span></span></a></li><li><a href="#" onclick="shareSiteTwitter('Fs2 Cassandra Cassandra stream-based client');"><i class="fa fa-twitter"></i></a></li><li><a href="#" onclick="shareSiteFacebook('Fs2 Cassandra Cassandra stream-based client');"><i class="fa fa-facebook"></i></a></li><li><a href="#" onclick="shareSiteGoogle();"><i class="fa fa-google-plus"></i></a></li></ul></div></div></div></div><div id="content" data-github-owner="Spinoco" data-github-repo="fs2-cassandra"><div class="content-wrapper"><section><h1 id="delete-builder">Delete Builder</h1>
+
+<p>The Delete builder DSL provides simple <code class="highlighter-rouge">row</code> delete and conditional methods <code class="highlighter-rouge">onlyIfExists</code> and <code class="highlighter-rouge">onlyIf</code> generating CQL statement for delete.</p>
+
+<h3 id="delete-dsl">Delete DSL</h3>
+
+<p>Given our <a href="./table">SimpleTable</a> definition we will generate delete statement with the DSL.</p>
+
+<h4 id="delete-full-row">Delete full row</h4>
+
+<p>Delete with <code class="highlighter-rouge">row</code> generate our basic CQL delete statement.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">d1</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="n">t1</span><span class="o">.</span><span class="n">delete</span>
+    <span class="o">.</span><span class="n">row</span>
+    <span class="o">.</span><span class="n">build</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">d1</span><span class="o">.</span><span class="n">cqlStatement</span>
+<span class="c1">// res0: String = "DELETE FROM test_ks.test_table  WHERE intColumn = :intColumn "
+</span></code></pre></div></div>
+
+<p>Partition key is included by default by the builder when using <code class="highlighter-rouge">row</code></p>
+
+<h5 id="delete-row-with-clustering-key">Delete row with clustering key</h5>
+
+<p>To specify clustering key, simply use <code class="highlighter-rouge">cluster('columnName)</code></p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">d1c</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="n">t2</span><span class="o">.</span><span class="n">delete</span>
+    <span class="o">.</span><span class="n">row</span>
+    <span class="o">.</span><span class="n">cluster</span><span class="o">(</span><span class="ss">'longColumn)</span>
+    <span class="o">.</span><span class="n">build</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">d1c</span><span class="o">.</span><span class="n">cqlStatement</span>
+<span class="c1">// res1: String = "DELETE FROM test_ks.test_table  WHERE intColumn = :intColumn AND longColumn = :longColumn "
+</span></code></pre></div></div>
+
+<h4 id="delete-specific-column">Delete specific column</h4>
+
+<p>CQL also allows to only delete specific columns, for that <code class="highlighter-rouge">column</code> instead of <code class="highlighter-rouge">row</code> can be used.</p>
+
+<p>First let’s create a new table with an optional column fields, those fields have to be declared 
+as <code class="highlighter-rouge">Option</code> since this will effectively put <code class="highlighter-rouge">null</code> as their values.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">case</span> <span class="k">class</span> <span class="nc">SimpleTableOptional</span> <span class="o">(</span>
+  <span class="n">intColumn</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span>
+  <span class="n">longColumn</span><span class="k">:</span> <span class="kt">Long</span><span class="o">,</span>
+  <span class="n">stringColumn</span><span class="k">:</span> <span class="kt">Option</span><span class="o">[</span><span class="kt">String</span><span class="o">],</span>
+  <span class="n">timeUuidColumn</span><span class="k">:</span> <span class="kt">Option</span><span class="o">[</span><span class="kt">UUID</span> <span class="kt">@@</span> <span class="kt">Type1</span><span class="o">]</span>
+<span class="o">)</span>
+
+<span class="k">val</span> <span class="n">t3</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="n">ks</span><span class="o">.</span><span class="n">table</span><span class="o">[</span><span class="kt">SimpleTableOptional</span><span class="o">]</span>
+    <span class="o">.</span><span class="n">partition</span><span class="o">(</span><span class="ss">'intColumn)</span>
+    <span class="o">.</span><span class="n">build</span><span class="o">(</span><span class="s">"test_option_table"</span><span class="o">)</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Let’s use <code class="highlighter-rouge">column('columnName)</code> to generate delete statement with only those optional columns for the row.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">d2</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="n">t3</span><span class="o">.</span><span class="n">delete</span>
+    <span class="o">.</span><span class="n">column</span><span class="o">(</span><span class="ss">'stringColumn)</span>
+    <span class="o">.</span><span class="n">column</span><span class="o">(</span><span class="ss">'timeUuidColumn)</span>
+    <span class="o">.</span><span class="n">primary</span>
+    <span class="o">.</span><span class="n">build</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">d2</span><span class="o">.</span><span class="n">cqlStatement</span>
+<span class="c1">// res2: String = "DELETE stringColumn,timeUuidColumn FROM test_ks.test_option_table  WHERE intColumn = :intColumn "
+</span></code></pre></div></div>
+
+<h4 id="delete-with-conditionals">Delete with conditionals</h4>
+
+<p>Cassandra allow doing conditionals delete which translate to <code class="highlighter-rouge">IF EXISTS</code> and <code class="highlighter-rouge">IF column = 'value'</code> in CQL.</p>
+
+<h5 id="delete-if-exists">Delete if exists</h5>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">d1c</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="n">t1</span><span class="o">.</span><span class="n">delete</span>
+    <span class="o">.</span><span class="n">row</span>
+    <span class="o">.</span><span class="n">onlyIfExists</span>
+    <span class="o">.</span><span class="n">build</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">d1c</span><span class="o">.</span><span class="n">cqlStatement</span>
+<span class="c1">// res3: String = DELETE FROM test_ks.test_table  WHERE intColumn = :intColumn  IF EXISTS
+</span></code></pre></div></div>
+
+<h5 id="delete-only-if-condition">Delete only if condition</h5>
+
+<p>Cassandra CQL supports conditional delete with value checking, the DSL provide <code class="highlighter-rouge">onlyIf</code> builder for that use case.</p>
+
+<p>This example with check if <code class="highlighter-rouge">stringColumn</code> equals the string <code class="highlighter-rouge">cats</code> before deleting partition key 1.</p>
+
+<p><code class="highlighter-rouge">OnlyIf</code> requires 3 arguments;the column name, the value and a comparator provided by the Enumeration <code class="highlighter-rouge">Comparison</code>.</p>
+
+<p>Let’s first import the Comparison object</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">spinoco.fs2.cassandra.Comparison</span>
+</code></pre></div></div>
+
+<p>Now we can build our <code class="highlighter-rouge">onlyIf</code> with <code class="highlighter-rouge">Comparison.EQ</code> since we want our column to equals the string <code class="highlighter-rouge">"cats"</code>.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">d2c</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="n">t1</span><span class="o">.</span><span class="n">delete</span>
+    <span class="o">.</span><span class="n">row</span>
+    <span class="o">.</span><span class="n">primary</span>
+    <span class="o">.</span><span class="n">onlyIf</span><span class="o">(</span><span class="ss">'stringColumn,</span> <span class="s">"string_value"</span><span class="o">,</span> <span class="nc">Comparison</span><span class="o">.</span><span class="nc">EQ</span><span class="o">)</span>
+    <span class="o">.</span><span class="n">build</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">d2c</span><span class="o">.</span><span class="n">cqlStatement</span>
+<span class="c1">// res4: String = DELETE FROM test_ks.test_table  WHERE intColumn = :intColumn IF stringColumn = :string_value
+</span></code></pre></div></div>
+
+<h5 id="providing-values-from-a-tuple-with-cqlfor">Providing values from a Tuple with cqlFor</h5>
+
+<p>The previous builder will not fill the statement with the actual <code class="highlighter-rouge">"cats"</code> value nor the partition key;
+in order to do so we need to use <code class="highlighter-rouge">cqlFor</code>.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">d3c</span> <span class="k">=</span> <span class="o">{</span> 
+  <span class="c1">// Starting from previous statement
+</span>  <span class="n">d2c</span><span class="o">.</span><span class="n">fromHList</span>
+     <span class="o">.</span><span class="n">fromTuple</span><span class="o">[(</span><span class="kt">String</span>, <span class="kt">Int</span><span class="o">)]</span>
+     <span class="o">.</span><span class="n">cqlFor</span><span class="o">((</span><span class="s">"cats"</span><span class="o">,</span> <span class="mi">1</span><span class="o">))</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Finally, we should see what is expected as CQL statement.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">d3c</span>
+<span class="c1">// res5: String = DELETE FROM test_ks.test_table  WHERE intColumn = 1 IF stringColumn = 'cats'
+</span></code></pre></div></div>
+
+</section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/fs2-cassandra/highlight/highlight.pack.js"></script><script>hljs.configure({
+languages:['scala','java','bash']
+});
+hljs.initHighlighting();
+             </script><script>((window.gitter = {}).chat = {}).options = {
+room: 'fs2-cassandra/Lobby'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script><script src="/fs2-cassandra/js/main.js"></script></body></html>

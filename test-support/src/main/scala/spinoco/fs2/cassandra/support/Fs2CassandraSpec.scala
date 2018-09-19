@@ -1,5 +1,6 @@
 package spinoco.fs2.cassandra.support
 
+import cats.effect.{ContextShift, IO}
 import org.scalatest.concurrent.{Eventually, TimeLimitedTests}
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import org.scalatest.time.{Seconds, Span}
@@ -17,7 +18,6 @@ class Fs2CassandraSpec extends FreeSpec
   with TimeLimitedTests
   with Eventually {
 
-
   val timeLimit = Span(90, Seconds)
 
   override implicit val patienceConfig: PatienceConfig =
@@ -27,9 +27,8 @@ class Fs2CassandraSpec extends FreeSpec
     PropertyCheckConfiguration(minSuccessful = 25, workers = 1)
 
 
-  implicit val EC: ExecutionContext = spinoco.fs2.cassandra.support.EC
-//  implicit val Sch: Scheduler =  spinoco.fs2.cassandra.support.Sch
-
+  implicit val ec: ExecutionContext = spinoco.fs2.cassandra.support.ec
+  implicit val cs: ContextShift[IO] = spinoco.fs2.cassandra.support.cs
 
 }
 

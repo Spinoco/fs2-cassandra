@@ -78,7 +78,7 @@ d1c.cqlStatement
 
 #### Delete specific column 
 
-CQL also allow to only delete specific columns for that `column` instead of `row` can be used.
+CQL also allows to only delete specific columns, for that `column` instead of `row` can be used.
 
 First let's create a new table with an optional column fields, those fields have to be declared 
 as `Option` since this will effectively put `null` as their values.

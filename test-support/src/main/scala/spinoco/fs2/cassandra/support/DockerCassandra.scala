@@ -1,13 +1,13 @@
 package spinoco.fs2.cassandra.support
 
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import com.datastax.driver.core.{Cluster, Session}
 import com.datastax.driver.core.policies.ConstantReconnectionPolicy
 import fs2.Stream._
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
 import spinoco.fs2.cassandra.{CassandraCluster, CassandraSession}
 
-import scala.concurrent.SyncVar
+import scala.concurrent.{ExecutionContext, SyncVar}
 import scala.sys.process.{Process, ProcessLogger}
 
 
@@ -29,6 +29,7 @@ trait DockerCassandra
   // this has to be overridden to provide exact casandra definition. latest is default
   lazy val cassandra: CassandraDefinition = CassandraDefinition.latest
 
+  implicit val cts: ContextShift[IO] = IO.contextShift(ExecutionContext.Implicits.global)
 
   // yields to true, if given KeySpace has to be preserved between tests, all other KeySpaces will be dropped after each test will end
   def preserveKeySpace(s:String):Boolean = systemKeySpaces.contains(s)
@@ -41,7 +42,6 @@ trait DockerCassandra
       .addContactPoint(s"127.0.0.1")
       .withPort(cqlPort)
       .withReconnectionPolicy(new ConstantReconnectionPolicy(5000))
-
 
 
   private var dockerInstanceId:Option[String] = None
@@ -68,6 +68,7 @@ trait DockerCassandra
 
 
   override protected def beforeAll(): Unit = {
+
     super.beforeAll()
     if (startContainers) {
       assertDockerAvailable

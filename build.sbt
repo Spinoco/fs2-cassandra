@@ -36,8 +36,8 @@ lazy val commonSettings = Seq(
     import spinoco.fs2.cassandra._
   """
   , libraryDependencies ++= Seq(
-    "co.fs2" %% "fs2-core" % "1.0.0-M3"
-    , "co.fs2" %% "fs2-io" % "1.0.0-M3"
+    "co.fs2" %% "fs2-core" % "1.0.0"
+    , "co.fs2" %% "fs2-io" % "1.0.0"
     , "com.datastax.cassandra" % "cassandra-driver-core" % "3.5.0"
     , "com.chuusai" %% "shapeless" % "2.3.3"
     , "com.github.mpilquist" %% "simulacrum" % "0.13.0"

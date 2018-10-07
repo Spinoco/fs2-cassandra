@@ -1,6 +1,7 @@
 package spinoco.fs2.cassandra
 
-import fs2.Stream._
+import fs2._
+import Stream._
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 
@@ -17,7 +18,7 @@ trait SchemaSpec extends SchemaSupport {
         } else system.schema.queryAllKeySpaces.map(_.keyspace_name)
 
       val result =
-        c.session.flatMap { cs => eval_(cs.create(ks)) ++ cs.queryAll(query) }
+        Stream.resource(c.session).flatMap { cs => eval_(cs.create(ks)) ++ cs.queryAll(query) }
         .compile.toVector.unsafeRunSync()
 
       result should contain ("spec_ks")
@@ -35,7 +36,7 @@ trait SchemaSpec extends SchemaSupport {
         }
 
       val result =
-      c.session
+      Stream.resource(c.session)
       .flatMap { cs =>
         eval_(cs.create(ks)) ++
           eval_(cs.create(table)) ++
@@ -63,7 +64,7 @@ trait SchemaSpec extends SchemaSupport {
 
 
       val result =
-        c.session
+        Stream.resource(c.session)
         .flatMap { cs =>
           eval_(cs.create(ks)) ++
             eval_(cs.create(table)) ++
@@ -100,7 +101,7 @@ trait SchemaSpec extends SchemaSupport {
 
 
         val result =
-          c.session
+          Stream.resource(c.session)
             .flatMap { cs =>
               eval_(cs.create(ks)) ++
                 eval_(cs.create(table)) ++
@@ -142,7 +143,7 @@ trait SchemaSpec extends SchemaSupport {
 
 
         val result =
-          c.session
+          Stream.resource(c.session)
             .flatMap { cs =>
               eval_(cs.create(ks)) ++
                 eval_(cs.create(table)) ++

@@ -39,7 +39,7 @@ def doSomething(session: CassandraSession[IO]) = {
 
 val program: Stream[IO, Unit] =
   for {
-    cluster <- Stream.resource(CassandraCluster[IO].instance(config, None))
+    cluster <- Stream.resource(CassandraCluster.instance[IO](config, None))
     session <- Stream.resource(cluster.session)
     _       <- doSomething(session)
   } yield ()

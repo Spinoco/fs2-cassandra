@@ -21,6 +21,7 @@ It acquires a single session, that can be used to execute statements. Note that 
 Given a `CassandraSession` execute a statement (eg. insert statements).
 
 ```tut:book:silent
+import cats.effect.ContextShift
 import cats.effect.IO
 import com.datastax.driver.core.Cluster
 import fs2._

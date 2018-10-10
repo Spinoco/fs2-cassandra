@@ -198,7 +198,7 @@ class QueryBuilderSpec extends Fs2CassandraSpec {
         .build
         .cqlStatement shouldBe
         "SELECT stringColumn" +
-          " FROM test_ks.test_table WITH ALLOW FILTERING"
+          " FROM test_ks.test_table ALLOW FILTERING"
     }
 
 

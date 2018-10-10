@@ -251,7 +251,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
 
 
     val allowFilteringStmt =
-      if (allowFilteringFlag) "WITH ALLOW FILTERING" else ""
+      if (allowFilteringFlag) "ALLOW FILTERING" else ""
 
     val limitStmt = limitCount.map(c => s"LIMIT $c").mkString
 

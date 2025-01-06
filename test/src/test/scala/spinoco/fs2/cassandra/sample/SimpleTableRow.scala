@@ -29,8 +29,8 @@ case class SimpleTableRow(
 )
 
 object SimpleTableRow {
-  import com.datastax.driver.core.utils.UUIDs.timeBased
 
+  private val uuid = UUID.fromString("00000000-0000-0000-0000-000000000000")
   val simpleInstance = SimpleTableRow(
     intColumn = 1
     , longColumn = 2
@@ -41,8 +41,8 @@ object SimpleTableRow {
     , bigDecimalColumn = BigDecimal(0.3d)
     , bigIntColumn = BigInt(3)
     , blobColumn = Chunk.bytes(Array.emptyByteArray)
-    , uuidColumn =  timeBased
-    , timeUuidColumn =  tag[Type1](timeBased)
+    , uuidColumn = uuid
+    , timeUuidColumn =  tag[Type1](uuid)
     , durationColumn = FiniteDuration(1,"s")
     , inetAddressColumn = InetAddress.getLocalHost
     , enumColumn = TestEnumeration.One

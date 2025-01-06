@@ -1,9 +1,9 @@
 package spinoco.fs2.cassandra.internal
 
-import com.datastax.driver.core.DataType
+import com.datastax.oss.driver.api.core.`type`.DataType
+import shapeless.{HList, HNil}
 import shapeless.ops.hlist.Prepend
 import shapeless.ops.record.Keys
-import shapeless.{HList, HNil}
 import spinoco.fs2.cassandra._
 import spinoco.fs2.cassandra.builder._
 

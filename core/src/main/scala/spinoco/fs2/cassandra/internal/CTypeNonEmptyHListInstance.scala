@@ -1,7 +1,9 @@
 package spinoco.fs2.cassandra.internal
 
 
-import com.datastax.driver.core.{DataType, GettableByIndexData, ProtocolVersion, SettableByIndexData}
+import com.datastax.oss.driver.api.core.ProtocolVersion
+import com.datastax.oss.driver.api.core.`type`.DataType
+import com.datastax.oss.driver.api.core.data.{GettableByIndex, SettableByIndex}
 import shapeless.{::, HList, HNil}
 import spinoco.fs2.cassandra.CType
 
@@ -11,14 +13,17 @@ import spinoco.fs2.cassandra.CType
 trait CTypeNonEmptyHListInstance[R <: HList] {
   type CTypes
   def types:Seq[DataType]
-  def write(r:R, data:SettableByIndexData[_], protocolVersion: ProtocolVersion):Unit
-  def writeAt(r:R, idx:Int, data:SettableByIndexData[_], protocolVersion: ProtocolVersion):Unit
-  def readAt(idx:Int, data:GettableByIndexData, protocolVersion: ProtocolVersion):Either[Throwable,R]
-  def read(data:GettableByIndexData, protocolVersion: ProtocolVersion):Either[Throwable,R]
+  def write(r:R, data:SettableByIndex[_], protocolVersion: ProtocolVersion):Unit
+  def writeAt(r:R, idx:Int, data:SettableByIndex[_], protocolVersion: ProtocolVersion):Unit
+  def readAt(idx:Int, data:GettableByIndex, protocolVersion: ProtocolVersion):Either[Throwable,R]
+  def read(data:GettableByIndex, protocolVersion: ProtocolVersion):Either[Throwable,R]
+
 }
 
 
 object CTypeNonEmptyHListInstance {
+
+  @inline def apply[R <: HList](implicit inst: CTypeNonEmptyHListInstance[R]): CTypeNonEmptyHListInstance[R] = inst
 
   type Aux[R<: HList, CT <: HList] = CTypeNonEmptyHListInstance[R] { type CTypes = CT }
 
@@ -29,17 +34,17 @@ object CTypeNonEmptyHListInstance {
     new CTypeNonEmptyHListInstance[V :: HNil] {
       type CTypes =  CType[V] :: HNil
       def types:Seq[DataType] = Seq(CT.cqlType)
-      def write(r:V:: HNil, data:SettableByIndexData[_], protocolVersion: ProtocolVersion):Unit =
+      def write(r:V:: HNil, data:SettableByIndex[_], protocolVersion: ProtocolVersion): Unit =
         writeAt(r,0,data,protocolVersion)
 
-      def writeAt(r:V:: HNil, idx:Int, data:SettableByIndexData[_], protocolVersion: ProtocolVersion):Unit =
-        { data.setBytesUnsafe(idx,CT.serialize(r.head,protocolVersion)); () }
+      def writeAt(r:V:: HNil, idx:Int, data:SettableByIndex[_], protocolVersion: ProtocolVersion): Unit =
+        ??? // { data.setBytesUnsafe(idx,CT.serialize(r.head,protocolVersion)); () }
 
-      def readAt(idx:Int, data:GettableByIndexData, protocolVersion: ProtocolVersion):Either[Throwable,V :: HNil] =
-        CT.deserialize(data.getBytesUnsafe(idx), protocolVersion).right.map(_ :: HNil)
+      def readAt(idx:Int, data:GettableByIndex, protocolVersion: ProtocolVersion):Either[Throwable,V :: HNil] =
+        ??? //CT.deserialize(data.getBytesUnsafe(idx), protocolVersion).right.map(_ :: HNil)
 
-      def read(data:GettableByIndexData, protocolVersion: ProtocolVersion):Either[Throwable,V:: HNil] =
-        readAt(0,data,protocolVersion)
+      def read(data:GettableByIndex, protocolVersion: ProtocolVersion):Either[Throwable,V:: HNil] =
+        ??? // readAt(0,data,protocolVersion)
     }
   }
 
@@ -49,20 +54,20 @@ object CTypeNonEmptyHListInstance {
     implicit
     tail: CTypeNonEmptyHListInstance.Aux[L,C]
     , CT: CType[V]
-  ):CTypeNonEmptyHListInstance.Aux[V :: L, CType[V] :: C] = {
+  ):CTypeNonEmptyHListInstance.Aux[V :: L, CType[V] :: C] = { ???
     new CTypeNonEmptyHListInstance[V :: L] {
       type CTypes = CType[V] :: C
       def types: Seq[DataType] = CT.cqlType +: tail.types
-      def writeAt(r: ::[V, L], idx: Int, data: SettableByIndexData[_], protocolVersion: ProtocolVersion): Unit =
-      { data.setBytesUnsafe(idx,CT.serialize(r.head, protocolVersion)) ; tail.writeAt(r.tail, idx + 1, data, protocolVersion) }
+      def writeAt(r: ::[V, L], idx: Int, data: SettableByIndex[_], protocolVersion: ProtocolVersion): Unit =
+       ??? // { data.setBytesUnsafe(idx,CT.serialize(r.head, protocolVersion)) ; tail.writeAt(r.tail, idx + 1, data, protocolVersion) }
 
-      def write(r: ::[V, L], data: SettableByIndexData[_], protocolVersion: ProtocolVersion): Unit = writeAt(r,0,data,protocolVersion)
+      def write(r: ::[V, L], data: SettableByIndex[_], protocolVersion: ProtocolVersion): Unit = ??? // writeAt(r,0,data,protocolVersion)
 
-      def read(data: GettableByIndexData, protocolVersion: ProtocolVersion): Either[Throwable, ::[V, L]] = readAt(0,data,protocolVersion)
-      def readAt(idx: Int, data: GettableByIndexData, protocolVersion: ProtocolVersion): Either[Throwable, ::[V, L]] =
-        tail.readAt(idx+1,data,protocolVersion).right.flatMap { t =>
-          CT.deserialize(data.getBytesUnsafe(idx), protocolVersion).right.map(_ :: t)
-        }
+      def read(data: GettableByIndex, protocolVersion: ProtocolVersion): Either[Throwable, ::[V, L]] = ??? // readAt(0,data,protocolVersion)
+      def readAt(idx: Int, data: GettableByIndex, protocolVersion: ProtocolVersion): Either[Throwable, ::[V, L]] = ???
+//        tail.readAt(idx+1,data,protocolVersion).right.flatMap { t =>
+//          CT.deserialize(data.getBytesUnsafe(idx), protocolVersion).right.map(_ :: t)
+//        }
 
     }
 

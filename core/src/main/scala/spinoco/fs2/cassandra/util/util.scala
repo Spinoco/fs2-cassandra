@@ -1,6 +1,8 @@
 package spinoco.fs2.cassandra
 
 
+import scodec.{Attempt, Err}
+
 import scala.annotation.tailrec
 
 /**
@@ -8,8 +10,10 @@ import scala.annotation.tailrec
   */
 package object util {
 
-  def Try[A](f: => A):Either[Throwable,A] =
-    try { Right(f) } catch { case t: Throwable => Left(t) }
+  /** converts `f` to attempt. If `f` throws returns Failure, success otherwise */
+  def attempt[A](f: => A): Attempt[A] = {
+    try{Attempt.successful(f)} catch { case e:Throwable => Attempt.failure(Err(e.getMessage))}
+  }
 
   /**
     * Iterate through supplied iterator, but only collect up to `count` elements in iterator
@@ -23,7 +27,7 @@ package object util {
     go(Vector.empty,count)
   }
 
-  /** replaces in rpepared statement the name palceholders with CQL form values **/
+  /** replaces in prepared statement the name placeholders with CQL form values **/
   def replaceInCql(cql:String, values:Map[String,String]):String = {
     @tailrec
     def go(pos:Int, acc:String):String = {

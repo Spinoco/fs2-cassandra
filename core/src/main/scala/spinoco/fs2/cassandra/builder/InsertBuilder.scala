@@ -1,8 +1,7 @@
 package spinoco.fs2.cassandra.builder
 
-import java.nio.ByteBuffer
-
-import com.datastax.driver.core._
+import com.datastax.oss.driver.api.core.ProtocolVersion
+import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BoundStatement, PreparedStatement, Row}
 import shapeless.labelled._
 import shapeless.ops.hlist.{Align, Prepend, Union}
 import shapeless.ops.record.Selector
@@ -10,10 +9,11 @@ import shapeless.tag.@@
 import shapeless.{::, HList, Witness}
 import spinoco.fs2.cassandra.CType.TTL
 import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, SelectAll}
+import spinoco.fs2.cassandra.util.AnnotatedException
 import spinoco.fs2.cassandra.{BatchResultReader, Insert, Table, internal}
 
+import java.nio.ByteBuffer
 import scala.concurrent.duration.FiniteDuration
-import spinoco.fs2.cassandra.util.AnnotatedException
 
 /**
   * Builder for Insert of the columns in table. `I` is at least sum of Partitioning and Cluster Key types
@@ -86,7 +86,7 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
       def writeRaw(s: I, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = CTI.writeRaw(s, protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
         if (ifNotExistsFlag) {
-          if (r.getBool("[applied]")) Right(None)
+          if (r.getBoolean("[applied]")) Right(None)
           else CTR.readByName(r, protocolVersion).left.map(AnnotatedException.withStmt(_, cql)).right.map(Some(_))
         }
         else Right(None)
@@ -97,11 +97,11 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
         CTI.writeByName(i,bs,protocolVersion)
         bs
       }
-      def read(r: ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
-        Option(r.one()) match {
-          case None => Right(None)
-          case Some(row) => read(row,protocolVersion)
-        }
+      def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = { ???
+//        Option(r.one()) match {
+//          case None => Right(None)
+//          case Some(row) => read(row,protocolVersion)
+//        }
       }
 
 

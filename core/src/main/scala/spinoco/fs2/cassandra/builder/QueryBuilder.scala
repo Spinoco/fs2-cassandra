@@ -1,14 +1,15 @@
 package spinoco.fs2.cassandra.builder
 
-import java.nio.ByteBuffer
+import com.datastax.oss.driver.api.core.ProtocolVersion
+import com.datastax.oss.driver.api.core.cql.{BoundStatement, PreparedStatement, Row}
 
-import com.datastax.driver.core.{BoundStatement, PreparedStatement, ProtocolVersion, Row}
+import java.nio.ByteBuffer
 import shapeless.labelled._
 import shapeless.ops.hlist.{Prepend, ToTraversable}
 import shapeless.ops.record.{Keys, Selector}
 import shapeless.{::, HList, HNil, Witness}
 import spinoco.fs2.cassandra.internal._
-import spinoco.fs2.cassandra.{CQLFunction, CQLFunction0, Comparison, AbstractTable, Query, internal}
+import spinoco.fs2.cassandra.{AbstractTable, CQLFunction, CQLFunction0, Comparison, Query, internal}
 import spinoco.fs2.cassandra.util.AnnotatedException
 
 case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <: HList, S <: HList, M](
@@ -320,9 +321,6 @@ object QueryBuilder{
     val self: QueryBuilder[R, PK, CK, IDX, Q, S, Materializable]
   ) extends AnyVal {
 
-    /** starts creating a materialized view out of this query **/
-    def materialize: MaterializedViewBuilder[R, PK, CK, S, HNil, HNil] =
-      MaterializedViewBuilder(self, Nil, Nil)
   }
 
 }

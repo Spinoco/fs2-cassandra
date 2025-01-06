@@ -1,6 +1,7 @@
 package spinoco.fs2.cassandra
 
-import com.datastax.driver.core.{PreparedStatement, ProtocolVersion, ResultSet, Row, BatchStatement => CBatchStatement}
+import com.datastax.oss.driver.api.core.ProtocolVersion
+import com.datastax.oss.driver.api.core.cql.{PreparedStatement, ResultSet, Row, BatchStatement => CBatchStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.ops.product.ToHList
 import shapeless.{Generic, HList, HNil}

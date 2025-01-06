@@ -1,6 +1,4 @@
-import com.typesafe.sbt.pgp.PgpKeys.publishSigned
 import sbt.Tests.{Group, SubProcess}
-import microsites.ExtraMdFileConfig
 
 val ReleaseTag = """^release/([\d\.]+a?)$""".r
 
@@ -11,8 +9,8 @@ lazy val contributors = Seq(
 
 lazy val commonSettings = Seq(
   organization := "com.spinoco",
-  scalaVersion := "2.11.8",
-  crossScalaVersions := Seq("2.11.8", "2.12.6"),
+  scalaVersion := "2.12.15",
+  crossScalaVersions := Seq("2.12.15"),
   scalacOptions ++= Seq(
     "-feature",
     "-deprecation",
@@ -25,8 +23,8 @@ lazy val commonSettings = Seq(
     "-Ywarn-value-discard",
     "-Ywarn-unused-import"
   ),
-  scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
-  scalacOptions in (Test, console) := (scalacOptions in (Compile, console)).value,
+ // scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
+ // scalacOptions in (Test, console) := (scalacOptions in (Compile, console)).value,
   scmInfo := Some(ScmInfo(url("https://github.com/Spinoco/fs2-cassandra"), "git@github.com:Spinoco/fs2-cassandra.git")),
   homepage := None,
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
@@ -38,22 +36,23 @@ lazy val commonSettings = Seq(
   , libraryDependencies ++= Seq(
     "co.fs2" %% "fs2-core" % "1.0.0"
     , "co.fs2" %% "fs2-io" % "1.0.0"
-    , "com.datastax.cassandra" % "cassandra-driver-core" % "3.5.0"
+    , "com.datastax.oss" % "java-driver-core" % "4.17.0"
     , "com.chuusai" %% "shapeless" % "2.3.3"
-    , "com.github.mpilquist" %% "simulacrum" % "0.13.0"
+    , "org.scodec" %% "scodec-core" % "1.10.3"
+  //  , "com.github.mpilquist" %% "simulacrum" % "0.13.0"
 
     // as per https://github.com/google/guava/issues/1095
-    , "com.google.code.findbugs" % "jsr305" % "3.0.1" % "compile"
+   // , "com.google.code.findbugs" % "jsr305" % "3.0.1" % "compile"
 
   )
-  , addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
-) ++ testSettings ++ scaladocSettings ++ publishingSettings ++ releaseSettings
+  , addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+) ++ testSettings //++ scaladocSettings ++ publishingSettings ++ releaseSettings
 
 lazy val testSettings = Seq(
-  parallelExecution in Test := false,
-  fork in Test := true,
-  testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDF"),
-  testGrouping in Test := (definedTests in Test).map { tests =>
+  parallelExecution := false,
+  fork := true,
+  testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oDF")
+  /*testGrouping  := (definedTests in Test).map { tests =>
     // group tests individually to fork them in JVM.
     // essentially any CassandraIntegration_* id having its own group, all others share a group
     // this is necessary hence JavaDriver seems to share some sort of global state preventing to switch
@@ -70,21 +69,23 @@ lazy val testSettings = Seq(
       )
     }.toSeq
   }.value
+
+   */
 )
 
 lazy val scaladocSettings = Seq(
-  scalacOptions in (Compile, doc) ++= Seq(
-    "-doc-source-url", scmInfo.value.get.browseUrl + "/tree/master€{FILE_PATH}.scala",
-    "-sourcepath", baseDirectory.in(LocalRootProject).value.getAbsolutePath,
-    "-implicits",
-    "-implicits-show-all"
-  ),
-  scalacOptions in (Compile, doc) ~= { _ filterNot { _ == "-Xfatal-warnings" } },
-  autoAPIMappings := true
+//  scalacOptions ++= Seq(
+//    "-doc-source-url", scmInfo.value.get.browseUrl + "/tree/master€{FILE_PATH}.scala",
+//    "-sourcepath", baseDirectory.in(LocalRootProject).value.getAbsolutePath,
+//    "-implicits",
+//    "-implicits-show-all"
+//  ),
+//  scalacOptions in (Compile, doc) ~= { _ filterNot { _ == "-Xfatal-warnings" } },
+//  autoAPIMappings := true
 )
 
 lazy val publishingSettings = Seq(
-  publishArtifact in Test := false
+  publishArtifact  := false
   , publishTo := {
     val nexus = "https://oss.sonatype.org/"
     if (version.value.trim.endsWith("SNAPSHOT"))
@@ -130,7 +131,7 @@ lazy val releaseSettings = Seq(
 lazy val noPublish = Seq(
   publish := (()),
   publishLocal := (()),
-  publishSigned := (()),
+//  publishSigned := (()),
   publishArtifact := false
 )
 
@@ -176,41 +177,41 @@ lazy val doNotPublish = Seq(
   publish := {},
   publishLocal := {},
   publishArtifact := false,
-  skip in publish := true
+  //skip in publish := true
 )
 
-lazy val microsite = project.in(file("site"))
-  .enablePlugins(MicrositesPlugin)
-  .settings(commonSettings)
-  .settings(doNotPublish)
-  .settings(
-    micrositeName := "Fs2 Cassandra",
-    micrositeDescription := "Cassandra stream-based client",
-    micrositeAuthor := "Spinoco",
-    micrositeGithubOwner := "Spinoco",
-    micrositeGithubRepo := "fs2-cassandra",
-    micrositeBaseUrl := "/fs2-cassandra",
-    micrositeExtraMdFiles := Map(
-      file("README.md") -> ExtraMdFileConfig(
-        "index.md",
-        "home",
-        Map("title" -> "Home", "position" -> "0")
-      )
-    ),
-    micrositeGitterChannel := true,
-    micrositeGitterChannelUrl := "fs2-cassandra/Lobby",
-    micrositePushSiteWith := GitHub4s,
-    micrositeGithubToken := sys.env.get("GITHUB_TOKEN"),
-    fork in tut := true,
-    scalacOptions in Tut --= Seq(
-      "-Xfatal-warnings",
-      "-Ywarn-unused-import",
-      "-Ywarn-numeric-widen",
-      "-Ywarn-dead-code",
-      "-Xlint:-missing-interpolator,_",
-    )
-  )
-  .dependsOn(core)
+//lazy val microsite = project.in(file("site"))
+//  .enablePlugins(MicrositesPlugin)
+//  .settings(commonSettings)
+//  .settings(doNotPublish)
+//  .settings(
+//    micrositeName := "Fs2 Cassandra",
+//    micrositeDescription := "Cassandra stream-based client",
+//    micrositeAuthor := "Spinoco",
+//    micrositeGithubOwner := "Spinoco",
+//    micrositeGithubRepo := "fs2-cassandra",
+//    micrositeBaseUrl := "/fs2-cassandra",
+//    micrositeExtraMdFiles := Map(
+//      file("README.md") -> ExtraMdFileConfig(
+//        "index.md",
+//        "home",
+//        Map("title" -> "Home", "position" -> "0")
+//      )
+//    ),
+//    micrositeGitterChannel := true,
+//    micrositeGitterChannelUrl := "fs2-cassandra/Lobby",
+//    micrositePushSiteWith := GitHub4s,
+//    micrositeGithubToken := sys.env.get("GITHUB_TOKEN"),
+// //   fork in tut := true,
+////    scalacOptions in Tut --= Seq(
+////      "-Xfatal-warnings",
+////      "-Ywarn-unused-import",
+////      "-Ywarn-numeric-widen",
+////      "-Ywarn-dead-code",
+////      "-Xlint:-missing-interpolator,_",
+////    )
+//  )
+//  .dependsOn(core)
 
 // CI build
 addCommandAlias("ciBuild", ";clean;project coreTest;test;project microsite;tut")

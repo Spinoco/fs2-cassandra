@@ -1,6 +1,6 @@
 package spinoco.fs2.cassandra
 
-import com.datastax.driver.core.DataType
+import com.datastax.oss.driver.api.core.`type`.DataType
 import shapeless.labelled.FieldType
 import shapeless.ops.hlist.Prepend
 import shapeless.ops.record.Selector

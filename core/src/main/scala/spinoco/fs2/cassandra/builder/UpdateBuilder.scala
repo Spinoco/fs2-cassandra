@@ -1,22 +1,21 @@
 package spinoco.fs2.cassandra.builder
 
 
-import java.nio.ByteBuffer
-
-import com.datastax.driver.core._
+import com.datastax.oss.driver.api.core.ProtocolVersion
+import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BoundStatement, PreparedStatement, Row}
 import shapeless.labelled._
 import shapeless.ops.hlist.Prepend
-import shapeless.{::, HList, HNil, Witness}
 import shapeless.ops.record.Selector
 import shapeless.tag._
+import shapeless.{::, HList, HNil, Witness}
 import spinoco.fs2.cassandra.CType.{Counter, TTL}
+import spinoco.fs2.cassandra._
 import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
 import spinoco.fs2.cassandra.internal._
-import spinoco.fs2.cassandra.{BatchResultReader, Comparison, Table, Update, internal}
-
-import scala.collection.JavaConverters._
-import scala.concurrent.duration.FiniteDuration
 import spinoco.fs2.cassandra.util.AnnotatedException
+
+import java.nio.ByteBuffer
+import scala.concurrent.duration.FiniteDuration
 
 /**
   * Builder of update statement
@@ -349,15 +348,16 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
         CTQ.writeByName(i,bs,protocolVersion)
         bs
       }
-      def read(r: ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
-        (Option(r.one()) match {
-          case None =>
-            if (ifExistsCondition || ifConditions.nonEmpty) Left(new Throwable("Expected update result but got nothing"))
-            else Right(HNil.asInstanceOf[RIF]) // safe hence result must be always empty HList (HNil) in this case
-          case Some(row) =>
-            val columns = r.getColumnDefinitions.asList().asScala.map(_.getName).toSet
-            CTR.readByNameIfExists(columns,row,protocolVersion)
-        }).left.map(AnnotatedException.withStmt(_, cql))
+      def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
+//        (Option(r.one()) match {
+//          case None =>
+//            if (ifExistsCondition || ifConditions.nonEmpty) Left(new Throwable("Expected update result but got nothing"))
+//            else Right(HNil.asInstanceOf[RIF]) // safe hence result must be always empty HList (HNil) in this case
+//          case Some(row) =>
+//            val columns = r.getColumnDefinitions.asScala.map(_.getName.asCql(false).toLowerCase).toSet
+//            CTR.readByNameIfExists(columns,row,protocolVersion)
+//        }).left.map(AnnotatedException.withStmt(_, cql))
+        ???
       }
 
 

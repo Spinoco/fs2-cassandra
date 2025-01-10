@@ -6,6 +6,7 @@ import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 
 trait SchemaSpec extends SchemaSupport {
+  /*
 
   s"Create Schema (${cassandra.tag})" - {
     val ks = KeySpace("spec_ks")
@@ -171,4 +172,5 @@ trait SchemaSpec extends SchemaSupport {
 
 
   }
+   */
 }

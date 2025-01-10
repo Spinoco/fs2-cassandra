@@ -2,7 +2,7 @@ package spinoco.fs2.cassandra.builder
 
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
-import com.datastax.oss.driver.api.core.cql.{BoundStatement, DefaultBatchType, PreparedStatement, ResultSet, Row, BatchStatement => CBatchStatement}
+import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BoundStatement, DefaultBatchType, PreparedStatement, Row, BatchStatement => CBatchStatement}
 import shapeless.{::, HList, HNil}
 import spinoco.fs2.cassandra.{BatchStatement, DMLStatement}
 
@@ -62,19 +62,23 @@ case class BatchBuilder[Q <: HList, R <: HList] (
       def statements: Seq[String] =
         self.statements
 
-      def read(r: Q)(rs:ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
-        val all = rs.all().asScala
-        if (rs.wasApplied()) Right(None)
-        else self.readResult(r)(all,protocolVersion).right.map(Some(_))
-      }
+//      def read(r: Q)(rs:ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
+//        val all = rs.all().asScala
+//        if (rs.wasApplied()) Right(None)
+//        else self.readResult(r)(all,protocolVersion).right.map(Some(_))
+//      }
 
+      def readArs(r: Q)(rs: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
+        val all = rs.currentPage().asScala
+        if (rs.wasApplied()) Right(None)
+        else self.readResult(r)(all.toSeq,protocolVersion).right.map(Some(_))
+      }
 
       def createStatement(statements: Seq[PreparedStatement], r: Q, protocolVersion: ProtocolVersion): Either[Throwable, CBatchStatement] =
         self.fill(r,statements,protocolVersion).right.map { bs =>
           val tpe = if (self.isLogged) DefaultBatchType.LOGGED else DefaultBatchType.UNLOGGED
           val batch = CBatchStatement.newInstance(tpe)
           batch.addAll(bs.asJava)
-          batch
         }
     }
 

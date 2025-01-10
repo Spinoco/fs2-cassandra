@@ -18,7 +18,7 @@ object codecs {
     new Codec[A] {
       def encode(value: A): Attempt[BitVector] = {
         codec.encode(value).flatMap { encoded =>
-        scodec.codecs.int32.encode(encoded.size.toInt).map { size =>
+        scodec.codecs.int32.encode((encoded.size/8).toInt).map { size =>
           size ++ encoded
         }}
       }
@@ -30,7 +30,7 @@ object codecs {
           if (size == -1 || size == 0)
             codec.decode(BitVector.empty).map { case DecodeResult(a, _) => DecodeResult(a, rest) } // allow to decode null/empty string
           else {
-            val (toDecode, remaining) = rest.splitAt(size)
+            val (toDecode, remaining) = rest.splitAt(size*8)
             codec.decode(toDecode).flatMap { case DecodeResult(value, rest) =>
               if (rest.isEmpty) Attempt.successful(DecodeResult(value, remaining))
               else Attempt.failure(Err(s"Remaining bits after decoding a value in elementCodec: $value [$rest]"))

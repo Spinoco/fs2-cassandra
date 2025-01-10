@@ -1,19 +1,23 @@
 package spinoco.fs2.cassandra
 
-import cats.{Applicative, Monad}
-import cats.data.OptionT
 import cats.effect._
 import cats.effect.concurrent.Ref
 import cats.implicits._
-import com.datastax.oss.driver.api.core.cql._
+import cats.{Applicative, Traverse}
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption
+import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BatchType, BoundStatement, PagingState, PreparedStatement, Row, SimpleStatement, Statement, BatchStatement => CBatchStatement}
 import com.datastax.oss.driver.api.core.{CqlSession, CqlSessionBuilder, ProtocolVersion}
+import fs2.Stream._
 import fs2._
 import shapeless.HNil
-import spinoco.fs2.cassandra.CassandraSession.impl.SessionState
-import spinoco.fs2.cassandra.util.StatementHelper
+import spinoco.KarelsTweaks.CallTracer._
+import spinoco.fs2.cassandra.util.DrainSyntax.AsyncResultSetDrainSyntax
+import spinoco.fs2.cassandra.util.KeyspaceSyntax._
+import spinoco.fs2.cassandra.util.ResultSetStreamSyntax._
+import spinoco.fs2.cassandra.util.ToOptionSyntax._
 import spinoco.fs2.cassandra.util.concurrent._
+import spinoco.KarelsTweaks.CallTracer._
 
-import java.time.Duration
 import scala.language.higherKinds
 
 trait CassandraSession[F[_]] {
@@ -22,13 +26,14 @@ trait CassandraSession[F[_]] {
   def create(ddl:SchemaDDL):F[Unit]
 
   /**
-    * Compares supplied Schema object from actual version in C*, yielding in CQL statement that needs to be run to
-    * update schema.
-    */
+   * Compares supplied Schema object from actual version in C*, yielding in CQL statement that needs to be run to
+   * update schema.
+   */
   def migrateDDL(ddl:SchemaDDL):F[Seq[String]]
 
   /** Builds a stream, that runs query against C* when run **/
   def query[Q,R](query:Query[Q,R], o:QueryOptions = Options.defaultQuery)(q:Q):Stream[F,R]
+
 
   /** Queries all elements. Requires query that accepts all results **/
   def queryAll[R](q:Query[HNil,R], o:QueryOptions = Options.defaultQuery):Stream[F,R] = query(q,o)(HNil)
@@ -43,31 +48,32 @@ trait CassandraSession[F[_]] {
   def queryStatement(boundStatement: BoundStatement):Stream[F,Row]
 
   /**
-    * Like query, but only teches single page and then returns on left paging state that can be reused to fetch more
-    * Last element is guaranteed to be on Left, possibly empty, indicating end of paging.
-    */
+   * Like query, but only teches single page and then returns on left paging state that can be reused to fetch more
+   * Last element is guaranteed to be on Left, possibly empty, indicating end of paging.
+   */
   def page[Q,R](query:Query[Q,R], o:QueryOptions = Options.defaultQuery)(q:Q):Stream[F,Either[Option[PagingState],R]]
 
   /**
-    * Alias for paging w/o any query restrictions.
-    * Last element is guaranteed to be on Left, possibly empty, indicating end of paging.
-    */
+   * Alias for paging w/o any query restrictions.
+   * Last element is guaranteed to be on Left, possibly empty, indicating end of paging.
+   */
   def pageAll[R](q:Query[HNil,R], o:QueryOptions = Options.defaultQuery):Stream[F,Either[Option[PagingState],R]]= page(q,o)(HNil)
 
   /**
-    * Builds a paging stream, that runs query specified by cql against C* when run
-    * Last element is guaranteed to be on Left, possibly empty, indicating end of paging.
-    */
+   * Builds a paging stream, that runs query specified by cql against C* when run
+   * Last element is guaranteed to be on Left, possibly empty, indicating end of paging.
+   */
   def pageCql(cql:String, o:QueryOptions = Options.defaultQuery):Stream[F,Either[Option[PagingState],Row]]
 
   /**
-    * Builds a paging stream, that runs query specified by supplied `boundStatement` against C* when run.
-    * Last element is guaranteed to be on Left, possibly empty, indicating end of paging.
-    */
+   * Builds a paging stream, that runs query specified by supplied `boundStatement` against C* when run.
+   * Last element is guaranteed to be on Left, possibly empty, indicating end of paging.
+   */
   def pageStatement(boundStatement: BoundStatement):Stream[F,Either[Option[PagingState],Row]]
 
   /** Executes supplied DML statement (INSERT, UPDATE, DELETE).**/
   def execute[I,R](statement: DMLStatement[I,R], o: DMLOptions = Options.defaultDML)(i:I):F[R]
+
 
   /** executes raw statement from the underlying C* driver **/
   def executeRaw[T <: Statement[T]](statement: T): F[AsyncResultSet]
@@ -98,250 +104,262 @@ object CassandraSession {
   : ContextShift
   ](sessionBuilder: CqlSessionBuilder): Resource[F,CassandraSession[F]] = {
 
+
+
     def buildCqlSession : F[CqlSession] =
       Sync[F].suspend(sessionBuilder.buildAsync().toF)
-      .flatTap(_ => shift)
+        .flatTap(_ => implicitly[ContextShift[F]].shift)
 
     def closeSession(cqlSession: CqlSession): F[Unit] =
-      Sync[F].suspend(cqlSession.closeAsync().toF) >> shift
+      Sync[F].suspend(cqlSession.closeAsync().toF) >> implicitly[ContextShift[F]].shift
 
     Resource.make(
-      Sync[F].suspend(buildCqlSession).flatMap { cqlSession =>
-        impl.mkSession[F](cqlSession, ???).map { cs => (cs, cqlSession) }
-      }
-    )({ case (_, cqlSession) => closeSession(cqlSession) })
-    .flatMap { case (cs, _) => Resource.pure(cs) }
+        Sync[F].suspend(buildCqlSession).flatMap { cqlSession =>
+          impl.mkSession[F](cqlSession, cqlSession.getContext.getProtocolVersion).map { cs => (cs, cqlSession) }
+        }
+      )({ case (_, cqlSession) => closeSession(cqlSession) })
+      .flatMap { case (cs, _) => Resource.pure(cs) }
   }
 
   object impl {
 
-//    val L = implicitly[Traverse[List]]
-//
-    implicit class ResultSetSyntax(val self:ResultSet) extends AnyVal {
-      def drain:Vector[Row] = {
-        val count = self.getAvailableWithoutFetching
-        spinoco.fs2.cassandra.util.iterateN(self.iterator(), count)
-      }
-    }
-
+    val L = implicitly[Traverse[List]]
 
     case class SessionState(
-      cache:Map[String, PreparedStatement]
-    )
+                             cache:Map[String, PreparedStatement]
+                           )
 
-    def mkSession[F[_]
-    : Async
-    : ContextShift
-    : StatementHelper
-    ](cqlSession: CqlSession, protocolVersion: ProtocolVersion): F[CassandraSession[F]] = Applicative[F].pure {
-      new CassandraSession[F] {
-        def create(ddl: SchemaDDL): F[Unit] =
-          ddl.cqlStatement.toList.traverse_(executeCql(_))
+    def printConfigurations(session: CqlSession): Unit = {
+      val ctx = session.getContext
+      val config = ctx.getConfig
+      val profile = config.getDefaultProfile
 
-        def migrateDDL(ddl: SchemaDDL): F[Seq[String]] =
-          CassandraSession.migrateDDL(ddl)
+      println("=== Session ===")
 
-        def execute[I, R](statement: DMLStatement[I, R], o: DMLOptions = Options.defaultDML)(i: I): F[R] =
-          CassandraSession.executeDML(statement, o, i)
+      println(
+        s"""
+           | Config:
+           | ${ctx.getConfig}
+           | ${ctx.getConfigLoader}
+           | ${ctx.getReconnectionPolicy}
+           | ${ctx.getRetryPolicies}
+           | """.stripMargin)
 
-        def executeRaw[T <: Statement[T]](statement: T): F[AsyncResultSet] =
-          Sync[F].suspend(cqlSession.executeAsync(statement).toF[F])
+      println("=== Session Configuration ===")
 
-        def executeCql(cql: String, o: DMLOptions = Options.defaultDML): F[AsyncResultSet] =
-          Sync[F].suspend(cqlSession.executeAsync(cql).toF)
+      // Timeouts
+      println("\nTimeouts:")
+      println(s"Request timeout: ${profile.getDuration(DefaultDriverOption.REQUEST_TIMEOUT)}")
+      println(s"Connection timeout: ${profile.getDuration(DefaultDriverOption.CONNECTION_CONNECT_TIMEOUT)}")
+      println(s"Schema agreement timeout: ${profile.getDuration(DefaultDriverOption.CONTROL_CONNECTION_AGREEMENT_TIMEOUT)}")
+      println(s"Control connection timeout: ${profile.getDuration(DefaultDriverOption.CONTROL_CONNECTION_TIMEOUT)}")
 
-        def query[Q, R](query: Query[Q, R], o:QueryOptions = Options.defaultQuery)(q: Q): Stream[F, R] =
-          CassandraSession.queryStatement(query, o, q)
+      // Retries
+      println("\nRetry Settings:")
+      println(s"Query retry policy: ${profile.getString(DefaultDriverOption.RETRY_POLICY_CLASS)}")
 
-        def queryOne[Q, R](query: Query[Q, R], o: QueryOptions)(q: Q): F[Option[R]] =
-          CassandraSession.queryOne(query, o, q)
+      // Connection Pool
+      println("\nConnection Pool:")
+      println(s"Local pool size: ${profile.getInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE)}")
+      println(s"Remote pool size: ${profile.getInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE)}")
+      println(s"Max requests per connection: ${profile.getInt(DefaultDriverOption.CONNECTION_MAX_REQUESTS)}")
 
-        def queryCql(cql: String, o:QueryOptions = Options.defaultQuery): Stream[F, Row] =
-          CassandraSession.queryRows(cqlStatement(cql, o))
+      // Reconnection
+      println("\nReconnection Settings:")
+      println(s"Reconnection policy: ${profile.getString(DefaultDriverOption.RECONNECTION_POLICY_CLASS)}")
+      println(s"Base delay: ${profile.getDuration(DefaultDriverOption.RECONNECTION_BASE_DELAY)}")
+      println(s"Max delay: ${profile.getDuration(DefaultDriverOption.RECONNECTION_MAX_DELAY)}")
 
-        def queryStatement(boundStatement: BoundStatement): Stream[F, Row] =
-          ??? // CassandraSession.queryRows(boundStatement, Options.defaultQuery)
+      // Heartbeat
+      println("\nHeartbeat:")
+      println(s"Heartbeat interval: ${profile.getDuration(DefaultDriverOption.HEARTBEAT_INTERVAL)}")
+      println(s"Heartbeat timeout: ${profile.getDuration(DefaultDriverOption.HEARTBEAT_TIMEOUT)}")
 
-        def page[Q, R](query: Query[Q, R], o:QueryOptions = Options.defaultQuery)(q: Q): Stream[F, Either[Option[PagingState], R]] =
-          CassandraSession.pageQuery(query,o,q)
+      // Query Settings
+      println("\nQuery Settings:")
+      println(s"Page size: ${profile.getInt(DefaultDriverOption.REQUEST_PAGE_SIZE)}")
+      println(s"Consistency level: ${profile.getString(DefaultDriverOption.REQUEST_CONSISTENCY)}")
+      println(s"Serial consistency level: ${profile.getString(DefaultDriverOption.REQUEST_SERIAL_CONSISTENCY)}")
 
-        def pageCql(cql: String, o:QueryOptions = Options.defaultQuery): Stream[F, Either[Option[PagingState], Row]] =
-          CassandraSession.pageQueryRows(cqlStatement(cql, o))
+      // Get all profiles
+      println("\nAvailable Execution Profiles:")
+      config.getProfiles.values().iterator().forEachRemaining { profile =>
+        println(s"- ${profile.getName}")
+      }
 
-        def pageStatement(boundStatement: BoundStatement): Stream[F, Either[Option[PagingState], Row]] =
-          ??? // CassandraSession.pageQueryRows(boundStatement,Options.defaultQuery)
+    }
 
-        def prepareCql(cql: String): F[PreparedStatement] =
-          Sync[F].suspend(cqlSession.prepareAsync(cql).toF)
+    def mkSession[F[_]: Async : ContextShift](cqlSession: CqlSession, protocolVersion: ProtocolVersion):F[CassandraSession[F]] = {
 
-        def executeBatch[I, R](batch: BatchStatement[I, R], o: DMLOptions= Options.defaultDML)(i: I): F[Option[R]] =
-          CassandraSession.executeBatch(batch,o,i)
+      printConfigurations(cqlSession)
 
-        def bindStatement[I](statement: DMLStatement[I, _], o: DMLOptions)(i: I): F[BoundStatement] =
-          ??? // mkStatement(statement,i).map { bs => Options.applyDMLOptions(bs,o)}
+      Ref.of[F, SessionState](SessionState(Map.empty)) map { state =>
 
-        def executeBatchRaw(statements: Seq[BoundStatement], logged: Boolean): F[AsyncResultSet] =
-          CassandraSession.executeBatchRaw(statements,logged)
+        def executeDML[I, R](statement: DMLStatement[I, R],o: DMLOptions,i: I): F[R] = {
+          mkStatement(statement, i).flatMap { bs =>
+            Sync[F].suspend {
+              val res = cqlSession.executeAsync(Options.applyDMLOptions(bs, o)).toF
+              res
+            }.flatMap { rs =>
+              Sync[F].rethrow(Applicative[F].pure{
+                statement.read(rs, protocolVersion)
+              }
+              )
+            }
+          }
+        }
+
+        def _queryRows[T <: Statement[T]](statement: T, o:QueryOptions):Stream[F,Row] = {
+         val asyncResult = Async[F].suspend(cqlSession.executeAsync(Options.applyQueryOptions(statement,o)).toF)
+          Stream.eval(asyncResult).flatMap { ars => ars.toStream[F] }
+        }
+
+        def _queryStatement[Q,R](query: Query[Q, R], o:QueryOptions, q:Q):Stream[F,R] = {
+          eval(mkStatement(query,q))
+            .flatMap { bs =>
+              println(s"    querying ${bs.getPreparedStatement.getQuery}")
+              LOG("==================== _queryStatement ====================")
+              _queryRows(bs,o)
+            }
+            .flatMap { row => query.read(row, protocolVersion).fold[Stream[F, R]](Stream.raiseError[F],Stream.emit) }
+        }
+
+        def getOrRegisterStatement(cql:String):F[PreparedStatement] = {
+          state.get.flatMap { s =>
+            s.cache.get(cql) match {
+              case Some(ps) => Applicative[F].pure(ps)
+              case None =>
+                Sync[F].suspend(cqlSession.prepareAsync(cql).toF).flatMap { ps =>
+                  state.update(s => s.copy(cache = s.cache + (cql -> ps))) as ps
+                }
+            }
+          }
+        }
+
+        def mkStatement[I](statement:CStatement[I], i:I):F[BoundStatement] = {
+          getOrRegisterStatement(statement.cqlStatement).map { ps =>
+            statement.fill(i,ps, protocolVersion)
+          }
+        }
+
+        // pages single query from supplied statement. Instead fetching next results,
+        // this will return paging state on left, unless exhausted.
+        def _pageQueryRows[S <: Statement[S]](s: S, o:QueryOptions):Stream[F,Either[Option[PagingState], Row]] = {
+          Stream.eval(cqlSession.executeAsync(Options.applyQueryOptions(s,o)).toF).flatMap { rs =>
+            // paging state must be taken before the iteration starts
+            val paging:Option[PagingState] = {
+              if (rs.remaining == 0 && !rs.hasMorePages) None
+              else Option(rs.getExecutionInfo.getSafePagingState)
+            }
+            val rows = rs.drain.map(Right(_))
+            Stream.emits(rows) ++ Stream.emit(Left(paging))
+          }
+        }
+
+        def _pageQuery[Q,R](query: Query[Q, R], o:QueryOptions, q:Q):Stream[F,Either[Option[PagingState],R]] = {
+          eval(mkStatement(query,q))
+            .flatMap { bs => _pageQueryRows(bs,o) }
+            .flatMap {
+              case Right(row) => query.read(row, protocolVersion).fold(Stream.raiseError[F],r => Stream.emit(Right(r)))
+              case Left(ps) => Stream.emit(Left(ps))
+            }
+        }
+
+        def _executeBatch[I,R](batch:BatchStatement[I,R], o:DMLOptions, i:I):F[Option[R]] = {
+          state.get.flatMap { s =>
+            val statements = batch.statements
+            def cacheNotPrepared =
+              statements.filterNot(s.cache.isDefinedAt).toList.traverse({ statement =>
+                Sync[F].suspend(cqlSession.prepareAsync(statement).toF) map { statement -> _ }
+              }).flatMap { prepared =>
+                state.modify { s => val s1 = s.copy(cache = s.cache ++ prepared.toMap); (s1, s1) }
+              }
+
+            cacheNotPrepared.flatMap { cache =>
+              // here we have guaranteed that `cache` contains all statements, so we can just apply for them
+              val allStatements = statements.map(cache.cache.apply)
+              Sync[F].rethrow(Applicative[F].pure(batch.createStatement(allStatements,i,protocolVersion))).flatMap { statement =>
+                //eval(Sync[F].delay(cqlSession.execute(Options.applyDMLOptions(statement,o)))).flatMap { resultSet =>
+                Sync[F].suspend(cqlSession.executeAsync(Options.applyDMLOptions(statement,o)).toF).flatMap { resultSet =>
+                  Sync[F].rethrow(Applicative[F].pure(batch.readArs(i)(resultSet,protocolVersion)))
+                }}
+            }
+          }
+        }
+
+        def _migrateDDL(ddl: SchemaDDL):F[Seq[String]] = {
+          ddl match {
+            case ks:KeySpace => Sync[F].delay {
+              val metadata = cqlSession.getKeyspaceMetadata(ks.name)
+              system.migrateKeySpace(ks, metadata)
+            }
+            case t:Table[_,_,_,_] => Sync[F].delay {
+              val current = cqlSession.getKeyspaceMetadata(t.keySpaceName).flatMap(km => km.getTable(t.name).toOption)
+              system.migrateTable(t, current)
+            }
+            case m: MaterializedView[_,_,_] => Sync[F].delay{
+              val current = cqlSession.getKeyspaceMetadata(m.keySpaceName).flatMap(km => km.getView(m.name).toOption)
+              // TODO: should we figure out a way to not pass the full cql session here?
+              system.migrateMaterializedView(cqlSession, m, current)
+            }
+          }
+        }
+
+
+        def _queryOne[Q,R](query: Query[Q, R], o: QueryOptions, q: Q): F[Option[R]] = {
+          getOrRegisterStatement(query.cqlStatement).flatMap { ps =>
+            val bs = Options
+              .applyQueryOptions(query.fill(q,ps, protocolVersion),o)
+              .setPageSize(1) // only one item we are interested in no need to fetch more
+            Sync[F].suspend(cqlSession.executeAsync(bs).toF).flatMap {resultSet =>
+              Option(resultSet.one()) match {
+                case None => Applicative[F].pure(None)
+                case Some(row) => query.read(row,protocolVersion).fold(Sync[F].raiseError,r => Applicative[F].pure(Some(r)))
+              }
+            }
+          }
+        }
+
+        def _executeBatchRaw(statements: Seq[BoundStatement], logged: Boolean): F[AsyncResultSet] = {
+          val tpe = if (logged) BatchType.LOGGED else BatchType.UNLOGGED
+          val batch = CBatchStatement
+            .builder(tpe)
+            .addStatements(statements: _*)
+            .build()
+          Sync[F].suspend(cqlSession.executeAsync(batch).toF)
+        }
+
+
+
+        new CassandraSession[F] {
+          def create(ddl: SchemaDDL): F[Unit] = ddl.cqlStatement.toList.traverse_(executeCql(_))
+          def migrateDDL(ddl: SchemaDDL): F[Seq[String]] = _migrateDDL(ddl)
+          def execute[I, R](statement: DMLStatement[I, R], o: DMLOptions = Options.defaultDML)(i: I): F[R] = LOGCALL{
+            // INTERESTING
+            val dbg = 666
+            LOG(s"Going to execute ${statement.cqlStatement}")
+            executeDML(statement, o, i).map { it => LOG(s"Executed"); it }
+          }
+          def executeRaw[T <: Statement[T]](statement: T): F[AsyncResultSet] = cqlSession.executeAsync(statement).toF
+          def executeCql(cql: String, o: DMLOptions = Options.defaultDML): F[AsyncResultSet] = LOGCALL {
+            Async[F].delay(LOG(s"execute cql ${cql}")).flatMap { _: Unit =>
+              cqlSession.executeAsync(cql).toF.map { it => LOG(s"finished"); it }
+            }
+          }
+          def query[Q, R](query: Query[Q, R], o:QueryOptions = Options.defaultQuery)(q: Q): Stream[F, R] = _queryStatement(query,o,q)
+          def queryOne[Q, R](query: Query[Q, R], o: QueryOptions)(q: Q): F[Option[R]] = _queryOne(query,o,q)
+          def queryCql(cql: String, o:QueryOptions = Options.defaultQuery): Stream[F, Row] = _queryRows(SimpleStatement.builder(cql).build,o)
+          def queryStatement(boundStatement: BoundStatement): Stream[F, Row] = _queryRows(boundStatement,Options.defaultQuery)
+          def page[Q, R](query: Query[Q, R], o:QueryOptions = Options.defaultQuery)(q: Q): Stream[F, Either[Option[PagingState], R]] = _pageQuery(query,o,q)
+          def pageCql(cql: String, o:QueryOptions = Options.defaultQuery): Stream[F, Either[Option[PagingState], Row]] = _pageQueryRows(SimpleStatement.builder(cql).build, o)
+          def pageStatement(boundStatement: BoundStatement): Stream[F, Either[Option[PagingState], Row]] = _pageQueryRows(boundStatement,Options.defaultQuery)
+          def prepareCql(cql: String): F[PreparedStatement] = cqlSession.prepareAsync(cql).toF
+          def executeBatch[I, R](batch: BatchStatement[I, R], o: DMLOptions= Options.defaultDML)(i: I): F[Option[R]] = _executeBatch(batch,o,i)
+          def bindStatement[I](statement: DMLStatement[I, _], o: DMLOptions)(i: I): F[BoundStatement] = mkStatement(statement,i).map { bs => Options.applyDMLOptions(bs,o)}
+          def executeBatchRaw(statements: Seq[BoundStatement], logged: Boolean): F[AsyncResultSet] = _executeBatchRaw(statements,logged)
+        }
       }
     }
-
-  }
-
-
-  def executeBatchRaw[F[_]](statements: Seq[BoundStatement], logged: Boolean): F[AsyncResultSet] = { ???
-//    val tpe = if (logged) CBatchStatement.Type.LOGGED else CBatchStatement.Type.UNLOGGED
-//    val batch = new CBatchStatement(tpe)
-//    batch.addAll(statements.asJava)
-//    Sync[F].suspend(cs.executeAsync(batch))
-  }
-
-  def mkStatement[F[_], I](statement:CStatement[I], i:I): F[BoundStatement] = { ???
-//    getOrRegisterStatement(statement.cqlStatement).map { ps =>
-//      statement.fill(i,ps, protocolVersion)
-//    }
-  }
-
-
-  def executeBatch[F[_], I, R](batch:BatchStatement[I, R], o:DMLOptions, i:I): F[Option[R]] = { ???
-//    state.get.flatMap { s =>
-//      val statements = batch.statements
-//      def cacheNotPrepared =
-//        statements.filterNot(s.cache.isDefinedAt).toList.traverse({ statement =>
-//          Sync[F].suspend(cs.prepareAsync(statement)) map { statement -> _ }
-//        }).flatMap { prepared =>
-//          state.modify { s => val s1 = s.copy(cache = s.cache ++ prepared.toMap); (s1, s1) }
-//        }
-//
-//      cacheNotPrepared.flatMap { cache =>
-//        // here we have guaranteed that `cache` contains all statements, so we can just apply for them
-//        val allStatements = statements.map(cache.cache.apply)
-//        Sync[F].rethrow(Applicative[F].pure(batch.createStatement(allStatements,i,protocolVersion))).flatMap { statement =>
-//          Sync[F].suspend(cs.executeAsync(Options.applyDMLOptions(statement,o))).flatMap { resultSet =>
-//            Sync[F].rethrow(Applicative[F].pure(batch.read(i)(resultSet,protocolVersion)))
-//          }}
-//      }
-//    }
-  }
-
-  // pages single query from supplied statement. Instead fetching next results,
-  // this will return paging state on left, unless exhausted.
-  def pageQueryRows[F[_], STMT <: Statement[STMT]](s: STMT):Stream[F,Either[Option[PagingState], Row]] = { ???
-//    eval(Sync[F].suspend(cs.executeAsync(Options.applyQueryOptions(s,o)))).flatMap { rs =>
-//      // paging state must be taken before the iteration starts
-//      val paging:Option[PagingState] = {
-//        if (rs.isExhausted) None
-//        else Option(rs.getExecutionInfo.getPagingState)
-//      }
-//      Stream.emits(rs.drain.map(Right(_))) ++ Stream.emit(Left(paging))
-//    }
-  }
-
-
-  def pageQuery[F[_], Q, R](query: Query[Q, R], o:QueryOptions, q:Q):Stream[F,Either[Option[PagingState],R]] = { ???
-//    eval(mkStatement(query,q))
-//      .flatMap { bs => _pageQueryRows(bs,o) }
-//      .flatMap {
-//        case Right(row) => query.read(row, protocolVersion).fold(Stream.raiseError[F],r => Stream.emit(Right(r)))
-//        case Left(ps) => Stream.emit(Left(ps))
-//      }
-  }
-
-  def queryRows[F[_], STMT <: Statement[STMT]](statement:STMT):Stream[F,Row] = { ???
-//    def go(drained:ResultSet):Stream[F,Row] = {
-//      if (drained.isExhausted) Stream.empty
-//      else {
-//        eval(Sync[F].suspend(drained.fetchMoreResults)).flatMap { rs =>
-//          Stream.emits(rs.drain) ++ go(rs)
-//        }
-//      }
-//    }
-//    eval(Sync[F].suspend(cs.executeAsync(Options.applyQueryOptions(statement,o)))).flatMap { rs =>
-//      Stream.emits(rs.drain) ++ go(rs)
-//    }
-  }
-
-  def queryOne[F[_], Q,R](query: Query[Q, R], o: QueryOptions, q: Q): F[Option[R]] = { ???
-//    getOrRegisterStatement(query.cqlStatement).flatMap { ps =>
-//      val bs = Options.applyQueryOptions(query.fill(q,ps, protocolVersion),o)
-//      bs.setFetchSize(1) // only one item we are interested in no need to fetch more
-//      Sync[F].suspend(cs.executeAsync(bs)).flatMap {resultSet =>
-//        Option(resultSet.one()) match {
-//          case None => Applicative[F].pure(None)
-//          case Some(row) => query.read(row,protocolVersion).fold(Sync[F].raiseError,r => Applicative[F].pure(Some(r)))
-//        }
-//      }
-//    }
-  }
-
-  def queryStatement[F[_], Q, R](query: Query[Q, R], o:QueryOptions, q:Q):Stream[F,R] = { ???
-//    eval(mkStatement(query,q))
-//      .flatMap { bs => _queryRows(bs,o) }
-//      .flatMap { row => query.read(row, protocolVersion).fold[Stream[F, R]](Stream.raiseError[F],Stream.emit) }
-  }
-
-  def executeDML[F[_]
-  : Async
-  : StatementHelper
-    , I, R](statement: DMLStatement[I, R], o: DMLOptions, i: I, version: ProtocolVersion)(implicit cqlSession: CqlSession): F[R] = {
-    StatementHelper[F].prepare(statement.cqlStatement).flatMap { ps =>
-      val builder = statement.fill(i, ps, version) //todo: apply options
-      Sync[F].suspend(cqlSession.executeAsync(builder.build()).toF)
-    }
-
-    mkStatement(statement,i).flatMap { bs =>
-      Sync[F].suspend(cqlSession.executeAsync(bs).toF).flatMap { rs =>
-        Sync[F].rethrow(Applicative[F].pure(statement.read(rs,protocolVersion)))
-      }}
-  }
-
-
-
-  def migrateDDL[F[_]](ddl: SchemaDDL):F[Seq[String]] = { ???
-//    ddl match {
-//      case ks:KeySpace => Sync[F].delay { system.migrateKeySpace(ks, Option(cs.getCluster.getMetadata.getKeyspace(ks.name))) }
-//      case t:Table[_,_,_,_] => Sync[F].delay {
-//        val current = Option(cs.getCluster.getMetadata.getKeyspace(t.keySpaceName)).flatMap(km => Option(km.getTable(t.name)))
-//        system.migrateTable(t, current)
-//      }
-//      case m: MaterializedView[_,_,_] => Sync[F].delay{
-//        val current = Option(cs.getCluster.getMetadata.getKeyspace(m.keySpaceName)).flatMap(km => Option(km.getMaterializedView(m.name)))
-//        system.migrateMaterializedView(m, current)
-//      }
-//    }
-  }
-
-  /**
-    * Applies options to CQL statement
-    * @param cql        CQl Statement
-    * @param o          Options to apply to the statement
-    * @return
-    */
-  def cqlStatement(cql: String, o: QueryOptions): SimpleStatement = {
-    applyOptionsToStatement[SimpleStatement, SimpleStatementBuilder](SimpleStatement.builder(cql), o)
-  }
-
-  /**
-    * Generalized form of applying options to any statement
-    * @param builder  Builder to apply options to
-    * @param o        Options to apply to the statement
-    * @return
-    */
-  def applyOptionsToStatement[STMT <: Statement[STMT], BLDR <: StatementBuilder[BLDR, STMT]](builder: BLDR, o: QueryOptions): STMT = {
-    def consistencyLevel(b: BLDR): BLDR = o.consistencyLevel.fold(b)(b.setConsistencyLevel)
-    def tracing(b: BLDR): BLDR = o.tracing.fold(b)(b.setTracing)
-    def executionProfileName (b: BLDR): BLDR = o.executionProfileName.fold(b)(b.setExecutionProfileName)
-    def fetchSize(b: BLDR): BLDR = o.fetchSize.fold(b)(b.setPageSize)
-    def readTimeout(b: BLDR): BLDR = o.timeout.fold(b)(dur => b.setTimeout(Duration.ofMillis(dur.toMillis)))
-    def pagingState(b: BLDR): BLDR = o.pagingState.fold(b)(ps => b.setPagingState(ps.getRawPagingState))
-
-    (
-      consistencyLevel _ andThen
-        tracing andThen
-        executionProfileName andThen
-        fetchSize andThen
-        readTimeout andThen
-        pagingState
-      )(builder).build()
 
   }
 

@@ -3,8 +3,12 @@ package spinoco.fs2.cassandra
 import cats.effect.IO
 import fs2.Stream._
 import shapeless.LabelledGeneric
+import spinoco.KarelsTweaks.CallTracer.{LOG, LOGCALL}
 import spinoco.fs2.cassandra.sample.{ListTableRow, MapTableRow, OptionalTableRow, SimpleTableRow}
 import spinoco.fs2.cassandra.support.{DockerCassandra, Fs2CassandraSpec}
+
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
 
 
 trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
@@ -42,8 +46,9 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
   val strGen = LabelledGeneric[SimpleTableRow]
 
 
+  implicit val timer = IO.timer(ExecutionContext.global)
 
-  def createValuesAndSchema[A](cs:CassandraSession[IO])(table:Table[_,_,_,_], insert:Insert[A,_])(f: (Int,Long) => A):Unit = {
+  def createValuesAndSchema[A](cs:CassandraSession[IO])(table:Table[_,_,_,_], insert:Insert[A,_])(f: (Int,Long) => A):Unit = LOGCALL {
     val records =
       for {
         i <- 0 to 10
@@ -51,22 +56,29 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
       } yield f(i,l)
 
     (for {
+      _ <- IO.sleep(1.second)
+      _ <- IO.delay(LOG("Creating keyspace and table"))
       _ <- cs.create(ks)
+      _ <- IO.sleep(1.second)
+      _ <- IO.delay(LOG("Create table"))
       _ <- cs.create(table)
+      _ <- IO.sleep(1.second)
+      _ <- IO.delay(LOG("Insert records"))
       _ <- emits(records).flatMap(a => eval_(cs.execute(insert)(a))).compile.drain
     } yield ()).unsafeRunSync()
 
   }
 
 
-  def withSessionAndSimpleSchema(f: CassandraSession[IO] => Any): Unit = {
+  def withSessionAndSimpleSchema(f: CassandraSession[IO] => Any): Unit = LOGCALL{
     withSession { cs =>
       createValuesAndSchema(cs)(simpleTable,strInsert){ case (i,l) => SimpleTableRow.simpleInstance.copy(intColumn = i, longColumn = l)}
       f(cs)
     }
   }
 
-  def withSessionAndEmptySimpleSchema(f: CassandraSession[IO] => Any): Unit = {
+
+  def withSessionAndEmptySimpleSchema(f: CassandraSession[IO] => Any): Unit = LOGCALL {
     withSession { cs =>
       (for {
         _ <- cs.create(ks)
@@ -100,7 +112,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
 
 
 
-  def withSessionAndListSchema(f: CassandraSession[IO] => Any): Unit = {
+  def withSessionAndListSchema(f: CassandraSession[IO] => Any): Unit = LOGCALL {
     withSession { cs =>
       createValuesAndSchema(cs)(listTable,ltInsert){ case (i,l) => ListTableRow.instance.copy(intColumn = i, longColumn = l)}
       f(cs)
@@ -129,7 +141,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
       .fromTuple[(Int,Long)]
       .as[MapTableRow]
 
-  def withSessionAndMapSchema(f: CassandraSession[IO] => Any): Unit = {
+  def withSessionAndMapSchema(f: CassandraSession[IO] => Any): Unit = LOGCALL {
     withSession { cs =>
       createValuesAndSchema(cs)(mapTable,mtInsert){ case (i,l) => MapTableRow.instance.copy(intColumn = i, longColumn = l)}
       f(cs)
@@ -153,7 +165,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
       .build
       .as[OptionalTableRow]
 
-  def withSessionAndOptionalSchema(f: CassandraSession[IO] => Any): Unit = {
+  def withSessionAndOptionalSchema(f: CassandraSession[IO] => Any): Unit = LOGCALL {
     withSession { cs =>
       createValuesAndSchema(cs)(optionalTable,otInsert){ case (i,l) => OptionalTableRow.instance.copy(intColumn = i, longColumn = l)}
       f(cs)

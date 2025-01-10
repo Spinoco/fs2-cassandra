@@ -5,7 +5,15 @@ import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.data.{GettableByIndex, GettableByName, SettableByIndex, SettableByName}
 import shapeless.labelled._
 import shapeless.{::, HList, HNil, Witness}
+import spinoco.KarelsTweaks.CallTracer.LOG
+import spinoco.KarelsTweaks.KotlinSyntax.KotlinSyntax
 import spinoco.fs2.cassandra.CType
+import spinoco.fs2.cassandra.internal.CodecSerializer.CodecSerializeSyntax
+import spinoco.fs2.cassandra.internal.CodecWriter.CodecWriteSyntax
+import spinoco.fs2.cassandra.util.AnnotatedException
+import spinoco.fs2.cassandra.util.BitVectorPrinter.BitVectorPrinterSyntax
+import spinoco.fs2.cassandra.util.CTypeReader.CTypeReaderSyntax
+import spinoco.fs2.cassandra.util.GettableSyntax.{GettableByIndexSyntax, GettableByNameSyntax}
 
 import java.nio.ByteBuffer
 
@@ -14,11 +22,9 @@ import java.nio.ByteBuffer
   */
 trait CTypeNonEmptyRecordInstance[R <: HList] extends CTypeRecordInstance[R]
 
-
 object CTypeNonEmptyRecordInstance {
 
   type Aux[R<: HList, CT <: HList] = CTypeNonEmptyRecordInstance[R] { type CTypes = CT }
-
 
   implicit def tailInstance[K,V](
     implicit
@@ -26,36 +32,51 @@ object CTypeNonEmptyRecordInstance {
     , wt: Witness.Aux[K]
   ):CTypeNonEmptyRecordInstance.Aux[FieldType[K,V] :: HNil, FieldType[K,CType[V]] :: HNil] = {
     new CTypeNonEmptyRecordInstance[FieldType[K,V] :: HNil] {
-      type CTypes = FieldType[K,CType[V]] :: HNil
+      type CTypes = FieldType[K, CType[V]] :: HNil
       val k = keyOf(wt)
       val types = Seq(k -> tpe.cqlType)
-      def readAt(index:Int, data: GettableByIndex, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], HNil]] =
-       ???// tpe.deserialize(ByteVector.view(data.getBytesUnsafe(index)), protocolVersion).right.map(v => field[K](v) :: HNil).left.map(AnnotatedException.withField(_, k))
-      def read(data: GettableByIndex, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], HNil]] =
-       ??? //  readAt(0,data,protocolVersion).left.map(AnnotatedException.withField(_, k))
-      def readByName(data: GettableByName, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], HNil]] = {
-        ??? // tpe.deserialize(ByteVector.view(data.getBytesUnsafe(k)), protocolVersion).left.map(AnnotatedException.withField(_, k)).right.map(v => field[K](v) :: HNil)
-      }
-      def readByNameIfExists(keys: Set[String], data: GettableByName, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], HNil]] = { ???
-//        (for {
-//          bytes <- (if (keys.contains(k.toLowerCase)) util.Try(data.getBytesUnsafe(k)) else Right(null)).right
-//          read <- tpe.deserialize(bytes,protocolVersion).right
-//        } yield field[K](read) :: HNil
-//          ).left.map(err => new Throwable(s"Failed to read $k from GettableByNameData (protocol:$protocolVersion), if exists", err))
+
+      // TODO: consider tailrec? :-/
+      def readAt(index: Int, data: GettableByIndex, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], HNil]] = {
+        data.getBitsByIndex(index).readAs[K, V, HNil](k, protocolVersion) { Right(HNil) }
+//        data.getBitsByIndex(index)
+//          .right.flatMap( tpe.deserialize(_, protocolVersion) )
+//          .right.map(v => field[K](v) :: HNil)
+//          .left.map(AnnotatedException.withField(_, k))
       }
 
-      def writeCql(r: ::[FieldType[K, V], HNil]): Map[String, String] =
-        ??? // Map(k -> tpe.format(r.head))
-      def writeRaw(r: ::[FieldType[K, V], HNil], protocolVersion: ProtocolVersion): Map[String, ByteBuffer] =
-        ??? // Map(k -> tpe.serialize(r.head, protocolVersion))
-      def write(r: ::[FieldType[K, V], HNil], data: SettableByIndex[_], protocolVersion: ProtocolVersion): Unit =
-        writeAt(r,0,data,protocolVersion)
-      def writeAt(r: ::[FieldType[K, V], HNil], idx: Int, data: SettableByIndex[_], protocolVersion: ProtocolVersion): Unit =
-        ??? // { data.setBytesUnsafe(idx,tpe.serialize(r.head, protocolVersion)); () }
-      def writeByName(r: ::[FieldType[K, V], HNil], data: SettableByName[_], protocolVersion: ProtocolVersion): Unit =
-        ??? // { data.setBytesUnsafe(k,tpe.serialize(r.head, protocolVersion).toByteBuffer) ; () }
+      def read(data: GettableByIndex, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], HNil]] =
+        readAt(0, data, protocolVersion).left.map(AnnotatedException.withField(_, k))
+
+      def readByName(data: GettableByName, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], HNil]] = {
+        data.getBitsByName(k).readAs[K, V, HNil](k, protocolVersion) { Right(HNil) }
+//          .right.flatMap( tpe.deserialize(_, protocolVersion) )
+//          .right.map(v => field[K](v) :: HNil)
+//          .left.map(AnnotatedException.withField(_, k))
+      }
+
+      def readByNameIfExists(keys: Set[String], data: GettableByName, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], HNil]] = {
+        if (keys.contains(k.toLowerCase)) {
+          readByName(data, protocolVersion)
+        } else {
+          Right(field[K](None.asInstanceOf[V]) :: HNil)
+        }
+      }
+
+      def writeCql(r: ::[FieldType[K, V], HNil]): Map[String, String] = {
+        tpe.format(r.head)
+          .toOption.map(v => Map(k -> v))
+          .getOrElse(Map.empty)
+      }
+
+      def writeRaw(r: ::[FieldType[K, V], HNil], protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = tpe.writeRawSerialized(k, r.head, protocolVersion)
+
+      def write[D <: SettableByIndex[D]](r: ::[FieldType[K, V], HNil], data: D, protocolVersion: ProtocolVersion): D = writeAt(r,0,data,protocolVersion)
+
+      def writeAt[D <: SettableByIndex[D]](r: ::[FieldType[K, V], HNil], idx: Int, data: D, protocolVersion: ProtocolVersion): D = tpe.writeAtSerialized(idx, r.head, data, protocolVersion)
+
+      def writeByName[D <: SettableByName[D]](r: ::[FieldType[K, V], HNil], data: D, protocolVersion: ProtocolVersion): D = tpe.writeByNameSerialized(k, r.head, data, protocolVersion)
     }
-    ???
   }
 
   implicit def instance[K,V,L <: HList, C <: HList](
@@ -69,34 +90,24 @@ object CTypeNonEmptyRecordInstance {
       val k = keyOf(wt)
       val types = (k -> tpe.cqlType) +: tail.types
 
-
-
       def readAt(idx:Int, data: GettableByIndex, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], L]] = {
-        ???
-//        (for {
-//          bytes <- util.Try(data.getBytesUnsafe(idx)).right
-//          read <- tpe.deserialize(bytes,protocolVersion).right
-//          tr <- tail.readAt(idx+1,data,protocolVersion).right
-//        } yield field[K](read) :: tr
-//          ).left.map(err => new Throwable(s"Failed to read $k from GettableByIndexData (protocol:$protocolVersion)", err))
+        data.getBitsByIndex(idx).readAs[K, V, L](k, protocolVersion) { tail.readAt(idx + 1, data, protocolVersion) }
       }
-
 
       def readByName(data: GettableByName, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], L]] = {
-        ???
-//        (for {
-//          bytes <- util.Try(data.getBytesUnsafe(k)).right
-//          read <- tpe.deserialize(bytes,protocolVersion).right
-//          tr <- tail.readByName(data,protocolVersion).right
-//        } yield field[K](read) :: tr
-//          ).left.map(err => new Throwable(s"Failed to read $k from GettableByNameData (protocol:$protocolVersion)", err))
+        data.getBitsByName(k).readAs[K, V, L](k, protocolVersion) { tail.readByName(data, protocolVersion) }
       }
 
-
       def readByNameIfExists(keys: Set[String], data: GettableByName, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], L]] = {
-        ???
+        if (keys.contains(k.toLowerCase)) {
+          readByName(data, protocolVersion)
+        } else {
+          tail.readByNameIfExists(keys,data,protocolVersion).right.map { tail =>
+            field[K](None.asInstanceOf[V]) :: tail
+          }
+        }
 //        (for {
-//          bytes <- (if (keys.contains(k.toLowerCase)) util.Try(data.getBytesUnsafe(k)) else Right(null)).right
+//          bytes <- (if (keys.contains(k.toLowerCase)) util.Try(data.getBytesUnsafe(k)).toEither else Right(null)).right
 //          read <- tpe.deserialize(bytes,protocolVersion).right
 //          tr <- tail.readByNameIfExists(keys,data,protocolVersion).right
 //        } yield field[K](read) :: tr
@@ -104,36 +115,35 @@ object CTypeNonEmptyRecordInstance {
       }
 
       def read(data: GettableByIndex, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], L]] =
-        ??? // readAt(0,data,protocolVersion)
+        readAt(0,data,protocolVersion)
 
-
-      def writeCql(r: ::[FieldType[K, V], L]): Map[String, String] =
-       ??? //  Map(k -> tpe.format(r.head)) ++ tail.writeCql(r.tail)
-
-      def writeRaw(r: ::[FieldType[K, V], L], protocolVersion: ProtocolVersion): Map[String, ByteBuffer] =
-       ??? //  Map(k -> tpe.serialize(r.head, protocolVersion)) ++ tail.writeRaw(r.tail, protocolVersion)
-
-      def write(r: ::[FieldType[K, V], L], data: SettableByIndex[_], protocolVersion: ProtocolVersion): Unit =  writeAt(r,0,data,protocolVersion)
-      def writeAt(r: ::[FieldType[K, V], L], idx: Int, data: SettableByIndex[_], protocolVersion: ProtocolVersion): Unit = {
-//        data.setBytesUnsafe(idx,tpe.serialize(r.head, protocolVersion))
-//        tail.writeAt(r.tail,idx+1,data,protocolVersion)
-        ???
+      def writeCql(r: ::[FieldType[K, V], L]): Map[String, String] = {
+        val head_ = tpe.writeFormatted(k, r.head)
+        val tail_ = tail.writeCql(r.tail)
+        head_ ++ tail_
       }
 
-      def writeByName(r: ::[FieldType[K, V], L], data: SettableByName[_], protocolVersion: ProtocolVersion): Unit = {
-//        data.setBytesUnsafe(k,tpe.serialize(r.head, protocolVersion))
-//        tail.writeByName(r.tail,data,protocolVersion)
-        ???
+      def writeRaw(r: ::[FieldType[K, V], L], protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = {
+        val head_ = tpe.writeRawSerialized(k, r.head, protocolVersion)
+        val tail_ = tail.writeRaw(r.tail, protocolVersion)
+        head_ ++ tail_
+      }
+
+      def write[D <: SettableByIndex[D]](r: ::[FieldType[K, V], L], data: D, protocolVersion: ProtocolVersion): D =  writeAt(r,0,data,protocolVersion)
+      def writeAt[D <: SettableByIndex[D]](r: ::[FieldType[K, V], L], idx: Int, data: D, protocolVersion: ProtocolVersion): D = {
+        tpe
+          .writeAtSerialized(idx, r.head, data, protocolVersion)
+          .let( tail.writeAt(r.tail,idx+1,_,protocolVersion))
+      }
+
+      def writeByName[D <: SettableByName[D]](r: ::[FieldType[K, V], L], data: D, protocolVersion: ProtocolVersion): D = {
+        tpe
+          .writeByNameSerialized(k, r.head, data, protocolVersion)
+          .let( tail.writeByName(r.tail,_,protocolVersion))
       }
     }
   }
-
-
-
-
-
 }
-
 
 trait CTypeRecordInstance[R <: HList] {
   type CTypes
@@ -141,9 +151,9 @@ trait CTypeRecordInstance[R <: HList] {
   def types:Seq[(String,DataType)]
   def writeCql(r:R):Map[String,String]
   def writeRaw(r:R, protocolVersion: ProtocolVersion):Map[String,ByteBuffer]
-  def write(r:R, data:SettableByIndex[_], protocolVersion: ProtocolVersion):Unit
-  def writeByName(r:R, data:SettableByName[_], protocolVersion: ProtocolVersion):Unit
-  def writeAt(r:R, idx:Int, data:SettableByIndex[_], protocolVersion: ProtocolVersion):Unit
+  def write[D <: SettableByIndex[D]](r:R, data:D, protocolVersion: ProtocolVersion):D
+  def writeByName[D <: SettableByName[D]](r:R, data:D, protocolVersion: ProtocolVersion):D
+  def writeAt[D <: SettableByIndex[D]](r:R, idx:Int, data:D, protocolVersion: ProtocolVersion):D
   def readAt(idx:Int, data:GettableByIndex, protocolVersion: ProtocolVersion):Either[Throwable,R]
   def read(data:GettableByIndex, protocolVersion: ProtocolVersion):Either[Throwable,R]
   def readByName(data:GettableByName, protocolVersion: ProtocolVersion):Either[Throwable,R]
@@ -155,8 +165,6 @@ object CTypeRecordInstance {
 
   type Aux[R<: HList, CT <: HList] = CTypeRecordInstance[R] { type CTypes = CT }
 
-
-
   implicit val emptyInstance :CTypeRecordInstance.Aux[HNil, HNil] = new CTypeRecordInstance[HNil] {
     type CTypes = HNil
     def writeCql(r: HNil): Map[String, String] = Map.empty
@@ -166,9 +174,9 @@ object CTypeRecordInstance {
     def read(data: GettableByIndex, protocolVersion: ProtocolVersion): Either[Throwable, HNil] = Right(HNil)
     def readByName(data: GettableByName, protocolVersion: ProtocolVersion): Either[Throwable, HNil] = Right(HNil)
     def readByNameIfExists(keys: Set[String], data: GettableByName, protocolVersion: ProtocolVersion): Either[Throwable, HNil] = Right(HNil)
-    def write(r:HNil, data: SettableByIndex[_], protocolVersion: ProtocolVersion): Unit = ()
-    def writeAt(r:HNil, idx: Int, data: SettableByIndex[_], protocolVersion: ProtocolVersion): Unit = ()
-    def writeByName(r: HNil, data: SettableByName[_], protocolVersion: ProtocolVersion): Unit = ()
+    def write[D <: SettableByIndex[D]](r:HNil, data: D, protocolVersion: ProtocolVersion): D = data
+    def writeAt[D <: SettableByIndex[D]](r:HNil, idx: Int, data: D, protocolVersion: ProtocolVersion): D = data
+    def writeByName[D <: SettableByName[D]](r: HNil, data: D, protocolVersion: ProtocolVersion): D = data
   }
 
   implicit def instance[K,V, T <: HList, TC <: HList](
@@ -179,9 +187,9 @@ object CTypeRecordInstance {
       type CTypes = FieldType[K,CType[V]] :: TC
       def writeCql(r: ::[FieldType[K, V], T]): Map[String, String] = CT.writeCql(r)
       def writeRaw(r: ::[FieldType[K, V], T], protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = CT.writeRaw(r, protocolVersion)
-      def write(r: ::[FieldType[K, V], T], data: SettableByIndex[_], protocolVersion: ProtocolVersion): Unit = CT.write(r,data,protocolVersion)
-      def writeAt(r: ::[FieldType[K, V], T], idx: Int, data: SettableByIndex[_], protocolVersion: ProtocolVersion): Unit = CT.writeAt(r,idx,data,protocolVersion)
-      def writeByName(r: ::[FieldType[K, V], T], data: SettableByName[_], protocolVersion: ProtocolVersion): Unit = CT.writeByName(r,data,protocolVersion)
+      def write[D <: SettableByIndex[D]](r: ::[FieldType[K, V], T], data: D, protocolVersion: ProtocolVersion): D = CT.write(r,data,protocolVersion)
+      def writeAt[D <: SettableByIndex[D]](r: ::[FieldType[K, V], T], idx: Int, data: D, protocolVersion: ProtocolVersion): D = CT.writeAt(r,idx,data,protocolVersion)
+      def writeByName[D <: SettableByName[D]](r: ::[FieldType[K, V], T], data: D, protocolVersion: ProtocolVersion): D = CT.writeByName(r,data,protocolVersion)
       def types: Seq[(String, DataType)] = CT.types
       def readAt(idx:Int, data:GettableByIndex, protocolVersion: ProtocolVersion):Either[Throwable, ::[FieldType[K, V], T]]  = CT.readAt(idx,data, protocolVersion)
       def read(index: GettableByIndex, protocolVersion: ProtocolVersion): Either[Throwable, ::[FieldType[K, V], T]] = CT.read(index, protocolVersion)

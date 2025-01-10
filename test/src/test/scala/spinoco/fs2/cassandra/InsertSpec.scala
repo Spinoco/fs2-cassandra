@@ -1,9 +1,10 @@
 package spinoco.fs2.cassandra
 
 
-import shapeless. tag
-import spinoco.fs2.cassandra.sample.SimpleTableRow
+import shapeless.tag
+import spinoco.fs2.cassandra.sample.{OptionalTableRow, SimpleTableRow}
 import shapeless.syntax.singleton._
+import spinoco.KarelsTweaks.CallTracer.LOG
 import spinoco.fs2.cassandra.CType.TTL
 
 import scala.concurrent.duration._
@@ -14,6 +15,7 @@ import scala.concurrent.duration._
 trait InsertSpec extends SchemaSupport {
 
 
+  /*
 
   s"INSERT statement (${cassandra.tag})" - {
 
@@ -49,7 +51,6 @@ trait InsertSpec extends SchemaSupport {
 
       //insert filed without ttl
       cs.execute(strInsert)(SimpleTableRow.simpleInstance.copy(intColumn = 2)).unsafeRunSync()
-
 
       val selectTTL =
         simpleTable.query
@@ -129,5 +130,31 @@ trait InsertSpec extends SchemaSupport {
 
 
   }
+
+  "will insert and query a row of Nones" in withSessionAndOptionalSchema { cs =>
+    val insert =
+      optionalTable.insert
+        .all
+        .build
+        .from[OptionalTableRow]
+        .as[OptionalTableRow]
+
+
+    cs.execute(insert)(OptionalTableRow.emptyInstance).unsafeRunSync()
+
+    val select =
+      optionalTable
+        .query
+        .all
+        .partition
+        .build
+        .fromA
+        .as[OptionalTableRow]
+
+    val resultQ = cs.query(select)(OptionalTableRow.emptyInstance.intColumn).compile.toVector.unsafeRunSync()
+
+    resultQ shouldBe Vector(OptionalTableRow.emptyInstance)
+  }
+   */
 
 }

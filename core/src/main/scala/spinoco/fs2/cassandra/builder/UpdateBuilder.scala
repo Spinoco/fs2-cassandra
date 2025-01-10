@@ -1,20 +1,27 @@
 package spinoco.fs2.cassandra.builder
 
 
+import cats.effect.IO
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BoundStatement, PreparedStatement, Row}
+import fs2.Stream
 import shapeless.labelled._
 import shapeless.ops.hlist.Prepend
 import shapeless.ops.record.Selector
 import shapeless.tag._
 import shapeless.{::, HList, HNil, Witness}
+import spinoco.KarelsTweaks.CallTracer.LOG
+import spinoco.KarelsTweaks.KotlinSyntax.KotlinSyntax
 import spinoco.fs2.cassandra.CType.{Counter, TTL}
 import spinoco.fs2.cassandra._
 import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
 import spinoco.fs2.cassandra.internal._
 import spinoco.fs2.cassandra.util.AnnotatedException
+import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetStageSyntax
+import spinoco.fs2.cassandra.util.ResultSetStreamSyntax.AsyncResultSetToStreamSyntax
 
 import java.nio.ByteBuffer
+import scala.collection.convert.ImplicitConversions.`iterator asScala`
 import scala.concurrent.duration.FiniteDuration
 
 /**
@@ -344,20 +351,26 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
         CTR.readByName(r,protocolVersion).left.map(AnnotatedException.withStmt(_, cql))
       }
       def fill(i: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {
-        val bs = s.bind()
-        CTQ.writeByName(i,bs,protocolVersion)
-        bs
+        s
+          .bind()
+          .let ( CTQ.writeByName(i,_,protocolVersion) )
       }
+
       def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
-//        (Option(r.one()) match {
-//          case None =>
-//            if (ifExistsCondition || ifConditions.nonEmpty) Left(new Throwable("Expected update result but got nothing"))
-//            else Right(HNil.asInstanceOf[RIF]) // safe hence result must be always empty HList (HNil) in this case
-//          case Some(row) =>
-//            val columns = r.getColumnDefinitions.asScala.map(_.getName.asCql(false).toLowerCase).toSet
-//            CTR.readByNameIfExists(columns,row,protocolVersion)
-//        }).left.map(AnnotatedException.withStmt(_, cql))
-        ???
+//        LOG(s"${cql}:")
+//        LOG(s"  ${r.keys.mkString(",")}")
+        Stream.emit(r)
+          .flatMap { ars => ars.toStream[IO] }
+          .compile.last
+          .unsafeRunSync()
+          .let[Either[Throwable, RIF]] {
+            case None =>
+              if (ifExistsCondition || ifConditions.nonEmpty) Left(new Throwable("Expected update result but got nothing"))
+              else Right(HNil.asInstanceOf[RIF]) // safe hence result must be always empty HList (HNil) in this case
+            case Some(row) =>
+              CTR.readByNameIfExists(r.keys,row,protocolVersion)
+          }
+          .left.map(AnnotatedException.withStmt(_, cql))
       }
 
 
@@ -379,6 +392,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
 }
 
 object UpdateBuilder {
+
 
   type IfExistsField = Witness.`"[applied]"`.->>[Boolean]
 

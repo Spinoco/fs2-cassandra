@@ -23,6 +23,7 @@ lazy val commonSettings = Seq(
     "-Ywarn-value-discard",
     "-Ywarn-unused-import"
   ),
+  scalacOptions --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports"),
  // scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
  // scalacOptions in (Test, console) := (scalacOptions in (Compile, console)).value,
   scmInfo := Some(ScmInfo(url("https://github.com/Spinoco/fs2-cassandra"), "git@github.com:Spinoco/fs2-cassandra.git")),

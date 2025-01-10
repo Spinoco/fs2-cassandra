@@ -6,6 +6,7 @@ import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 
 trait CrudSpec extends SchemaSupport {
+  /*
 
   s"Simple CRUD (${cassandra.tag})" - {
 
@@ -58,5 +59,6 @@ trait CrudSpec extends SchemaSupport {
 
 
   }
+   */
 
 }

@@ -18,7 +18,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
   "DDL for table for simple types with" - {
 
 
-    val simpleTableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,stringColumn varchar,asciiColumn ascii,floatColumn float,doubleColumn double,bigDecimalColumn decimal,bigIntColumn varint,blobColumn blob,uuidColumn uuid,timeUuidColumn timeuuid,durationColumn bigint,inetAddressColumn inet,enumColumn varchar,"
+    val simpleTableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,stringColumn text,asciiColumn ascii,floatColumn float,doubleColumn double,bigDecimalColumn decimal,bigIntColumn varint,blobColumn blob,uuidColumn uuid,timeUuidColumn timeuuid,durationColumn bigint,inetAddressColumn inet,enumColumn text,"
 
     "partition key" in {
      val table =
@@ -102,7 +102,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
 
       val generic = LabelledGeneric[DummyClass]
 
-      val tableDef = "CREATE TABLE test_ks.test_table (name varchar,height varchar,intColumn int,longColumn bigint,stringColumn varchar,asciiColumn ascii,floatColumn float,doubleColumn double,bigDecimalColumn decimal,bigIntColumn varint,blobColumn blob,uuidColumn uuid,timeUuidColumn timeuuid,durationColumn bigint,inetAddressColumn inet,enumColumn varchar, PRIMARY KEY ((intColumn)))"
+      val tableDef = "CREATE TABLE test_ks.test_table (name text,height text,intColumn int,longColumn bigint,stringColumn text,asciiColumn ascii,floatColumn float,doubleColumn double,bigDecimalColumn decimal,bigIntColumn varint,blobColumn blob,uuidColumn uuid,timeUuidColumn timeuuid,durationColumn bigint,inetAddressColumn inet,enumColumn text, PRIMARY KEY ((intColumn)))"
 
       ks.table[SimpleTableRow]
       .partition('intColumn)
@@ -116,7 +116,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
   "DDL for table with options with " - {
 
 
-    val tableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,stringColumn varchar,asciiColumn ascii,enumColumn varchar,listColumn list<varchar>,setColumn set<varchar>,vectorColumn list<varchar>,"
+    val tableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,stringColumn text,asciiColumn ascii,enumColumn text,listColumn list<text>,setColumn set<text>,vectorColumn list<text>,"
 
     "partition key" in {
       val table =
@@ -135,7 +135,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
   "DDL for table with List/Seq/Set/Vector with " - {
 
 
-    val tableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,listColumn list<varchar>,setColumn set<varchar>,vectorColumn list<varchar>,seqColumn list<varchar>,"
+    val tableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,listColumn list<text>,setColumn set<text>,vectorColumn list<text>,seqColumn list<text>,"
 
 
     "partition key" in {
@@ -156,7 +156,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
   "DDL for table with tuples with " - {
 
 
-    val tableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,tuple2Column frozen<tuple<varchar, int>>,tuple3Column frozen<tuple<varchar, ascii, bigint>>,tuple4Column frozen<tuple<varchar, ascii, uuid, timeuuid>>,tuple5Column frozen<tuple<varchar, ascii, uuid, timeuuid, timestamp>>,"
+    val tableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,tuple2Column frozen<tuple<text, int>>,tuple3Column frozen<tuple<text, ascii, bigint>>,tuple4Column frozen<tuple<text, ascii, uuid, timeuuid>>,tuple5Column frozen<tuple<text, ascii, uuid, timeuuid, timestamp>>,"
 
 
     "partition key" in {
@@ -176,7 +176,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
   "DDL for table with maps with " - {
 
 
-    val tableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,mapStringColumn map<varchar, varchar>,mapIntColumn map<int, varchar>,"
+    val tableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,mapStringColumn map<text, text>,mapIntColumn map<int, text>,"
 
     "partition key" in {
       val table =

@@ -64,7 +64,7 @@ trait MigrationsSpec  extends SchemaSupport {
       val migrate = cs.migrateDDL(table1).unsafeRunSync()
 
       migrate shouldBe Seq(
-        "CREATE TABLE crud_ks.foo1 (intColumn int,longColumn bigint,strColumn varchar, PRIMARY KEY ((intColumn)))"
+        "CREATE TABLE crud_ks.foo1 (intColumn int,longColumn bigint,strColumn text, PRIMARY KEY ((intColumn)))"
       )
     }
 
@@ -84,13 +84,22 @@ trait MigrationsSpec  extends SchemaSupport {
 
       val migrate = cs.migrateDDL(table2).unsafeRunSync()
 
-      migrate shouldBe Seq(
+      val expectedDrops = Seq(
         "ALTER TABLE crud_ks.foo1 DROP longcolumn"
         ,"ALTER TABLE crud_ks.foo1 DROP strcolumn"
-        , "ALTER TABLE crud_ks.foo1 ADD longColumn1 bigint"
+      )
+      val expectedAdds = Seq(
+        "ALTER TABLE crud_ks.foo1 ADD longColumn1 bigint"
         , "ALTER TABLE crud_ks.foo1 ADD strColumn int"
       )
 
+      /** Drops have to go fist. */
+      migrate.slice(0,2).toSet shouldBe expectedDrops.toSet
+      /** Adds after. */
+      migrate.slice(2,4).toSet shouldBe expectedAdds.toSet
+
+      /** Check we have checked everything. */
+      migrate.toSet shouldBe (expectedDrops ++ expectedAdds).toSet
     }
 
 
@@ -102,7 +111,7 @@ trait MigrationsSpec  extends SchemaSupport {
 
       migrate shouldBe Seq(
         "DROP TABLE crud_ks.foo1"
-        , "CREATE TABLE crud_ks.foo1 (intColumn int,longColumn bigint,strColumn varchar, PRIMARY KEY ((intColumn),longColumn))"
+        , "CREATE TABLE crud_ks.foo1 (intColumn int,longColumn bigint,strColumn text, PRIMARY KEY ((intColumn),longColumn))"
       )
     }
 

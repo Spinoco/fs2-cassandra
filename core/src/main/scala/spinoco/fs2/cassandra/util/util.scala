@@ -62,4 +62,5 @@ package object util {
       new Throwable(s"At field: '$field'", err)
     }
   }
+
 }

@@ -1,16 +1,22 @@
 package spinoco.fs2.cassandra.builder
 
+import cats.effect.{Async, IO}
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BoundStatement, PreparedStatement, Row}
+import fs2.Stream
 import shapeless.labelled._
 import shapeless.ops.hlist.{Align, Prepend, Union}
 import shapeless.ops.record.Selector
 import shapeless.tag.@@
 import shapeless.{::, HList, Witness}
+import spinoco.KarelsTweaks.CallTracer.LOG
+import spinoco.KarelsTweaks.KotlinSyntax.KotlinSyntax
 import spinoco.fs2.cassandra.CType.TTL
 import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, SelectAll}
 import spinoco.fs2.cassandra.util.AnnotatedException
-import spinoco.fs2.cassandra.{BatchResultReader, Insert, Table, internal}
+import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetStageSyntax
+import spinoco.fs2.cassandra.util.ResultSetStreamSyntax.AsyncResultSetToStreamSyntax
+import spinoco.fs2.cassandra.{BatchResultReader, Insert, Options, Table, internal}
 
 import java.nio.ByteBuffer
 import scala.concurrent.duration.FiniteDuration
@@ -78,6 +84,8 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
     val ifNe = if (ifNotExistsFlag) "IF NOT EXISTS" else ""
     val cql = s"INSERT INTO ${table.keySpaceName}.${table.name} (${columnNames.mkString(",")}) VALUES (${columnNames.map(":" + _).mkString(",")}) $ifNe $usingStmt "
 
+    LOG(s"Building $cql")
+
     new Insert[I,Option[R]] {
       def cqlStatement: String = cql
       def cqlFor(s: I): String = spinoco.fs2.cassandra.util.replaceInCql(cql,CTI.writeCql(s))
@@ -93,11 +101,30 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
       }
 
       def fill(i: I, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {
-        val bs = s.bind()
-        CTI.writeByName(i,bs,protocolVersion)
-        bs
+        s
+        .bind()
+        .let(CTI.writeByName(i,_,protocolVersion))
       }
-      def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = { ???
+      def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
+//        LOG(s"==================================================")
+//        LOG(s"${cql}:")
+//        LOG(s"  ${r.keys.mkString(",")}")
+        // TODO: neresit (K)
+        //TODO: na pavla
+        // A dml execute by volat pouze funkce read(r: Row...
+        // provizorni
+        Stream.emit(r)
+          .flatMap { ars => ars.toStream[IO] }
+          .compile.last
+          .unsafeRunSync()
+//          .let( _ => Right(None) : Either[Throwable, Option[R]])
+          .let[Either[Throwable, Option[R]]] {
+            case None => Right(None)
+            case Some(row) =>
+              LOG(s"  got row $row")
+              read(row, protocolVersion)
+          }
+
 //        Option(r.one()) match {
 //          case None => Right(None)
 //          case Some(row) => read(row,protocolVersion)

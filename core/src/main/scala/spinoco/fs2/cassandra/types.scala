@@ -10,7 +10,7 @@ import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, SizeBound}
 import shapeless.tag.@@
 import shapeless.{::, HList, HNil, tag}
-import spinoco.fs2.cassandra.CType.Ascii
+import spinoco.fs2.cassandra.CType.{Ascii, Type1}
 import spinoco.fs2.cassandra.internal.ctype._
 
 import java.net.{InetAddress, URI}
@@ -147,6 +147,7 @@ object CType {
     )
 
   implicit val uuidInstance: CType[UUID]  =  CType.fromCodec(TypeCodecs.UUID)
+
   implicit val type1UuidInstance: CType[UUID @@ Type1] =
     CType.fromCodec(TypeCodecs.TIMEUUID)
     .xmap(tag[Type1](_), identity)
@@ -308,6 +309,8 @@ object MapKeyCType {
   implicit lazy val doubleInstance: CType[Double] = MapKeyCType.fromCType(CType.doubleInstance)
   implicit lazy val bigDecimalInstance: CType[BigDecimal] =  MapKeyCType.fromCType(CType.bigDecimalInstance)
   implicit lazy val bigIntInstance: CType[BigInt] = MapKeyCType.fromCType(CType.bigIntInstance)
+  implicit lazy val uuidInstance: CType[UUID] = MapKeyCType.fromCType(CType.uuidInstance)
+  implicit lazy val type1UuidInstance: CType[UUID @@ Type1] = MapKeyCType.fromCType(CType.type1UuidInstance)
 
 
 }

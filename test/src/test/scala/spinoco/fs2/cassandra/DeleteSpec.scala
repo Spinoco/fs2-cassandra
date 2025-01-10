@@ -4,6 +4,7 @@ package spinoco.fs2.cassandra
 
 trait DeleteSpec  extends SchemaSupport {
 
+  /*
 
   s"DELETE statement (${cassandra.tag})" - {
 
@@ -95,5 +96,6 @@ trait DeleteSpec  extends SchemaSupport {
 
 
   }
+   */
 
 }

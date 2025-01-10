@@ -2,8 +2,10 @@ package spinoco.fs2.cassandra.internal.ctype
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
+import scodec.Attempt.Successful
 import scodec.{Attempt, Codec, SizeBound}
 import spinoco.fs2.cassandra.CType
+import spinoco.fs2.cassandra.util.BitVectorPrinter.BitVectorPrinterSyntax
 
 object OptionCType {
 
@@ -21,7 +23,23 @@ object OptionCType {
 
           def encode(value: Option[A]): Attempt[scodec.bits.BitVector] = {
             value match {
-              case None => Attempt.successful(scodec.bits.BitVector.empty)
+              /*
+              case None => {
+
+                if (cqlType.asCql(true, false) == "text") {
+                  println(s"this is string!")
+//                  CType[String].cqlCodec(protocolVersion).encode("")
+                  // Successful(scodec.bits.BitVector.fromByte(0)) //empty string, we don't want this
+                  // NO CType[Int].cqlCodec(protocolVersion).encode(-1)
+                  Successful(scodec.bits.BitVector.empty) //empty string, we don't want this
+                } else {
+                  println(s"this is ${value.getClass}")
+                  CType[Int].cqlCodec(protocolVersion).encode(-1)
+                }
+              }
+
+               */
+              case None => Successful(scodec.bits.BitVector.empty) //empty string, we don't want this
               case Some(a) => CType[A].cqlCodec(protocolVersion).encode(a)
             }
           }

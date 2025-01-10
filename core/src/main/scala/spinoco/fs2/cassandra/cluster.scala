@@ -1,7 +1,7 @@
 package spinoco.fs2.cassandra
 
 
-import cats.effect.Resource
+import cats.effect.{Async, ContextShift, Resource, Sync}
 
 
 trait CassandraCluster[F[_]] {
@@ -13,35 +13,39 @@ trait CassandraCluster[F[_]] {
     */
   def session: Resource[F,CassandraSession[F]]
 
-
 }
-
 
 object CassandraCluster {
 
-  @inline def apply[F[_]](implicit instance: CassandraCluster[F]): CassandraCluster[F] = instance
-//
-//  def instance[F[_]: Async: ContextShift](config: Cluster.Builder, queryLogger: Option[QueryLogger]):Resource[F,CassandraCluster[F]] = {
-//    Resource.make[F, (Cluster, CassandraCluster[F])](
-//      Sync[F].delay { queryLogger.foldLeft(config.build())(_.register(_)) }.flatMap { cluster =>
-//        impl.create[F](cluster).map (cluster -> _)
-//      }
-//    )({ case (cluster, _ ) => Sync[F].suspend{ toAsyncF(cluster.closeAsync()).void } })
-//    .flatMap { case (_, cluster) => Resource.pure(cluster) }
-//  }
-//
-//
+  //  @inline def apply[F[_]](implicit instance: CassandraCluster[F]): CassandraCluster[F] = instance
+  //
+  //  def instance[F[_]: Async: ContextShift](config: Cluster.Builder, queryLogger: Option[QueryLogger]):Resource[F,CassandraCluster[F]] = {
+  //    Resource.make[F, (Cluster, CassandraCluster[F])](
+  //      Sync[F].delay { queryLogger.foldLeft(config.build())(_.register(_)) }.flatMap { cluster =>
+  //        impl.create[F](cluster).map (cluster -> _)
+  //      }
+  //    )({ case (cluster, _ ) => Sync[F].suspend{ toAsyncF(cluster.closeAsync()).void } })
+  //    .flatMap { case (_, cluster) => Resource.pure(cluster) }
+  //  }
+  //
+
 //  object impl {
 //
-//    def create[F[_]: Async: ContextShift](cluster:Cluster):F[CassandraCluster[F]] = {
+//    def create[F[_] : Async : ContextShift](sessionBuilder: CqlSessionBuilder): F[CassandraCluster[F]] = {
 //      Sync[F].pure {
 //        new CassandraCluster[F] {
-//          def session: Resource[F,CassandraSession[F]] = CassandraSession.instance(cluster)
+//          def session: Resource[F, CassandraSession[F]] = CassandraSession.instance(sessionBuilder)
 //        }
 //      }
 //    }
 //
 //  }
-
-
+//
+  // TODO: na pavla: this is eager effect...
+  def wrap[F[_] : Async : ContextShift](cs: CassandraSession[F]): CassandraCluster[F] = {
+      new CassandraCluster[F] {
+        def session: Resource[F, CassandraSession[F]] = Resource.make(Sync[F].pure(cs))(_ => Sync[F].unit)
+      }
+  }
 }
+

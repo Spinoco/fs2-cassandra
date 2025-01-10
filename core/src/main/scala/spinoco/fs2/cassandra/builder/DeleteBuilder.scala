@@ -1,7 +1,9 @@
 package spinoco.fs2.cassandra.builder
 
+import cats.effect.IO
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BoundStatement, PreparedStatement, Row}
+import fs2.Stream
 import shapeless.labelled._
 import shapeless.ops.hlist.Prepend
 import shapeless.ops.record.Selector
@@ -9,6 +11,10 @@ import shapeless.{::, HList, HNil, Witness}
 import spinoco.fs2.cassandra._
 import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
 import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, CTypeRecordInstance}
+import spinoco.fs2.cassandra.util.AnnotatedException
+import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetStageSyntax
+import spinoco.fs2.cassandra.util.KotlinSyntax.KotlinSyntax
+import spinoco.fs2.cassandra.util.StreamSyntaxes.AsyncResultSetToStreamSyntax
 
 import java.nio.ByteBuffer
 
@@ -105,24 +111,27 @@ case class DeleteBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
       def cqlStatement: String = cql
       def cqlFor(q: Q): String = spinoco.fs2.cassandra.util.replaceInCql(cql,CTQ.writeCql(q))
       def writeRaw(q: Q, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = CTQ.writeRaw(q,protocolVersion)
-      def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = ??? // CTR.readByName(r,protocolVersion).left.map(AnnotatedException.withStmt(_, cql))
+      def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = CTR.readByName(r,protocolVersion).left.map(AnnotatedException.withStmt(_, cql))
 
 
       def fill(i: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {
-        val bs = s.bind()
-        CTQ.writeByName(i,bs,protocolVersion)
-        bs
+        s
+        .bind()
+        .let(CTQ.writeByName(i,_,protocolVersion))
       }
 
-      def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = { ???
-//        (Option(r.one()) match {
-//          case None =>
-//            if (!ifExistsCondition && ifConditions.isEmpty) Right(HNil.asInstanceOf[RIF]) // guaranteed to be safe always Hnil result if no ifExists or conditions
-//            else Left(new Throwable("Expected result row but none returned"))
-//          case Some(row) =>
-//            val keys = r.getColumnDefinitions.asScala.map(_.getName.asCql(false).toLowerCase).toSet
-//            CTR.readByNameIfExists(keys,row,protocolVersion)
-//        }).left.map(AnnotatedException.withStmt(_, cql))
+      def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
+        r.toStream[IO]
+          .compile.last
+          .unsafeRunSync()
+          .let[Either[Throwable, RIF]] {
+            case None =>
+              if (!ifExistsCondition && ifConditions.isEmpty) Right(HNil.asInstanceOf[RIF]) // guaranteed to be safe always Hnil result if no ifExists or conditions
+              else Left(new Throwable("Expected result row but none returned"))
+            case Some(row:Row) =>
+              CTR.readByNameIfExists(r.keys, row, protocolVersion)
+          }
+          .left.map(AnnotatedException.withStmt(_, cql))
       }
 
 

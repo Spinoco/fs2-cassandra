@@ -65,8 +65,7 @@ case class TableBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList](
 
   def build(name:String, options:Map[String,String] = Map.empty)(
    implicit T: TableInstance[R,PK,CK, IDX]
-  ): Table[R, PK, CK, IDX] = {
-    T.table(ks,name,options, self.indexes, self.partitionKeys, self.clusterKeys)
-  }
+  ): Table[R, PK, CK, IDX] = T.table(ks,name,options, self.indexes, self.partitionKeys, self.clusterKeys)
+
 
 }

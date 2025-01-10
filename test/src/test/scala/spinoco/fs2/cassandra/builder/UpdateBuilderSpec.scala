@@ -121,6 +121,7 @@ class UpdateBuilderSpec extends Fs2CassandraSpec {
       listTable
         .update
         .prepend('listColumn)
+
         .build.cqlStatement shouldBe
         "UPDATE test_ks.list_table SET listColumn = :listColumn + listColumn" +
           " WHERE intColumn = :intColumn AND longColumn = :longColumn"

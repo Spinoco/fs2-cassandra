@@ -7,8 +7,8 @@ import java.util.function.BiConsumer
 
 object concurrent {
 
-  implicit class CompletionStageSyntax[A](val self: CompletionStage[A]) extends AnyVal {
 
+  implicit class CompletionStageSyntax[A](val self: CompletionStage[A]) extends AnyVal {
     /**
       * Converts the `CompletionStage` to an `F`.
       * Note that hence the `self` exists already, the completion stage (or future that is backed by this) is
@@ -42,7 +42,6 @@ object concurrent {
       })
       (); // ignore the result of whenComplete
     }
-
   }
 
   /** syntax helper for shifting the `F` with ContextShift */

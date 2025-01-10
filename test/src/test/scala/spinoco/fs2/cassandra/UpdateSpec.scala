@@ -1,16 +1,15 @@
 package spinoco.fs2.cassandra
 
 
-import java.net.InetAddress
 import fs2.Chunk
 import shapeless.tag
+import shapeless.tag.{apply => _, _}
 import spinoco.fs2.cassandra.CType.{Ascii, Counter, TTL, Type1}
 import spinoco.fs2.cassandra.sample._
 
-import scala.concurrent.duration._
-import shapeless.tag.{apply => _, _}
-
+import java.net.InetAddress
 import java.util.UUID
+import scala.concurrent.duration._
 
 trait UpdateSpec extends SchemaSupport {
 
@@ -24,6 +23,7 @@ trait UpdateSpec extends SchemaSupport {
           .from[SimpleTableRow]
 
       val uuid = UUID.fromString("00000000-0000-0000-0000-000000000000")
+      val timeUuid = UUID.fromString("00000000-0000-1000-8000-000000000001")
 
       val modified =
       SimpleTableRow.simpleInstance.copy(
@@ -37,7 +37,7 @@ trait UpdateSpec extends SchemaSupport {
         , bigIntColumn = BigInt(0)
         , blobColumn = Chunk.bytes(Array(1,2,3))
         , uuidColumn =  uuid
-        , timeUuidColumn =  tag[Type1](uuid)
+        , timeUuidColumn =  tag[Type1](timeUuid)
         , durationColumn = FiniteDuration(1,"min")
         , inetAddressColumn = InetAddress.getByName("www.google.com")
         , enumColumn = TestEnumeration.Two
@@ -45,10 +45,7 @@ trait UpdateSpec extends SchemaSupport {
 
       cs.execute(update)(modified).unsafeRunSync()
 
-
-
       val result = cs.query(strSelectOne)(9 -> 9l).compile.toVector.unsafeRunSync()
-
 
       result shouldBe Vector(modified)
     }

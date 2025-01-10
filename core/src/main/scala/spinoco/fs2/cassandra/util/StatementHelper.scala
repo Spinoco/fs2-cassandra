@@ -1,12 +1,11 @@
 package spinoco.fs2.cassandra.util
 
 import cats.data.OptionT
-import cats.syntax.all._
-import cats.effect.{Async, Sync}
 import cats.effect.concurrent.Ref
+import cats.effect.{Async, Sync}
+import cats.syntax.all._
 import com.datastax.oss.driver.api.core.CqlSession
-import com.datastax.oss.driver.api.core.cql.{BoundStatement, BoundStatementBuilder, PreparedStatement}
-import spinoco.fs2.cassandra.CStatement
+import com.datastax.oss.driver.api.core.cql.PreparedStatement
 import spinoco.fs2.cassandra.util.concurrent._
 
 trait StatementHelper[F[_]] {

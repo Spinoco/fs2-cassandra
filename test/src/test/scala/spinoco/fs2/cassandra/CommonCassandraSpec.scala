@@ -16,14 +16,3 @@ trait CommonCassandraSpec
     with QuerySpec
     with MigrationsSpec
     with DockerCassandra
-
-
-
-object Foo {
-  import shapeless.::
-  type HH = Int :: String :: HNil
-
-  val hlistInstance: HListCType[HH] =
-    HListCType.hlistInstance
-
-}

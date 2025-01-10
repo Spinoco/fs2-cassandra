@@ -27,4 +27,15 @@ object OptionalTableRow {
    , setColumn = Some(Set("o","t"))
    , vectorColumn = Some(Vector("v1", "v2"))
   )
+
+ val emptyInstance = new OptionalTableRow(
+   intColumn =11
+   , longColumn = 11l
+   , stringColumn = None
+   , asciiColumn = None
+   , enumColumn= None
+   , listColumn = Some(List("one", "two"))
+   , setColumn = None
+   , vectorColumn = None
+  )
 }

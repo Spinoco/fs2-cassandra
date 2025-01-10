@@ -42,10 +42,10 @@ object TableInstance {
         , cks:Seq[String]
       ):Table[R,PK, CK, IDX] =
         new Table[R, PK, CK, IDX] { self =>
-          val fields = CTR.types.map { case (k,tpe) =>
-            s"$k ${tpe.toString()}"
+          val fields: String = CTR.types.map { case (k,tpe) =>
+            s"$k ${tpe.asCql(true, false)}"
           }.mkString(",")
-          val pkDef = {
+          val pkDef: String = {
             if (cks.isEmpty) s"(${pks.mkString(",")})"
             else s"(${pks.mkString(",")}),${cks.mkString(",")}"
           }
@@ -53,7 +53,7 @@ object TableInstance {
           val cql:String =
             s"""CREATE TABLE ${ks.name}.$tn ($fields, PRIMARY KEY ($pkDef))"""
 
-          val indexCql =
+          val indexCql: Seq[String] =
             idxs.map(_.cqlStatement(ks.name,tn))
 
           def cqlStatement:Seq[String] = cql +: indexCql
@@ -79,10 +79,5 @@ object TableInstance {
         }
     }
   }
-
-
-
-
-
 }
 

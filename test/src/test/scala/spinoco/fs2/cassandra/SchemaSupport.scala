@@ -6,6 +6,9 @@ import shapeless.LabelledGeneric
 import spinoco.fs2.cassandra.sample.{ListTableRow, MapTableRow, OptionalTableRow, SimpleTableRow}
 import spinoco.fs2.cassandra.support.{DockerCassandra, Fs2CassandraSpec}
 
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
+
 
 trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
 
@@ -42,6 +45,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
   val strGen = LabelledGeneric[SimpleTableRow]
 
 
+  implicit val timer = IO.timer(ExecutionContext.global)
 
   def createValuesAndSchema[A](cs:CassandraSession[IO])(table:Table[_,_,_,_], insert:Insert[A,_])(f: (Int,Long) => A):Unit = {
     val records =
@@ -65,6 +69,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
       f(cs)
     }
   }
+
 
   def withSessionAndEmptySimpleSchema(f: CassandraSession[IO] => Any): Unit = {
     withSession { cs =>

@@ -8,6 +8,7 @@ import shapeless.labelled._
 import shapeless.ops.hlist.{Prepend, ToTraversable}
 import shapeless.ops.record.{Keys, Selector}
 import shapeless.{::, HList, HNil, Witness}
+import spinoco.fs2.cassandra.util.KotlinSyntax.KotlinSyntax
 import spinoco.fs2.cassandra.internal._
 import spinoco.fs2.cassandra.{AbstractTable, CQLFunction, CQLFunction0, Comparison, Query, internal}
 import spinoco.fs2.cassandra.util.AnnotatedException
@@ -304,9 +305,9 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
       def writeRaw(q: Q, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = CTQ.writeRaw(q,protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, S] = CTS.readByName(r, protocolVersion).left.map(AnnotatedException.withStmt(_, cql))
       def fill(q: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {
-        val bs = s.bind()
-        CTQ.writeByName(q,bs,protocolVersion)
-        bs
+        s
+          .bind()
+          .let(CTQ.writeByName(q,_,protocolVersion))
       }
 
       override def toString: String = s"Query[$cql]"

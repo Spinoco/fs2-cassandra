@@ -1,7 +1,7 @@
 package spinoco.fs2.cassandra
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
-import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BoundStatement, BoundStatementBuilder, PreparedStatement, Row}
+import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BoundStatement, PreparedStatement, Row}
 import shapeless.ops.hlist.Tupler
 import shapeless.ops.product.ToHList
 import shapeless.ops.record.Values
@@ -15,7 +15,7 @@ sealed trait CStatement[I] {
   /** raw cql statement used for preparing the statement **/
   def cqlStatement:String
   /** fills prepared statement with any `I` to form bound statement **/
-  def fill(i:I, s:PreparedStatement, protocolVersion: ProtocolVersion): BoundStatementBuilder
+  def fill(i:I, s:PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement
 
 
 }
@@ -52,7 +52,7 @@ trait Query[Q,R] extends CStatement[Q] { self =>
       def cqlFor(q: I): String = self.cqlFor(f(q))
       def writeRaw(q: I, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(f(q), protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, R] = self.read(r,protocolVersion)
-      def fill(i: I, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatementBuilder = self.fill(f(i),s,protocolVersion)
+      def fill(i: I, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = self.fill(f(i),s,protocolVersion)
       override def toString: String = self.toString
     }
   }
@@ -64,7 +64,7 @@ trait Query[Q,R] extends CStatement[Q] { self =>
       def cqlFor(q: Q): String = self.cqlFor(q)
       def writeRaw(q: Q, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(q, protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, O] = self.read(r,protocolVersion).right.map(f)
-      def fill(i: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatementBuilder = self.fill(i,s,protocolVersion)
+      def fill(i: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = self.fill(i,s,protocolVersion)
       override def toString: String = self.toString
     }
   }
@@ -142,7 +142,7 @@ trait Update[Q,R] extends DMLStatement[Q,R] { self =>
     def cqlFor(q: B): String = self.cqlFor(f(q))
     def writeRaw(q: B, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(f(q), protocolVersion)
     def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, R] = self.read(r,protocolVersion)
-    def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, R] = ??? //self.read(r,protocolVersion)
+    def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, R] = self.read(r,protocolVersion)
     def fill(i: B, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = self.fill(f(i),s,protocolVersion)
     def readBatchResult(i: B): BatchResultReader[R] = self.readBatchResult(f(i))
     override def toString: String = self.toString
@@ -190,8 +190,6 @@ object Update {
     /** returns result as tuple **/
     def asTuple(implicit T: Tupler[R]):Update[Q,T.Out] = self.map(T(_))
   }
-
-
 }
 
 

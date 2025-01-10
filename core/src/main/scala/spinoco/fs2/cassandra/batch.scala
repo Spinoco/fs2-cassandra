@@ -1,7 +1,7 @@
 package spinoco.fs2.cassandra
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
-import com.datastax.oss.driver.api.core.cql.{PreparedStatement, ResultSet, Row, BatchStatement => CBatchStatement}
+import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, PreparedStatement, Row, BatchStatement => CBatchStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.ops.product.ToHList
 import shapeless.{Generic, HList, HNil}
@@ -24,26 +24,24 @@ object batch {
 }
 
 
-
-
 trait BatchStatement[R,O] { self =>
 
   /** reads result received from executing batch statement **/
-  def read(r:R)(rs:ResultSet, protocolVersion: ProtocolVersion):Either[Throwable, Option[O]]
+  def read(r:R)(rs:AsyncResultSet, protocolVersion: ProtocolVersion):Either[Throwable, Option[O]]
   /** returns CQL representation of statements this batch operates on **/
   def statements:Seq[String]
   /** creates batch statement to be executed agains the C* **/
   def createStatement(statements:Seq[PreparedStatement], r:R, protocolVersion: ProtocolVersion):Either[Throwable, CBatchStatement]
 
   def mapIn[I](f: I => R):BatchStatement[I,O] = new BatchStatement[I,O] {
-    def read(r: I)(rs: ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[O]] = self.read(f(r))(rs,protocolVersion)
+    def read(r: I)(rs: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[O]] = self.read(f(r))(rs,protocolVersion)
     def createStatement(statements: Seq[PreparedStatement], r: I, protocolVersion: ProtocolVersion): Either[Throwable, CBatchStatement] =
       self.createStatement(statements,f(r), protocolVersion)
     def statements: Seq[String] = self.statements
   }
 
   def map[O2](f: O => O2):BatchStatement[R,O2] = new BatchStatement[R,O2] {
-    def read(r: R)(rs: ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[O2]] =
+    def read(r: R)(rs: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[O2]] =
       self.read(r)(rs,protocolVersion).right.map(_ map f)
     def createStatement(statements: Seq[PreparedStatement], r: R, protocolVersion: ProtocolVersion): Either[Throwable, CBatchStatement] =
       self.createStatement(statements,r,protocolVersion)
@@ -61,9 +59,7 @@ object BatchStatement {
     /** reads batch from supplied tuple **/
     def fromTuple[T](implicit T:ToHList.Aux[T,Q]):BatchStatement[T,R] = self.mapIn(T(_))
 
-
   }
-
 
   implicit class BatchStatementSyntaxRH[Q,R <: HList](val self: BatchStatement[Q,R]) extends AnyVal {
 
@@ -76,8 +72,6 @@ object BatchStatement {
   }
 
 }
-
-
 
 /**
   * Batch statements may result in more than one result returned when batch statement

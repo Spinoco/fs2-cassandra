@@ -2,8 +2,9 @@ package spinoco.fs2.cassandra
 
 
 import com.datastax.oss.driver.api.core.ConsistencyLevel
-import com.datastax.oss.driver.api.core.cql.PagingState
+import com.datastax.oss.driver.api.core.cql.{PagingState, Statement}
 import com.datastax.oss.driver.api.core.retry.RetryPolicy
+import spinoco.fs2.cassandra.util.KotlinSyntax.KotlinSyntax
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -191,27 +192,40 @@ object Options {
   def pageFrom(page:PagingState):QueryOptions =
     defaultQuery.startFrom(page)
 
-//  private[cassandra] def applyQueryOptions[S <: Statement](stmt:S, o:QueryOptions):S = {
-////    o.consistencyLevel.foreach(stmt.setConsistencyLevel)
-////    o.fetchSize.foreach(stmt.setFetchSize)
-////    o.pagingState.foreach(stmt.setPagingState)
-////    o.readTimeout.map(_.toMillis.toInt).foreach(stmt.setReadTimeoutMillis)
-////    o.retryPolicy.foreach(stmt.setRetryPolicy)
-////    o.tracing.foreach{ tracing => if (tracing) stmt.enableTracing() else stmt.disableTracing() }
-////    stmt
-//    ???
-//  }
-//
-//  private[cassandra] def applyDMLOptions[S <: Statement](stmt:S, o:DMLOptions):S = {
-////    o.consistencyLevel.foreach(stmt.setConsistencyLevel)
-////    o.serialConsistencyLevel.foreach(stmt.setSerialConsistencyLevel)
-////    o.retryPolicy.foreach(stmt.setRetryPolicy)
-////    o.defaultTimeStamp.foreach(stmt.setDefaultTimestamp)
-////    o.idempotent.foreach(stmt.setIdempotent)
-////    o.tracing.foreach{ tracing => if (tracing) stmt.enableTracing() else stmt.disableTracing() }
-////    stmt
-//    ???
-//  }
+  private[cassandra] def applyQueryOptions[S <: Statement[S]](statement:S, o:QueryOptions):S = {
+    statement.let { stmt =>
+      o.consistencyLevel.foldLeft(stmt)((s, opt) => s.setConsistencyLevel(opt))
+    }.let { stmt =>
+      o.fetchSize.foldLeft(stmt)((s, opt) => s.setPageSize(opt))
+    }.let { stmt =>
+      o.pagingState.foldLeft(stmt)((s, opt) => s.setPagingState(opt))
+    }.let { stmt =>
+      o.tracing.foldLeft(stmt)((s, opt) => s.setTracing(opt))
+    }.let { stmt =>
+      o.timeout.foldLeft(stmt)((s, opt) => s.setTimeout(java.time.Duration.ofNanos(opt.toNanos)))
+    }.let { stmt =>
+      // TODO: what to do with this?
+      //o.retryPolicy.foldLeft(stmt){(s, opt) => ???}
+      stmt
+    }
+  }
 
+  private[cassandra] def applyDMLOptions[S <: Statement[S]](statement:S, o:DMLOptions):S = {
+    statement.let { stmt =>
+      o.consistencyLevel.foldLeft(stmt)((s, opt) => s.setConsistencyLevel(opt))
+    }.let { stmt =>
+      o.serialConsistencyLevel.foldLeft(stmt)((s, opt) => s.setSerialConsistencyLevel(opt))
+    }.let { stmt =>
+      // TODO: what to do with this?
+      //o.retryPolicy.foldLeft(stmt){(s, opt) => ???}
+      stmt
+    }.let { stmt =>
+      o.defaultTimeStamp.foldLeft(stmt)((s, opt) => s.setQueryTimestamp(opt))
+    }.let { stmt =>
+      o.idempotent.foldLeft(stmt)((s, opt) => s.setIdempotent(opt))
+    }.let { stmt =>
+      o.tracing.foldLeft(stmt)((s, opt) => s.setTracing(opt))
+    }
+  }
 }
 

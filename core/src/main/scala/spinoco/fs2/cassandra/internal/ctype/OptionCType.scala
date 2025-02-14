@@ -22,13 +22,13 @@ object OptionCType {
 
           def encode(value: Option[A]): Attempt[scodec.bits.BitVector] = {
             value match {
-              case None => Successful(scodec.bits.BitVector.empty) //empty string, we don't want this
+              case None => Successful(null.asInstanceOf[scodec.bits.BitVector])
               case Some(a) => CType[A].cqlCodec(protocolVersion).encode(a)
             }
           }
 
           def decode(bits: scodec.bits.BitVector): Attempt[scodec.DecodeResult[Option[A]]] = {
-            if (bits.isEmpty) Attempt.successful(scodec.DecodeResult(None, bits))
+            if (bits == null) Attempt.successful(scodec.DecodeResult(None, bits))
             else CType[A].cqlCodec(protocolVersion).decode(bits).map(_.map(Some(_)))
           }
         }

@@ -31,11 +31,22 @@ object OptionalTableRow {
  val emptyInstance = new OptionalTableRow(
    intColumn =11
    , longColumn = 11l
-   , stringColumn = None
-   , asciiColumn = None
+   , stringColumn = Some("")
+   , asciiColumn = Some(tag[Ascii](""))
    , enumColumn= None
-   , listColumn = Some(List("one", "two"))
-   , setColumn = None
-   , vectorColumn = None
+   , listColumn = Some(List.empty)
+   , setColumn = Some(Set.empty)
+   , vectorColumn = Some(Vector.empty)
+  )
+
+  val noneInstance = new OptionalTableRow(
+    intColumn =12
+    , longColumn = 12l
+    , stringColumn = None
+    , asciiColumn = None
+    , enumColumn= None
+    , listColumn = None
+    , setColumn = None
+    , vectorColumn = None
   )
 }

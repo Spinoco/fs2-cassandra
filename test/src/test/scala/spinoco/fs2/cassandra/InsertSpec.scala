@@ -124,31 +124,31 @@ trait InsertSpec extends SchemaSupport {
 
     }
 
+    "will insert default and null values" in withSessionAndOptionalSchema { cs =>
+      val insert =
+        optionalTable.insert
+          .all
+          .build
+          .from[OptionalTableRow]
+          .as[OptionalTableRow]
 
-  }
+      val select =
+        optionalTable
+          .query
+          .all
+          .partition
+          .build
+          .fromA
+          .as[OptionalTableRow]
 
-  "will insert and query a row of Nones" in withSessionAndOptionalSchema { cs =>
-    val insert =
-      optionalTable.insert
-        .all
-        .build
-        .from[OptionalTableRow]
-        .as[OptionalTableRow]
+      cs.execute(insert)(OptionalTableRow.emptyInstance).unsafeRunSync()
+      cs.execute(insert)(OptionalTableRow.noneInstance).unsafeRunSync()
 
+      val resultEmpty = cs.query(select)(OptionalTableRow.emptyInstance.intColumn).compile.toVector.unsafeRunSync()
+      val resultNone = cs.query(select)(OptionalTableRow.noneInstance.intColumn).compile.toVector.unsafeRunSync()
 
-    cs.execute(insert)(OptionalTableRow.emptyInstance).unsafeRunSync()
-
-    val select =
-      optionalTable
-        .query
-        .all
-        .partition
-        .build
-        .fromA
-        .as[OptionalTableRow]
-
-    val resultQ = cs.query(select)(OptionalTableRow.emptyInstance.intColumn).compile.toVector.unsafeRunSync()
-
-    resultQ shouldBe Vector(OptionalTableRow.emptyInstance)
+      resultEmpty shouldBe Vector(OptionalTableRow.emptyInstance)
+      resultNone shouldBe Vector(OptionalTableRow.noneInstance)
+    }
   }
 }

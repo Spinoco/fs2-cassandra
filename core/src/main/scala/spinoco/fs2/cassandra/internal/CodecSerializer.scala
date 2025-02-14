@@ -14,7 +14,7 @@ object CodecSerializer {
        self
         .cqlCodec(protocolVersion)
         .encode(v)
-        .map { bv => if (bv.isEmpty) null else bv.toByteBuffer }
+        .map { bv => if (bv != null) bv.toByteBuffer else null }
     }
 
     def deserialize(bv: BitVector, protocolVersion: ProtocolVersion): Either[Throwable, V] = {
@@ -28,7 +28,8 @@ object CodecSerializer {
 
     def deserialize(bv: ByteBuffer, protocolVersion: ProtocolVersion): Either[Throwable, V] = {
       if (bv == null) {
-        Left(new Throwable(s"Codec.deserialize: received null ByteBuffer. Codec: ${self.cqlCodec(protocolVersion)}, CqlType: ${self.cqlType}, asCql: ${self.cqlType.asCql(true, false)}"))
+        deserialize(null.asInstanceOf[BitVector], protocolVersion)
+          .left.map ( t => new Throwable( s"Codec.deserialize: received null ByteBuffer. Codec: ${self.cqlCodec(protocolVersion)}, CqlType: ${self.cqlType}, asCql: ${self.cqlType.asCql(true, false)}", t ) )
       } else {
         deserialize(BitVector(bv), protocolVersion)
       }

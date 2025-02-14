@@ -18,6 +18,7 @@ trait CassandraCluster[F[_]] {
 object CassandraCluster {
   def wrap[F[_] : Async : ContextShift](cs: CassandraSession[F]): CassandraCluster[F] = {
       new CassandraCluster[F] {
+        // TODO: revisit this
         def session: Resource[F, CassandraSession[F]] = Resource.make(Sync[F].pure(cs))(_ => Sync[F].unit)
       }
   }

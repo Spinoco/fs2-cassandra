@@ -4,7 +4,7 @@ package spinoco.fs2.cassandra
 import com.datastax.oss.driver.api.core.ConsistencyLevel
 import com.datastax.oss.driver.api.core.cql.{PagingState, Statement}
 import com.datastax.oss.driver.api.core.retry.RetryPolicy
-import spinoco.fs2.cassandra.util.KotlinSyntax.KotlinSyntax
+
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -193,39 +193,25 @@ object Options {
     defaultQuery.startFrom(page)
 
   private[cassandra] def applyQueryOptions[S <: Statement[S]](statement:S, o:QueryOptions):S = {
-    statement.let { stmt =>
-      o.consistencyLevel.foldLeft(stmt)((s, opt) => s.setConsistencyLevel(opt))
-    }.let { stmt =>
-      o.fetchSize.foldLeft(stmt)((s, opt) => s.setPageSize(opt))
-    }.let { stmt =>
-      o.pagingState.foldLeft(stmt)((s, opt) => s.setPagingState(opt))
-    }.let { stmt =>
-      o.tracing.foldLeft(stmt)((s, opt) => s.setTracing(opt))
-    }.let { stmt =>
-      o.timeout.foldLeft(stmt)((s, opt) => s.setTimeout(java.time.Duration.ofNanos(opt.toNanos)))
-    }.let { stmt =>
-      // TODO: what to do with this?
-      //o.retryPolicy.foldLeft(stmt){(s, opt) => ???}
-      stmt
-    }
+    val stmt1 = o.consistencyLevel.foldLeft(statement)((s, opt) => s.setConsistencyLevel(opt))
+    val stmt2 = o.fetchSize.foldLeft(stmt1)((s, opt) => s.setPageSize(opt))
+    val stmt3 = o.pagingState.foldLeft(stmt2)((s, opt) => s.setPagingState(opt))
+    val stmt4 = o.tracing.foldLeft(stmt3)((s, opt) => s.setTracing(opt))
+    val stmt5 = o.timeout.foldLeft(stmt4)((s, opt) => s.setTimeout(java.time.Duration.ofNanos(opt.toNanos)))
+    // TODO: what to do with this?
+    // val stmt6 = o.retryPolicy.foldLeft(stmt5){(s, opt) => ???}
+    stmt5
   }
 
   private[cassandra] def applyDMLOptions[S <: Statement[S]](statement:S, o:DMLOptions):S = {
-    statement.let { stmt =>
-      o.consistencyLevel.foldLeft(stmt)((s, opt) => s.setConsistencyLevel(opt))
-    }.let { stmt =>
-      o.serialConsistencyLevel.foldLeft(stmt)((s, opt) => s.setSerialConsistencyLevel(opt))
-    }.let { stmt =>
-      // TODO: what to do with this?
-      //o.retryPolicy.foldLeft(stmt){(s, opt) => ???}
-      stmt
-    }.let { stmt =>
-      o.defaultTimeStamp.foldLeft(stmt)((s, opt) => s.setQueryTimestamp(opt))
-    }.let { stmt =>
-      o.idempotent.foldLeft(stmt)((s, opt) => s.setIdempotent(opt))
-    }.let { stmt =>
-      o.tracing.foldLeft(stmt)((s, opt) => s.setTracing(opt))
-    }
+    val stmt1 = o.consistencyLevel.foldLeft(statement)((s, opt) => s.setConsistencyLevel(opt))
+    val stmt2 = o.serialConsistencyLevel.foldLeft(stmt1)((s, opt) => s.setSerialConsistencyLevel(opt))
+    val stmt3 = o.defaultTimeStamp.foldLeft(stmt2)((s, opt) => s.setQueryTimestamp(opt))
+    val stmt4 = o.idempotent.foldLeft(stmt3)((s, opt) => s.setIdempotent(opt))
+    val stmt5 = o.tracing.foldLeft(stmt4)((s, opt) => s.setTracing(opt))
+    // TODO: what to do with this?
+    //val stmt3 = o.retryPolicy.foldLeft(stmt){(s, opt) => ???}
+    stmt5
   }
 }
 

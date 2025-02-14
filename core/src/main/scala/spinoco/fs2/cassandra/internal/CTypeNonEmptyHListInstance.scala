@@ -5,7 +5,7 @@ import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.data.{GettableByIndex, SettableByIndex}
 import shapeless.{::, HList, HNil}
-import spinoco.fs2.cassandra.util.KotlinSyntax.KotlinSyntax
+
 import spinoco.fs2.cassandra.CType
 import spinoco.fs2.cassandra.internal.CodecSerializer.CodecSerializeSyntax
 import spinoco.fs2.cassandra.internal.CodecWriter.CodecWriteSyntax
@@ -65,9 +65,8 @@ object CTypeNonEmptyHListInstance {
       def types: Seq[DataType] = CT.cqlType +: tail.types
 
       def writeAt[D <: SettableByIndex[D]](r: ::[V, L], idx: Int, data: D, protocolVersion: ProtocolVersion): D = {
-        CT
-          .writeAtSerialized(idx, r.head, data, protocolVersion)
-          .let( tail.writeAt(r.tail, idx + 1, _, protocolVersion))
+        val serialized = CT.writeAtSerialized(idx, r.head, data, protocolVersion)
+        tail.writeAt(r.tail, idx + 1, serialized, protocolVersion)
       }
 
       def write[D <: SettableByIndex[D]](r: ::[V, L], data: D, protocolVersion: ProtocolVersion): D = writeAt(r, 0, data, protocolVersion)

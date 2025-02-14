@@ -5,7 +5,7 @@ import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.data.{GettableByIndex, GettableByName, SettableByIndex, SettableByName}
 import shapeless.labelled._
 import shapeless.{::, HList, HNil, Witness}
-import spinoco.fs2.cassandra.util.KotlinSyntax.KotlinSyntax
+
 import spinoco.fs2.cassandra.CType
 import spinoco.fs2.cassandra.internal.CodecWriter.CodecWriteSyntax
 import spinoco.fs2.cassandra.util.AnnotatedException
@@ -101,15 +101,13 @@ object CTypeNonEmptyRecordInstance {
 
       def write[D <: SettableByIndex[D]](r: ::[FieldType[K, V], L], data: D, protocolVersion: ProtocolVersion): D =  writeAt(r,0,data,protocolVersion)
       def writeAt[D <: SettableByIndex[D]](r: ::[FieldType[K, V], L], idx: Int, data: D, protocolVersion: ProtocolVersion): D = {
-        tpe
-          .writeAtSerialized(idx, r.head, data, protocolVersion)
-          .let( tail.writeAt(r.tail,idx+1,_,protocolVersion))
+        val written = tpe.writeAtSerialized(idx, r.head, data, protocolVersion)
+        tail.writeAt(r.tail,idx+1,written,protocolVersion)
       }
 
       def writeByName[D <: SettableByName[D]](r: ::[FieldType[K, V], L], data: D, protocolVersion: ProtocolVersion): D = {
-        tpe
-          .writeByNameSerialized(k, r.head, data, protocolVersion)
-          .let( tail.writeByName(r.tail,_,protocolVersion))
+        val written = tpe.writeByNameSerialized(k, r.head, data, protocolVersion)
+        tail.writeByName(r.tail,written,protocolVersion)
       }
     }
   }

@@ -13,7 +13,7 @@ import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
 import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, CTypeRecordInstance}
 import spinoco.fs2.cassandra.util.AnnotatedException
 import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetStageSyntax
-import spinoco.fs2.cassandra.util.KotlinSyntax.KotlinSyntax
+
 import spinoco.fs2.cassandra.util.StreamSyntaxes.AsyncResultSetToStreamSyntax
 
 import java.nio.ByteBuffer
@@ -115,23 +115,22 @@ case class DeleteBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
 
 
       def fill(i: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {
-        s
-        .bind()
-        .let(CTQ.writeByName(i,_,protocolVersion))
+        val boundStatement = s.bind()
+        CTQ.writeByName(i,boundStatement,protocolVersion)
       }
 
       def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
         r.toStream[IO]
           .compile.last
-          .unsafeRunSync()
-          .let[Either[Throwable, RIF]] {
-            case None =>
-              if (!ifExistsCondition && ifConditions.isEmpty) Right(HNil.asInstanceOf[RIF]) // guaranteed to be safe always Hnil result if no ifExists or conditions
-              else Left(new Throwable("Expected result row but none returned"))
-            case Some(row:Row) =>
-              CTR.readByNameIfExists(r.keys, row, protocolVersion)
+          .map[Either[Throwable, RIF]] {
+              case None =>
+                if (!ifExistsCondition && ifConditions.isEmpty) Right(HNil.asInstanceOf[RIF]) // guaranteed to be safe always Hnil result if no ifExists or conditions
+                else Left(new Throwable("Expected result row but none returned"))
+              case Some(row: Row) =>
+                CTR.readByNameIfExists(r.keys, row, protocolVersion)
           }
-          .left.map(AnnotatedException.withStmt(_, cql))
+          .map { _.left.map(AnnotatedException.withStmt(_, cql)) }
+          .unsafeRunSync()
       }
 
 

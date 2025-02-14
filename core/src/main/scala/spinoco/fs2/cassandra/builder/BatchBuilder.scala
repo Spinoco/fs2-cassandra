@@ -66,7 +66,7 @@ case class BatchBuilder[Q <: HList, R <: HList] (
         self.statements
 
       def read(r: Q)(rs: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
-        // TODO: Should this be here?
+        // TODO: revisit this later
         val wasApplied = rs.wasApplied()
         val all = rs.toStream[IO]
           .compile.toVector

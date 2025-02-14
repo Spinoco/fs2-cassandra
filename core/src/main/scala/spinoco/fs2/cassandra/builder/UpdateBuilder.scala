@@ -16,7 +16,7 @@ import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
 import spinoco.fs2.cassandra.internal._
 import spinoco.fs2.cassandra.util.AnnotatedException
 import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetStageSyntax
-import spinoco.fs2.cassandra.util.KotlinSyntax.KotlinSyntax
+
 import spinoco.fs2.cassandra.util.StreamSyntaxes.AsyncResultSetToStreamSyntax
 
 import java.nio.ByteBuffer
@@ -349,23 +349,22 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
         CTR.readByName(r,protocolVersion).left.map(AnnotatedException.withStmt(_, cql))
       }
       def fill(i: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {
-        s
-          .bind()
-          .let ( CTQ.writeByName(i,_,protocolVersion) )
+        val boundStatement = s.bind()
+        CTQ.writeByName(i,boundStatement,protocolVersion)
       }
 
       def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
         r.toStream[IO]
           .compile.last
-          .unsafeRunSync()
-          .let[Either[Throwable, RIF]] {
+          .map[Either[Throwable, RIF]] {
             case None =>
               if (ifExistsCondition || ifConditions.nonEmpty) Left(new Throwable("Expected update result but got nothing"))
               else Right(HNil.asInstanceOf[RIF]) // safe hence result must be always empty HList (HNil) in this case
             case Some(row) =>
               CTR.readByNameIfExists(r.keys,row,protocolVersion)
           }
-          .left.map(AnnotatedException.withStmt(_, cql))
+          .map { _.left.map(AnnotatedException.withStmt(_, cql)) }
+          .unsafeRunSync()
       }
 
 

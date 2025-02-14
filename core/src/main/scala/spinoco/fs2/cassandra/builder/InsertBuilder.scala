@@ -12,7 +12,7 @@ import shapeless.{::, HList, Witness}
 import spinoco.fs2.cassandra.CType.TTL
 import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, SelectAll}
 import spinoco.fs2.cassandra.util.AnnotatedException
-import spinoco.fs2.cassandra.util.KotlinSyntax.KotlinSyntax
+
 import spinoco.fs2.cassandra.util.StreamSyntaxes.AsyncResultSetToStreamSyntax
 import spinoco.fs2.cassandra.{BatchResultReader, Insert, Table, internal}
 
@@ -97,19 +97,19 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
       }
 
       def fill(i: I, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {
-        s
-        .bind()
-        .let(CTI.writeByName(i,_,protocolVersion))
+        val boundStatement = s.bind()
+        CTI.writeByName(i,boundStatement,protocolVersion)
       }
+
       def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
         Stream.emit(r)
           .flatMap { ars => ars.toStream[IO] }
           .compile.last
-          .unsafeRunSync()
-          .let[Either[Throwable, Option[R]]] {
+          .map[Either[Throwable, Option[R]]] {
             case None => Right(None)
             case Some(row) => read(row, protocolVersion)
           }
+          .unsafeRunSync()
       }
 
       def readBatchResult(i: I): BatchResultReader[Option[R]] = {

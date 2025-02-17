@@ -30,6 +30,10 @@ object CollectionCType {
   /**
     * Builds a codec of the collection for the CQL
     * @param protocolVersion  version of the protocol for the codec
+   *
+   * Note:
+   * - In cassandra, empty collection and null is the same thing. Therefore, Insert Some(List.empty) will return None on select,
+   *   as Option takes precedence.
     */
   def cqlCodec[C[_] : CollectionType, A: CType](protocolVersion: ProtocolVersion): Codec[C[A]] = {
     // An int indicating the number of elements in the list, followed by the elements. Each element
@@ -59,7 +63,7 @@ object CollectionCType {
       def sizeBound: SizeBound = SizeBound.unknown
 
       def decode(bits: BitVector): Attempt[DecodeResult[C[A]]] = {
-        if (bits.isEmpty) Attempt.Successful(DecodeResult(CollectionType[C].zero, bits))
+        if (bits == null || bits.isEmpty) Attempt.Successful(DecodeResult(CollectionType[C].zero, bits))
         else {
           scodec.codecs.int32.decode(bits).flatMap { case DecodeResult(count, bits) =>
             def go(remains: Int, remainsBits: BitVector, acc: C[A]): Attempt[DecodeResult[C[A]]] = {

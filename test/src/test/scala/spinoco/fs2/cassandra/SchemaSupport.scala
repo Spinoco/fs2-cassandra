@@ -158,9 +158,19 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
       .build
       .as[OptionalTableRow]
 
-  def withSessionAndOptionalSchema(f: CassandraSession[IO] => Any): Unit = {
+  def withSessionAndOptionalSchema (f: CassandraSession[IO] => Any): Unit = {
     withSession { cs =>
       createValuesAndSchema(cs)(optionalTable,otInsert){ case (i,l) => OptionalTableRow.instance.copy(intColumn = i, longColumn = l)}
+      f(cs)
+    }
+  }
+
+  def withSessionAndEmptyOptionalSchema(f: CassandraSession[IO] => Any): Unit = {
+    withSession { cs =>
+      (for {
+        _ <- cs.create(ks)
+        _ <- cs.create(optionalTable)
+      } yield ()).unsafeRunSync()
       f(cs)
     }
   }

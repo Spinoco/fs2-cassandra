@@ -124,7 +124,7 @@ trait InsertSpec extends SchemaSupport {
 
     }
 
-    "will insert default and null values" in withSessionAndOptionalSchema { cs =>
+    "will insert default and null values" in withSessionAndEmptyOptionalSchema { cs =>
       val insert =
         optionalTable.insert
           .all

@@ -1,12 +1,9 @@
 package spinoco.fs2.cassandra.util
 
 import com.datastax.oss.driver.api.core.data.{GettableByIndex, GettableByName}
-import scodec.bits.{BitVector, ByteVector}
-import shapeless.Typeable
-import spinoco.fs2.cassandra.util.GettableSyntax.impl
+import scodec.bits.BitVector
 
 import java.nio.ByteBuffer
-import java.util.Optional
 
 /**
  * Please note that the returned BitVectors can be null.

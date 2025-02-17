@@ -116,7 +116,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
   "DDL for table with options with " - {
 
 
-    val tableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,stringColumn text,asciiColumn ascii,enumColumn text,listColumn list<text>,setColumn set<text>,vectorColumn list<text>,"
+    val tableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,boolColumn boolean,maybeIntColumn int,stringColumn text,asciiColumn ascii,enumColumn text,listColumn list<text>,setColumn set<text>,vectorColumn list<text>,"
 
     "partition key" in {
       val table =

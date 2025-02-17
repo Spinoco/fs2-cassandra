@@ -59,12 +59,6 @@ package object system {
      desiredCk == currentCk && desiredPk == currentPk
   }
 
-  def samePrimaryKey2(currentPartitioning: List[ColumnMetadata], currentClustering: Map[ColumnMetadata, ClusteringOrder], desired: AbstractTable[_,_,_,_]):Boolean = {
-    val currentPk = currentPartitioning.map(_.getName.asInternal.toLowerCase)
-    val currentCk = currentClustering.keys.map(_.getName.asInternal.toLowerCase)
-    desired.clusterKey.map(_.toLowerCase) == currentCk && desired.partitionKey.map(_.toLowerCase) == currentPk
-  }
-
   /** migrates table to desired state comparing with current metadata of the table **/
   def migrateTable(desiredTable:Table[_,_,_,_], maybeCurrent:Option[TableMetadata]):Seq[String] = {
     maybeCurrent match {
@@ -91,34 +85,6 @@ package object system {
           val res = cqlRemoved ++ cqlAdded
           res.toSeq
         }
-    }
-  }
-
-  /** migrates materialized view to desired state while comparing with current metadata of the table **/
-  def migrateMaterializedView(cqlSession: CqlSession, desiredView: MaterializedView[_,_,_], maybeCurrent: Option[ViewMetadata]): Seq[String] = {
-    maybeCurrent match {
-      case None => desiredView.cqlStatement
-      case Some(current) =>
-
-        def sameColumns: Boolean = {
-          val currentColumns = current.getColumns.asScala
-            .map { c => c._1.asInternal.toLowerCase -> c._2.getType }
-            .toSeq
-            .sortBy(_._1)
-          if(desiredView.columns.size != currentColumns.size) false
-          else desiredView.columns.sortBy(_._1).zip(currentColumns).forall{case (dc, cc) => (sameColumnDef _).tupled(dc).tupled(cc)}
-        }
-
-        def sameBaseTablePk(current: ViewMetadata, desiredView: MaterializedView[_,_,_]): Boolean = {
-          cqlSession.getMetadata.getKeyspace(current.getKeyspace).flatMap(_.getTable(current.getBaseTable)).toOption.exists { baseTable =>
-            samePrimaryKey(baseTable, desiredView.table)
-          }
-        }
-
-        if (desiredView.name != current.getName.asInternal) Nil
-        else if (!sameBaseTablePk(current, desiredView)) desiredView.cqlStatement
-        else if (!samePrimaryKey2(current.getPartitionKey.asScala.toList, current.getClusteringColumns.asScala.toMap, desiredView) || !sameColumns) s"DROP MATERIALIZED VIEW ${desiredView.fullName}" +: desiredView.cqlStatement
-        else Nil
     }
   }
 }

@@ -6,7 +6,6 @@ import shapeless.ops.hlist.Prepend
 import shapeless.ops.record.Selector
 import shapeless.{::, HList, HNil, LabelledGeneric, Witness}
 import spinoco.fs2.cassandra.builder._
-import spinoco.fs2.cassandra.internal.{Materializable, NotMaterializable}
 
 sealed trait SchemaDDL {
   /** CQL Command representing this SchemaDDL object **/
@@ -110,25 +109,7 @@ object Table{
   implicit class TableSyntax[R <:HList, PK <: HList, CK <: HList, IDX <: HList](val self: Table[R, PK, CK, IDX]) extends AnyVal {
 
     /** Creates a query definition against this table **/
-    def query: QueryBuilder[R, PK, CK, IDX, HNil, HNil, Materializable] =
-      QueryBuilder(self, Nil, Nil, Nil, Map.empty, None, allowFilteringFlag = false)
-
-  }
-}
-
-trait MaterializedView[R <: HList, PK <: HList, CK <: HList] extends AbstractTable[R, PK, CK, HNil] {
-
-  /** This is the base table from which the view was created from **/
-  def table: AbstractTable[_,_,_,_]
-
-}
-
-object MaterializedView{
-
-  implicit class MaterializedViewSyntax[R <:HList, PK <: HList, CK <: HList](val self: MaterializedView[R, PK, CK]) extends AnyVal {
-
-    /** Creates a query definition against this view **/
-    def query: QueryBuilder[R, PK, CK, HNil, HNil, HNil, NotMaterializable] =
+    def query: QueryBuilder[R, PK, CK, IDX, HNil, HNil] =
       QueryBuilder(self, Nil, Nil, Nil, Map.empty, None, allowFilteringFlag = false)
 
   }

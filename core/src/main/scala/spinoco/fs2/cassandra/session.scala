@@ -226,11 +226,6 @@ object CassandraSession {
               val current = cqlSession.getKeyspaceMetadata(t.keySpaceName).flatMap(km => km.getTable(t.name).toOption)
               system.migrateTable(t, current)
             }
-            case m: MaterializedView[_,_,_] => Sync[F].delay{
-              val current = cqlSession.getKeyspaceMetadata(m.keySpaceName).flatMap(km => km.getView(m.name).toOption)
-              // TODO: should we figure out a way to not pass the full cql session here?
-              system.migrateMaterializedView(cqlSession, m, current)
-            }
           }
         }
 

@@ -10,9 +10,9 @@ import fs2.Stream._
 import fs2._
 import shapeless.HNil
 import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetSyntaxes
+import spinoco.fs2.cassandra.util.CompletionStageSyntax._
 import spinoco.fs2.cassandra.util.CqlSessionSyntax._
 import spinoco.fs2.cassandra.util.ToOptionSyntax._
-import spinoco.fs2.cassandra.util.CompletionStageSyntax._
 
 import scala.language.higherKinds
 

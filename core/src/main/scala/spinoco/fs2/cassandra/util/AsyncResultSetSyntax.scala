@@ -5,7 +5,6 @@ import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, ColumnDefinition, R
 import fs2.Stream
 import spinoco.fs2.cassandra.util.CompletionStageSyntax.CompletionStageSyntaxes
 
-import java.util.concurrent.CompletionStage
 import scala.collection.convert.ImplicitConversions.`iterator asScala`
 
 object AsyncResultSetSyntax {

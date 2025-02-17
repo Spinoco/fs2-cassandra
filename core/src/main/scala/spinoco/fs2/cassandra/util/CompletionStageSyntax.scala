@@ -1,6 +1,6 @@
 package spinoco.fs2.cassandra.util
 
-import cats.effect.{Async, ContextShift}
+import cats.effect.Async
 import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, Row}
 import fs2.Stream
 import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetSyntaxes

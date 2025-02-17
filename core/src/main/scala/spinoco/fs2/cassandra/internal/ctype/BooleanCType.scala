@@ -7,6 +7,7 @@ import scodec.bits.{BitVector, ByteVector}
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 import spinoco.fs2.cassandra.{CType, util}
 
+//TODO: Unused, remove this?
 object BooleanCType {
 
   val instance: CType[Boolean] = {

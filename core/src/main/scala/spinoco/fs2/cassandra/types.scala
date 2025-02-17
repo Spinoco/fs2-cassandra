@@ -111,7 +111,7 @@ object CType {
     .xmap(tag[Ascii](_), identity)
 
   implicit val booleanInstance: CType[Boolean] =
-    BooleanCType.instance
+    CType.fromCodec(TypeCodecs.BOOLEAN).xmap(j => j,s => s)
 
   implicit val intInstance : CType[Int] =
     IntCType.instance

@@ -6,9 +6,9 @@ import cats.effect.{Async, Sync}
 import cats.syntax.all._
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.PreparedStatement
-import spinoco.fs2.cassandra.util.concurrent._
+import spinoco.fs2.cassandra.util.CompletionStageSyntax._
 
-trait StatementHelper[F[_]] {
+trait StatementCache[F[_]] {
 
   /**
     * Prepares the cql statement if not yet in cache.
@@ -21,9 +21,9 @@ trait StatementHelper[F[_]] {
 }
 
 
-object StatementHelper {
+object StatementCache {
 
-  @inline def apply[F[_]](implicit instance: StatementHelper[F]): StatementHelper[F] = instance
+  @inline def apply[F[_]](implicit instance: StatementCache[F]): StatementCache[F] = instance
 
   /**
     * Creates cache
@@ -31,11 +31,11 @@ object StatementHelper {
     * @tparam F
     * @return
     */
-  def mk[F[_]: Async](cqlSession: CqlSession): F[StatementHelper[F]] = {
+  def mk[F[_]: Async](cqlSession: CqlSession): F[StatementCache[F]] = {
     Ref.of[F, Map[String, PreparedStatement]](Map.empty).map { ref =>
-      new StatementHelper[F] {
+      new StatementCache[F] {
         def prepare(cql: String): F[PreparedStatement] =
-          StatementHelper.prepare(ref, cqlSession, cql)
+          StatementCache.prepare(ref, cqlSession, cql)
       }
     }
   }

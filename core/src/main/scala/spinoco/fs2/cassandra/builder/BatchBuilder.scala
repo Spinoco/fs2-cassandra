@@ -5,7 +5,7 @@ import cats.effect.IO
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BoundStatement, DefaultBatchType, PreparedStatement, Row, BatchStatement => CBatchStatement}
 import shapeless.{::, HList, HNil}
-import spinoco.fs2.cassandra.util.StreamSyntaxes.AsyncResultSetToStreamSyntax
+import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetSyntaxes
 import spinoco.fs2.cassandra.{BatchStatement, DMLStatement}
 
 import scala.collection.JavaConverters._

@@ -6,10 +6,9 @@ import com.datastax.oss.driver.api.core.data.{GettableByIndex, GettableByName, S
 import shapeless.labelled._
 import shapeless.{::, HList, HNil, Witness}
 import spinoco.fs2.cassandra.CType
-import spinoco.fs2.cassandra.internal.CodecWriter.CodecWriteSyntax
 import spinoco.fs2.cassandra.util.AnnotatedException
-import spinoco.fs2.cassandra.util.CTypeReader.CTypeReaderSyntax
-import spinoco.fs2.cassandra.util.GettableSyntax.{GettableByIndexSyntax, GettableByNameSyntax}
+import spinoco.fs2.cassandra.util.GettableSyntax.{BitVectorReadAsSyntax, GettableByIndexSyntax, GettableByNameSyntax}
+import spinoco.fs2.cassandra.util.SettableSyntax.SettableWriteSyntax
 
 import java.nio.ByteBuffer
 

@@ -4,6 +4,7 @@ package spinoco.fs2.cassandra
 import scodec.{Attempt, Err}
 
 import scala.annotation.tailrec
+import scala.util.Try
 
 /**
   * Created by pach on 04/06/16.
@@ -12,7 +13,10 @@ package object util {
 
   /** converts `f` to attempt. If `f` throws returns Failure, success otherwise */
   def attempt[A](f: => A): Attempt[A] = {
-    try{Attempt.successful(f)} catch { case e:Throwable => Attempt.failure(Err(e.getMessage))}
+    Try(f).fold(
+      e => Attempt.failure(Err(e.getMessage)),
+      a => Attempt.successful(a)
+    )
   }
 
   /**

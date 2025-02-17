@@ -3,8 +3,8 @@ package spinoco.fs2.cassandra.serializers
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import scodec.bits.BitVector
 import spinoco.fs2.cassandra.CType
-import spinoco.fs2.cassandra.internal.CodecSerializer.CodecSerializeSyntax
 import spinoco.fs2.cassandra.support.Fs2CassandraSpec
+import spinoco.fs2.cassandra.util.CodecSerializerSyntax.CodecSerializeDeserializeSyntax
 
 import java.nio.ByteBuffer
 

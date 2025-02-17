@@ -1,8 +1,7 @@
 package spinoco.fs2.cassandra.support
 
 import shapeless.HNil
-import spinoco.fs2.cassandra.Query
-import spinoco.fs2.cassandra.system
+import spinoco.fs2.cassandra.{Query, system}
 
 /**
   * Created by pach on 08/06/16.

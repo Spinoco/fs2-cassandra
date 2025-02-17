@@ -9,11 +9,10 @@ import com.datastax.oss.driver.api.core.{CqlSession, CqlSessionBuilder, Protocol
 import fs2.Stream._
 import fs2._
 import shapeless.HNil
-import spinoco.fs2.cassandra.util.DrainSyntax.AsyncResultSetDrainSyntax
-import spinoco.fs2.cassandra.util.KeyspaceSyntax._
-import spinoco.fs2.cassandra.util.StreamSyntaxes._
+import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetSyntaxes
+import spinoco.fs2.cassandra.util.CqlSessionSyntax._
 import spinoco.fs2.cassandra.util.ToOptionSyntax._
-import spinoco.fs2.cassandra.util.concurrent._
+import spinoco.fs2.cassandra.util.CompletionStageSyntax._
 
 import scala.language.higherKinds
 

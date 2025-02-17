@@ -1,7 +1,6 @@
 package spinoco.fs2.cassandra
 
 import java.util.concurrent.{Executors, ThreadFactory}
-
 import scala.concurrent.ExecutionContext
 
 /**

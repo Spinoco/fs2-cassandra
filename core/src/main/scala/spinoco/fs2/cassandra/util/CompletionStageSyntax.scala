@@ -1,14 +1,17 @@
 package spinoco.fs2.cassandra.util
 
 import cats.effect.{Async, ContextShift}
+import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, Row}
+import fs2.Stream
+import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetSyntaxes
 
 import java.util.concurrent.CompletionStage
 import java.util.function.BiConsumer
 
-object concurrent {
+object CompletionStageSyntax {
 
 
-  implicit class CompletionStageSyntax[A](val self: CompletionStage[A]) extends AnyVal {
+  implicit class CompletionStageSyntaxes[A](val self: CompletionStage[A]) extends AnyVal {
     /**
       * Converts the `CompletionStage` to an `F`.
       * Note that hence the `self` exists already, the completion stage (or future that is backed by this) is
@@ -19,7 +22,7 @@ object concurrent {
       * @tparam F
       * @return
       */
-    def toF[F[_] : Async] : F[A] = concurrent.completionStageToFUnsafe(self)
+    def toF[F[_] : Async] : F[A] = CompletionStageSyntax.completionStageToFUnsafe(self)
   }
 
   /**
@@ -44,7 +47,11 @@ object concurrent {
     }
   }
 
-  /** syntax helper for shifting the `F` with ContextShift */
-  def shift[F[_]: ContextShift]: F[Unit] = implicitly[ContextShift[F]].shift
+  implicit class AsyncResultSetStreamSyntax(val self: CompletionStage[AsyncResultSet]) extends AnyVal {
+    def toStream[F[_] : Async] : Stream[F, Row] = {
+      val asyncResultSet: F[AsyncResultSet] = CompletionStageSyntax.completionStageToFUnsafe(self)
+      Stream.eval(asyncResultSet).flatMap(_.toStream)
+    }
+  }
 
 }

@@ -1,16 +1,14 @@
-package spinoco.fs2.cassandra.internal
+package spinoco.fs2.cassandra.util
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.data.{SettableByIndex, SettableByName}
-import scodec.Err
 import spinoco.fs2.cassandra.CType
-import spinoco.fs2.cassandra.internal.CodecSerializer.CodecSerializeSyntax
+import spinoco.fs2.cassandra.util.CodecSerializerSyntax.CodecSerializeDeserializeSyntax
 
 import java.nio.ByteBuffer
 
-object CodecWriter {
-  implicit class CodecWriteSyntax[V](val tpe: CType[V]) extends AnyVal {
-
+object SettableSyntax {
+  implicit class SettableWriteSyntax[V](val tpe: CType[V]) extends AnyVal {
     def writeByNameSerialized[D <: SettableByName[D]](key: String, value: V, data: D, protocolVersion: ProtocolVersion): D = {
       tpe
         .serialize(value, protocolVersion)

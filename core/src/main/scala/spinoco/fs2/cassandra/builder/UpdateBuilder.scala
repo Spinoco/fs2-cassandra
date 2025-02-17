@@ -14,8 +14,7 @@ import spinoco.fs2.cassandra._
 import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
 import spinoco.fs2.cassandra.internal._
 import spinoco.fs2.cassandra.util.AnnotatedException
-import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetStageSyntax
-import spinoco.fs2.cassandra.util.StreamSyntaxes.AsyncResultSetToStreamSyntax
+import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetSyntaxes
 
 import java.nio.ByteBuffer
 import scala.concurrent.duration.FiniteDuration

@@ -2,6 +2,7 @@ package spinoco.fs2.cassandra.internal
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.data.{SettableByIndex, SettableByName}
+import scodec.Err
 import spinoco.fs2.cassandra.CType
 import spinoco.fs2.cassandra.internal.CodecSerializer.CodecSerializeSyntax
 
@@ -14,38 +15,40 @@ object CodecWriter {
       tpe
         .serialize(value, protocolVersion)
         .toEither
-        .left.map { e => throw new Throwable(e.message) }
-        .right.map(bv => data.setBytesUnsafe(key, bv))
-        .getOrElse(data)
-
+        .fold(
+          e => throw new Throwable(e.message),
+          bv => data.setBytesUnsafe(key, bv)
+        )
     }
 
     def writeAtSerialized[D <: SettableByIndex[D]](idx: Int, value: V, data: D, protocolVersion: ProtocolVersion): D = {
       tpe
         .serialize(value, protocolVersion)
         .toEither
-        .left.map { e => throw new Throwable(e.message) }
-        .right.map(bv => data.setBytesUnsafe(idx, bv))
-        .getOrElse(data)
-
+        .fold(
+          e => throw new Throwable(e.message),
+          bv =>  data.setBytesUnsafe(idx, bv)
+        )
     }
 
     def writeRawSerialized(key: String, value: V, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = {
       tpe
         .serialize(value, protocolVersion)
         .toEither
-        .left.map { e => throw new Throwable(e.message) }
-        .right.map(bv => Map(key -> bv))
-        .getOrElse(Map.empty)
+        .fold(
+          e => throw new Throwable(e.message),
+          bv => Map(key -> bv)
+        )
     }
 
     def writeFormatted(key: String, value: V): Map[String, String] = {
       tpe
         .format(value)
         .toEither
-        .left.map { e => throw new Throwable(e.message) }
-        .right.map(bv => Map(key -> bv))
-        .getOrElse(Map.empty)
+        .fold(
+          e => throw new Throwable(e.message),
+          bv => Map(key -> bv)
+        )
     }
   }
 }

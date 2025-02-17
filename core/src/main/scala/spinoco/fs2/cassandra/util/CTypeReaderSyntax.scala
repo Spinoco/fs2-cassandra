@@ -16,12 +16,11 @@ object CTypeReader {
 
     /** Given a bitvector, deserialize it, and take care of annotations and errors */
     def readAs[K,V,T <: HList](key: String, protocolVersion: ProtocolVersion)(tail: => Either[Throwable,T])( implicit tpe: CType[V]): Either[Throwable, ::[FieldType[K, V], T]] = {
-      (
-        for {
-          read <- tpe.deserialize(self,protocolVersion).right
-          tr <- tail.right
-        } yield field[K](read) :: tr
-      )
+      tpe.deserialize(self,protocolVersion).right.flatMap { read =>
+          tail.right.map { tr =>
+            field[K](read) :: tr
+          }
+        }
         .left.map(err => new Throwable(s"Failed to read $key from GettableByIndexData (protocol:$protocolVersion)", err))
         .left.map(AnnotatedException.withField(_, key))
     }

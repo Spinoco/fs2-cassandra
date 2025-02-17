@@ -8,38 +8,40 @@ import spinoco.fs2.cassandra.util.GettableSyntax.impl
 import java.nio.ByteBuffer
 import java.util.Optional
 
+/**
+ * Please note that the returned BitVectors can be null.
+ *
+ * The codecs and cassandra use null and empty to denote different things.
+ */
 object GettableSyntax {
   /** Given a Gettable, get a single value (by index or key) as a BitVector or ByteVector (instead of ByteBuffer) */
   implicit class GettableByNameSyntax(val self: GettableByName) extends AnyVal {
     def getBitsByName(k: String): BitVector = {
-      impl.getBytesByName(self, k, BitVector(_), BitVector.empty)
+      getBytesByName(self, k, BitVector(_), null.asInstanceOf[BitVector])
     }
   }
 
   implicit class GettableByIndexSyntax(val self: GettableByIndex) extends AnyVal {
     def getBitsByIndex(idx: Int)
     : BitVector = {
-      impl.getBytesByIndex(self, idx, BitVector(_), BitVector.empty)
+      getBytesByIndex(self, idx, BitVector(_), null.asInstanceOf[BitVector])
+    }
+  }
+  private def getBytesByName[T](self: GettableByName, k: String, constructData: ByteBuffer => T, emptyData: T): T = {
+    val bytesOrNull = self.getBytesUnsafe(k)
+    if (bytesOrNull == null) {
+      emptyData
+    } else {
+      constructData(bytesOrNull)
     }
   }
 
-  object impl {
-    def getBytesByName[T](self: GettableByName, k: String, constructData: ByteBuffer => T, emptyData: T): T = {
-      val bytesOrNull = self.getBytesUnsafe(k)
-      if (bytesOrNull == null) {
-        emptyData
-      } else {
-        constructData(bytesOrNull)
-      }
-    }
-
-    def getBytesByIndex[T](self: GettableByIndex, idx: Int, constructData: ByteBuffer => T, emptyData: T): T = {
-      val bytesOrNull = self.getBytesUnsafe(idx)
-      if (bytesOrNull == null) {
-        emptyData
-      } else {
-        constructData(bytesOrNull)
-      }
+  private def getBytesByIndex[T](self: GettableByIndex, idx: Int, constructData: ByteBuffer => T, emptyData: T): T = {
+    val bytesOrNull = self.getBytesUnsafe(idx)
+    if (bytesOrNull == null) {
+      emptyData
+    } else {
+      constructData(bytesOrNull)
     }
   }
 }

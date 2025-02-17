@@ -7,6 +7,10 @@ import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, SizeBound}
 import spinoco.fs2.cassandra.{CType, util}
 
+/**
+ * This naming follows Cassandra BigInt semantics.
+ * This corresponds to Scala Long.
+ */
 object BigIntCType {
 
   def instance(cqlDataType: DataType): CType[Long] = {

@@ -4,9 +4,24 @@ import spinoco.fs2.cassandra.support.CassandraDefinition
 
 // TODO: Bug: First two integrations run fine. Third one fails with `com.datastax.oss.driver.api.core.AllNodesFailedException: Could not reach any contact point, make sure you've provided valid addresses`
 
+class CassandraIntegration_5_0_Spec
+  extends CommonCassandraSpec {
+  override lazy val cassandra: CassandraDefinition = CassandraDefinition.`5.0`
+}
+
 class CassandraIntegration_4_1_Spec
   extends CommonCassandraSpec {
   override lazy val cassandra: CassandraDefinition = CassandraDefinition.`4.1`
+}
+
+class CassandraIntegration_4_0_Spec
+  extends CommonCassandraSpec {
+  override lazy val cassandra: CassandraDefinition = CassandraDefinition.`4.0`
+}
+
+class CassandraIntegration_3_11_Spec
+  extends CommonCassandraSpec {
+  override lazy val cassandra: CassandraDefinition = CassandraDefinition.`3.11`
 }
 
 class CassandraIntegration_3_9_Spec

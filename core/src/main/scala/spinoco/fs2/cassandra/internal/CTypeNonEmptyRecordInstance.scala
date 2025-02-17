@@ -5,7 +5,6 @@ import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.data.{GettableByIndex, GettableByName, SettableByIndex, SettableByName}
 import shapeless.labelled._
 import shapeless.{::, HList, HNil, Witness}
-
 import spinoco.fs2.cassandra.CType
 import spinoco.fs2.cassandra.internal.CodecWriter.CodecWriteSyntax
 import spinoco.fs2.cassandra.util.AnnotatedException

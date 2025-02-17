@@ -1,13 +1,12 @@
 package spinoco.fs2.cassandra.sample
 
-import java.net.InetAddress
-import java.util.UUID
-
 import fs2.Chunk
 import shapeless.tag
 import shapeless.tag._
 import spinoco.fs2.cassandra.CType.{Ascii, Type1}
 
+import java.net.InetAddress
+import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
 

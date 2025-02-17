@@ -12,7 +12,6 @@ import shapeless.{::, HList, Witness}
 import spinoco.fs2.cassandra.CType.TTL
 import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, SelectAll}
 import spinoco.fs2.cassandra.util.AnnotatedException
-
 import spinoco.fs2.cassandra.util.StreamSyntaxes.AsyncResultSetToStreamSyntax
 import spinoco.fs2.cassandra.{BatchResultReader, Insert, Table, internal}
 

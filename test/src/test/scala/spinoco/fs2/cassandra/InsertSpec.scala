@@ -1,10 +1,10 @@
 package spinoco.fs2.cassandra
 
 
-import shapeless.tag
-import spinoco.fs2.cassandra.sample.{OptionalTableRow, SimpleTableRow}
 import shapeless.syntax.singleton._
+import shapeless.tag
 import spinoco.fs2.cassandra.CType.TTL
+import spinoco.fs2.cassandra.sample.{OptionalTableRow, SimpleTableRow}
 
 import scala.concurrent.duration._
 

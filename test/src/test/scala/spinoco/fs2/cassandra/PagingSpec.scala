@@ -2,10 +2,8 @@ package spinoco.fs2.cassandra
 
 import cats.effect.IO
 import com.datastax.oss.driver.api.core.cql.PagingState
-import spinoco.fs2.cassandra.sample.SimpleTableRow
-import fs2.Stream._
 import fs2._
-import Stream._
+import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 trait PagingSpec extends SchemaSupport {
 

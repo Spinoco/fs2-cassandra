@@ -7,8 +7,7 @@ import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 import shapeless.{::, HList, HNil}
-import spinoco.fs2.cassandra.CType
-import spinoco.fs2.cassandra.util
+import spinoco.fs2.cassandra.{CType, util}
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._

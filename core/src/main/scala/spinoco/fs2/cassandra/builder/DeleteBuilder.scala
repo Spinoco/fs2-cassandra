@@ -3,7 +3,6 @@ package spinoco.fs2.cassandra.builder
 import cats.effect.IO
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BoundStatement, PreparedStatement, Row}
-import fs2.Stream
 import shapeless.labelled._
 import shapeless.ops.hlist.Prepend
 import shapeless.ops.record.Selector
@@ -13,7 +12,6 @@ import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
 import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, CTypeRecordInstance}
 import spinoco.fs2.cassandra.util.AnnotatedException
 import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetStageSyntax
-
 import spinoco.fs2.cassandra.util.StreamSyntaxes.AsyncResultSetToStreamSyntax
 
 import java.nio.ByteBuffer

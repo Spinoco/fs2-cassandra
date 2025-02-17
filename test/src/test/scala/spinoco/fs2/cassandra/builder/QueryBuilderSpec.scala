@@ -1,9 +1,9 @@
 package spinoco.fs2.cassandra.builder
 
 import shapeless.LabelledGeneric
-import spinoco.fs2.cassandra.{Comparison, KeySpace, functions}
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 import spinoco.fs2.cassandra.support.Fs2CassandraSpec
+import spinoco.fs2.cassandra.{Comparison, KeySpace, functions}
 
 
 class QueryBuilderSpec extends Fs2CassandraSpec {

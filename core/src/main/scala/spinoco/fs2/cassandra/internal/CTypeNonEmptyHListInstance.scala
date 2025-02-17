@@ -5,7 +5,6 @@ import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.data.{GettableByIndex, SettableByIndex}
 import shapeless.{::, HList, HNil}
-
 import spinoco.fs2.cassandra.CType
 import spinoco.fs2.cassandra.internal.CodecSerializer.CodecSerializeSyntax
 import spinoco.fs2.cassandra.internal.CodecWriter.CodecWriteSyntax

@@ -1,10 +1,10 @@
 package spinoco.fs2.cassandra.sample
 
-import java.time.LocalDateTime
-import java.util.UUID
-
 import shapeless.tag._
 import spinoco.fs2.cassandra.CType.{Ascii, Type1}
+
+import java.time.LocalDateTime
+import java.util.UUID
 
 case class TupleTableRow(
   intColumn: Int

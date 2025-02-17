@@ -1,7 +1,7 @@
 package spinoco.fs2.cassandra.internal.ctype
 
-import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 import scodec.bits.BitVector
+import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 
 object codecs {
 

@@ -2,16 +2,15 @@ package spinoco.fs2.cassandra.builder
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.cql.{BoundStatement, PreparedStatement, Row}
-
-import java.nio.ByteBuffer
 import shapeless.labelled._
 import shapeless.ops.hlist.{Prepend, ToTraversable}
 import shapeless.ops.record.{Keys, Selector}
 import shapeless.{::, HList, HNil, Witness}
-
+import spinoco.fs2.cassandra._
 import spinoco.fs2.cassandra.internal._
-import spinoco.fs2.cassandra.{AbstractTable, CQLFunction, CQLFunction0, Comparison, Query, internal}
 import spinoco.fs2.cassandra.util.AnnotatedException
+
+import java.nio.ByteBuffer
 
 case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <: HList, S <: HList, M](
   table: AbstractTable[R, PK, CK, IDX]

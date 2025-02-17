@@ -3,7 +3,7 @@ package spinoco.fs2.cassandra.internal
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import scodec.Attempt
-import scodec.bits.{BitVector, ByteVector}
+import scodec.bits.BitVector
 import spinoco.fs2.cassandra.CType
 
 import java.nio.ByteBuffer

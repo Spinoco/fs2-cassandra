@@ -4,7 +4,6 @@ import cats.effect._
 import cats.effect.concurrent.Ref
 import cats.implicits._
 import cats.{Applicative, Traverse}
-import com.datastax.oss.driver.api.core.config.DefaultDriverOption
 import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BatchType, BoundStatement, PagingState, PreparedStatement, Row, SimpleStatement, Statement, BatchStatement => CBatchStatement}
 import com.datastax.oss.driver.api.core.{CqlSession, CqlSessionBuilder, ProtocolVersion}
 import fs2.Stream._

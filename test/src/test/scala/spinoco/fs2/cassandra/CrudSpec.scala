@@ -1,7 +1,7 @@
 package spinoco.fs2.cassandra
 
+import fs2.Stream._
 import fs2._
-import Stream._
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 

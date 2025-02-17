@@ -1,11 +1,10 @@
 package spinoco.fs2.cassandra
 
-import java.time.LocalDateTime
-import java.util.UUID
-
 import shapeless.tag.@@
 import spinoco.fs2.cassandra.CType.{TTL, Type1}
 
+import java.time.LocalDateTime
+import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
 

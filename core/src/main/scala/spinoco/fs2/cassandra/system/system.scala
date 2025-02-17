@@ -3,7 +3,7 @@ package spinoco.fs2.cassandra
 
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.DataType
-import com.datastax.oss.driver.api.core.metadata.schema.{ClusteringOrder, ColumnMetadata, KeyspaceMetadata, TableMetadata, ViewMetadata}
+import com.datastax.oss.driver.api.core.metadata.schema._
 import spinoco.fs2.cassandra.util.ToOptionSyntax.OptionalConverter
 
 import scala.collection.JavaConverters._

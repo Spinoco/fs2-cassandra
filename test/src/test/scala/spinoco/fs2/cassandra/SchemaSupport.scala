@@ -6,7 +6,6 @@ import shapeless.LabelledGeneric
 import spinoco.fs2.cassandra.sample.{ListTableRow, MapTableRow, OptionalTableRow, SimpleTableRow}
 import spinoco.fs2.cassandra.support.{DockerCassandra, Fs2CassandraSpec}
 
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
 

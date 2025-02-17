@@ -3,10 +3,9 @@ package spinoco.fs2.cassandra.internal.ctype
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs
-import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 import scodec.bits.{BitVector, ByteVector}
-import spinoco.fs2.cassandra.CType
-import spinoco.fs2.cassandra.util
+import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
+import spinoco.fs2.cassandra.{CType, util}
 
 object BooleanCType {
 

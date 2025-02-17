@@ -1,14 +1,11 @@
 package spinoco.fs2.cassandra.util
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
-import com.datastax.oss.driver.api.core.data.{GettableByIndex, GettableByName}
 import scodec.bits.BitVector
 import shapeless.labelled.{FieldType, field}
+import shapeless.{::, HList}
 import spinoco.fs2.cassandra.CType
 import spinoco.fs2.cassandra.internal.CodecSerializer.CodecSerializeSyntax
-
-import java.nio.ByteBuffer
-import shapeless.{::, HList, HNil, Witness}
 
 object CTypeReader {
   implicit class CTypeReaderSyntax(val self: BitVector)

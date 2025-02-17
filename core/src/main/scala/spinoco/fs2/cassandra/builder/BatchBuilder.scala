@@ -7,7 +7,6 @@ import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BoundStatement, Def
 import shapeless.{::, HList, HNil}
 import spinoco.fs2.cassandra.util.StreamSyntaxes.AsyncResultSetToStreamSyntax
 import spinoco.fs2.cassandra.{BatchStatement, DMLStatement}
-import fs2.Stream
 
 import scala.collection.JavaConverters._
 

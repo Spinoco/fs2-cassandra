@@ -7,6 +7,9 @@ import spinoco.fs2.cassandra.util.CodecSerializerSyntax.CodecSerializeDeserializ
 
 import java.nio.ByteBuffer
 
+/**
+ * TODO: Revisit this: change the signatures to work with Attempt[D]
+ */
 object SettableSyntax {
   implicit class SettableWriteSyntax[V](val tpe: CType[V]) extends AnyVal {
     def writeByNameSerialized[D <: SettableByName[D]](key: String, value: V, data: D, protocolVersion: ProtocolVersion): D = {

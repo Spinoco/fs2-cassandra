@@ -64,16 +64,7 @@ case class BatchBuilder[Q <: HList, R <: HList] (
       def statements: Seq[String] =
         self.statements
 
-      def read(r: Q)(rs: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
-        // TODO: revisit this later
-        val wasApplied = rs.wasApplied()
-        val all = rs.toStream[IO]
-          .compile.toVector
-          .unsafeRunSync()
-
-        if (wasApplied) Right(None)
-        else self.readResult(r)(all,protocolVersion).right.map(Some(_))
-      }
+      def readResult(r: Q)(rows: Seq[Row], protocolVersion: ProtocolVersion): Either[Throwable, R] = self.readResult(r)(rows,protocolVersion)
 
       def createStatement(statements: Seq[PreparedStatement], r: Q, protocolVersion: ProtocolVersion): Either[Throwable, CBatchStatement] =
         self.fill(r,statements,protocolVersion).right.map { bs =>

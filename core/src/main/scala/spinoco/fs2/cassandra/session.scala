@@ -132,10 +132,14 @@ object CassandraSession {
             Sync[F].suspend {
               cqlSession.executeAsync(Options.applyDMLOptions(bs, o)).toF
             }.flatMap { rs =>
+              // TODO: can these effect wrappers be simplified?
               Sync[F].rethrow(Applicative[F].pure{
-                statement.read(rs, protocolVersion)
-              }
-              )
+                 Stream.emit(rs)
+                  .flatMap { ars => ars.toStream[IO] }
+                  .compile.last
+                  .map(statement.readResult(_, protocolVersion))
+                  .unsafeRunSync()
+              })
             }
           }
         }
@@ -208,8 +212,17 @@ object CassandraSession {
               // here we have guaranteed that `cache` contains all statements, so we can just apply for them
               val allStatements = statements.map(cache.cache.apply)
               Sync[F].rethrow(Applicative[F].pure(batch.createStatement(allStatements,i,protocolVersion))).flatMap { statement =>
-                Sync[F].suspend(cqlSession.executeAsync(Options.applyDMLOptions(statement,o)).toF).flatMap { resultSet =>
-                  Sync[F].rethrow(Applicative[F].pure(batch.read(i)(resultSet,protocolVersion)))
+                Sync[F].suspend(cqlSession.executeAsync(Options.applyDMLOptions(statement,o)).toF).flatMap { rs =>
+                  // TODO: can these effect wrappers be simplified? (e.g., direct stream to F conversion)
+                  Sync[F].rethrow(Applicative[F].pure{
+                    val wasApplied = rs.wasApplied()
+                    val all = rs.toStream[IO]
+                      .compile.toVector
+                      .unsafeRunSync()
+
+                    if (wasApplied) Right(None)
+                    else batch.readResult(i)(all,protocolVersion).right.map(Some(_))
+                  })
                 }
               }
             }

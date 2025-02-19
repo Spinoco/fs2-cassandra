@@ -24,7 +24,9 @@ sealed trait CStatement[I] {
 sealed trait DMLStatement[I,O] extends CStatement[I] {
 
   /** reads the result received from executing the statement **/
-  def read(r:AsyncResultSet, protocolVersion: ProtocolVersion):Either[Throwable,O]
+  def read(r:Row, protocolVersion: ProtocolVersion):Either[Throwable,O]
+
+  def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, O]
 
   /** for batch results, this allows to read result realted to this batched statement **/
   def readBatchResult(i:I):BatchResultReader[O]
@@ -129,8 +131,6 @@ object Query {
 trait Update[Q,R] extends DMLStatement[Q,R] { self =>
   /** raw cql statement **/
   def cqlStatement:String
-  /** function that read values from the row with converting them to `R` or presenting read failure **/
-  def read(r:Row, protocolVersion: ProtocolVersion):Either[Throwable,R]
   /** function that writes query `Q` to their CQL representations **/
   def cqlFor(q:Q):String
   /** function that writes query `Q` to their raw values **/
@@ -142,7 +142,7 @@ trait Update[Q,R] extends DMLStatement[Q,R] { self =>
     def cqlFor(q: B): String = self.cqlFor(f(q))
     def writeRaw(q: B, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(f(q), protocolVersion)
     def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, R] = self.read(r,protocolVersion)
-    def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, R] = self.read(r,protocolVersion)
+    def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, R] = self.readResult(r,protocolVersion)
     def fill(i: B, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = self.fill(f(i),s,protocolVersion)
     def readBatchResult(i: B): BatchResultReader[R] = self.readBatchResult(f(i))
     override def toString: String = self.toString
@@ -154,7 +154,7 @@ trait Update[Q,R] extends DMLStatement[Q,R] { self =>
     def cqlFor(q: Q): String = self.cqlFor(q)
     def writeRaw(q: Q, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(q,protocolVersion)
     def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, B] = self.read(r,protocolVersion).right.map(f)
-    def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, B] = self.read(r,protocolVersion).right.map(f)
+    def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, B] = self.readResult(r,protocolVersion).right.map(f)
     def fill(i: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = self.fill(i,s,protocolVersion)
     def readBatchResult(i: Q): BatchResultReader[B] = self.readBatchResult(i).map(f)
     override def toString: String = self.toString
@@ -204,8 +204,6 @@ object Update {
 trait Delete[Q,R] extends DMLStatement[Q,R] { self =>
   /** raw cql statement **/
   def cqlStatement:String
-  /** function that read values from the row with converting them to `R` or presenting read failure **/
-  def read(r:Row, protocolVersion: ProtocolVersion):Either[Throwable,R]
   /** function that writes query `Q` to their CQL representations **/
   def cqlFor(q:Q):String
   /** function that writes query `Q` to their raw values **/
@@ -216,7 +214,7 @@ trait Delete[Q,R] extends DMLStatement[Q,R] { self =>
     def cqlFor(q: Q2): String = self.cqlFor(f(q))
     def writeRaw(q: Q2, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(f(q),protocolVersion)
     def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, R] = self.read(r,protocolVersion)
-    def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, R] = self.read(r,protocolVersion)
+    def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, R] = self.readResult(r,protocolVersion)
     def fill(q: Q2, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = self.fill(f(q),s,protocolVersion)
     def readBatchResult(i: Q2): BatchResultReader[R] = self.readBatchResult(f(i))
     override def toString: String = self.toString
@@ -227,7 +225,7 @@ trait Delete[Q,R] extends DMLStatement[Q,R] { self =>
     def cqlFor(q: Q): String = self.cqlFor(q)
     def writeRaw(q: Q, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(q,protocolVersion)
     def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, R2] = self.read(r,protocolVersion).right.map(f)
-    def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, R2] = self.read(r,protocolVersion).right.map(f)
+    def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, R2] = self.readResult(r,protocolVersion).right.map(f)
     def fill(i: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = self.fill(i,s,protocolVersion)
     def readBatchResult(i: Q): BatchResultReader[R2] = self.readBatchResult(i).map(f)
     override def toString: String = self.toString
@@ -280,8 +278,6 @@ trait Insert[I,O] extends DMLStatement[I,O] { self =>
 
   /** raw cql statement **/
   def cqlStatement:String
-  /** function that read values from the row with converting them to `O` or presenting read failure **/
-  def read(r:Row, protocolVersion: ProtocolVersion):Either[Throwable,O]
   /** function that writes query to their CQL representations **/
   def cqlFor(i:I):String
   /** function that writes query to their raw values **/
@@ -294,8 +290,8 @@ trait Insert[I,O] extends DMLStatement[I,O] { self =>
       def cqlFor(i: I2): String = self.cqlFor(f(i))
       def writeRaw(i: I2, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(f(i), protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, O] = self.read(r,protocolVersion)
+      def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, O] = self.readResult(r,protocolVersion)
       def fill(i: I2, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = self.fill(f(i),s,protocolVersion)
-      def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, O] = self.read(r,protocolVersion)
       def readBatchResult(i: I2): BatchResultReader[O] = self.readBatchResult(f(i))
       override def toString: String = self.toString
     }
@@ -308,8 +304,8 @@ trait Insert[I,O] extends DMLStatement[I,O] { self =>
       def cqlFor(i: I): String = self.cqlFor(i)
       def writeRaw(i: I, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRaw(i, protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, O2] = self.read(r,protocolVersion).right.map(f)
+      def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, O2] = self.readResult(r,protocolVersion).right.map(f)
       def fill(i: I, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = self.fill(i,s,protocolVersion)
-      def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, O2] = self.read(r,protocolVersion).right.map(f)
       def readBatchResult(i: I): BatchResultReader[O2] = self.readBatchResult(i).map(f)
       override def toString: String = self.toString
     }

@@ -1,9 +1,7 @@
 package spinoco.fs2.cassandra.builder
 
-import cats.effect.IO
 import com.datastax.oss.driver.api.core.ProtocolVersion
-import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BoundStatement, PreparedStatement, Row}
-import fs2.Stream
+import com.datastax.oss.driver.api.core.cql.{BoundStatement, PreparedStatement, Row}
 import shapeless.labelled._
 import shapeless.ops.hlist.{Align, Prepend, Union}
 import shapeless.ops.record.Selector
@@ -12,7 +10,6 @@ import shapeless.{::, HList, Witness}
 import spinoco.fs2.cassandra.CType.TTL
 import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, SelectAll}
 import spinoco.fs2.cassandra.util.AnnotatedException
-import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetSyntaxes
 import spinoco.fs2.cassandra.{BatchResultReader, Insert, Table, internal}
 
 import java.nio.ByteBuffer
@@ -100,15 +97,11 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
         CTI.writeByName(i,boundStatement,protocolVersion)
       }
 
-      def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
-        Stream.emit(r)
-          .flatMap { ars => ars.toStream[IO] }
-          .compile.last
-          .map[Either[Throwable, Option[R]]] {
+      def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
+        r match {
             case None => Right(None)
             case Some(row) => read(row, protocolVersion)
           }
-          .unsafeRunSync()
       }
 
       def readBatchResult(i: I): BatchResultReader[Option[R]] = {

@@ -15,6 +15,7 @@ import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
 import spinoco.fs2.cassandra.internal._
 import spinoco.fs2.cassandra.util.AnnotatedException
 import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetSyntaxes
+import spinoco.fs2.cassandra.util.RowSyntax.RowKeySyntax
 
 import java.nio.ByteBuffer
 import scala.concurrent.duration.FiniteDuration
@@ -350,20 +351,15 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
         CTQ.writeByName(i,boundStatement,protocolVersion)
       }
 
-      def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
-        r.toStream[IO]
-          .compile.last
-          .map[Either[Throwable, RIF]] {
-            case None =>
-              if (ifExistsCondition || ifConditions.nonEmpty) Left(new Throwable("Expected update result but got nothing"))
-              else Right(HNil.asInstanceOf[RIF]) // safe hence result must be always empty HList (HNil) in this case
-            case Some(row) =>
-              CTR.readByNameIfExists(r.keys,row,protocolVersion)
-          }
-          .map { _.left.map(AnnotatedException.withStmt(_, cql)) }
-          .unsafeRunSync()
+      def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
+        r match {
+          case None =>
+            if (ifExistsCondition || ifConditions.nonEmpty) Left(new Throwable("Expected update result but got nothing"))
+            else Right(HNil.asInstanceOf[RIF]) // safe hence result must be always empty HList (HNil) in this case
+          case Some(row) =>
+            CTR.readByNameIfExists(row.keys,row,protocolVersion)
+        }
       }
-
 
       def readBatchResult(i: Q): BatchResultReader[RIF] = {
         new BatchResultReader[RIF] {

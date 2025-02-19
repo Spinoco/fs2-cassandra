@@ -1,7 +1,7 @@
 package spinoco.fs2.cassandra
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
-import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, PreparedStatement, Row, BatchStatement => CBatchStatement}
+import com.datastax.oss.driver.api.core.cql.{PreparedStatement, Row, BatchStatement => CBatchStatement}
 import shapeless.ops.hlist.Tupler
 import shapeless.ops.product.ToHList
 import shapeless.{Generic, HList, HNil}
@@ -27,22 +27,22 @@ object batch {
 trait BatchStatement[R,O] { self =>
 
   /** reads result received from executing batch statement **/
-  def read(r:R)(rs:AsyncResultSet, protocolVersion: ProtocolVersion):Either[Throwable, Option[O]]
+  def readResult(r: R)(rows: Seq[Row], protocolVersion: ProtocolVersion): Either[Throwable, O]
   /** returns CQL representation of statements this batch operates on **/
   def statements:Seq[String]
   /** creates batch statement to be executed agains the C* **/
   def createStatement(statements:Seq[PreparedStatement], r:R, protocolVersion: ProtocolVersion):Either[Throwable, CBatchStatement]
 
   def mapIn[I](f: I => R):BatchStatement[I,O] = new BatchStatement[I,O] {
-    def read(r: I)(rs: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[O]] = self.read(f(r))(rs,protocolVersion)
+    def readResult(r: I)(rows: Seq[Row], protocolVersion: ProtocolVersion): Either[Throwable, O] = self.readResult(f(r))(rows,protocolVersion)
     def createStatement(statements: Seq[PreparedStatement], r: I, protocolVersion: ProtocolVersion): Either[Throwable, CBatchStatement] =
       self.createStatement(statements,f(r), protocolVersion)
     def statements: Seq[String] = self.statements
   }
 
   def map[O2](f: O => O2):BatchStatement[R,O2] = new BatchStatement[R,O2] {
-    def read(r: R)(rs: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, Option[O2]] =
-      self.read(r)(rs,protocolVersion).right.map(_ map f)
+    def readResult(r: R)(rows: Seq[Row], protocolVersion: ProtocolVersion): Either[Throwable, O2] =
+      self.readResult(r)(rows,protocolVersion).right.map(f(_))
     def createStatement(statements: Seq[PreparedStatement], r: R, protocolVersion: ProtocolVersion): Either[Throwable, CBatchStatement] =
       self.createStatement(statements,r,protocolVersion)
     def statements: Seq[String] = self.statements

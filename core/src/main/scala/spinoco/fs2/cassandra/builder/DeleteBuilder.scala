@@ -12,6 +12,7 @@ import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
 import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, CTypeRecordInstance}
 import spinoco.fs2.cassandra.util.AnnotatedException
 import spinoco.fs2.cassandra.util.AsyncResultSetSyntax.AsyncResultSetSyntaxes
+import spinoco.fs2.cassandra.util.RowSyntax.RowKeySyntax
 
 import java.nio.ByteBuffer
 
@@ -116,20 +117,16 @@ case class DeleteBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
         CTQ.writeByName(i,boundStatement,protocolVersion)
       }
 
-      def read(r: AsyncResultSet, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
-        r.toStream[IO]
-          .compile.last
-          .map[Either[Throwable, RIF]] {
-              case None =>
-                if (!ifExistsCondition && ifConditions.isEmpty) Right(HNil.asInstanceOf[RIF]) // guaranteed to be safe always Hnil result if no ifExists or conditions
-                else Left(new Throwable("Expected result row but none returned"))
-              case Some(row: Row) =>
-                CTR.readByNameIfExists(r.keys, row, protocolVersion)
-          }
-          .map { _.left.map(AnnotatedException.withStmt(_, cql)) }
-          .unsafeRunSync()
+      def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
+        val result = r match {
+          case None =>
+            if (!ifExistsCondition && ifConditions.isEmpty) Right(HNil.asInstanceOf[RIF]) // guaranteed to be safe always Hnil result if no ifExists or conditions
+            else Left(new Throwable("Expected result row but none returned"))
+          case Some(row: Row) =>
+            CTR.readByNameIfExists(row.keys, row, protocolVersion)
+        }
+        result.left.map(AnnotatedException.withStmt(_, cql))
       }
-
 
       def readBatchResult(i: Q): BatchResultReader[RIF] = {
         new BatchResultReader[RIF] {

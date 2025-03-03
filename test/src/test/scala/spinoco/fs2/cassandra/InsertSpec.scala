@@ -3,8 +3,11 @@ package spinoco.fs2.cassandra
 
 import shapeless.syntax.singleton._
 import shapeless.tag
+import cats.effect.IO
+import com.datastax.oss.driver.api.core.Version
 import spinoco.fs2.cassandra.CType.TTL
-import spinoco.fs2.cassandra.sample.{OptionalTableRow, SimpleTableRow}
+import spinoco.fs2.cassandra.sample.{OptionalTableRow, SimpleTableRow, VectorTableRow}
+
 
 import scala.concurrent.duration._
 
@@ -149,6 +152,30 @@ trait InsertSpec extends SchemaSupport {
 
       resultEmpty shouldBe Vector(OptionalTableRow.emptyInstance)
       resultNone shouldBe Vector(OptionalTableRow.noneInstance)
+    }
+
+    "will insert constant size vector values" in withSessionAndEmptyVectorSchema { cs =>
+      val insert =
+        vectorTable.insert
+          .all
+          .build
+          .from[VectorTableRow]
+          .as[VectorTableRow]
+
+      val select =
+        vectorTable
+          .query
+          .all
+          .partition
+          .build
+          .fromA
+          .as[VectorTableRow]
+
+      cs.execute(insert)(VectorTableRow.instance).unsafeRunSync()
+
+      val resultEmpty = cs.query(select)(VectorTableRow.instance.intColumn).compile.toVector.unsafeRunSync()
+
+      resultEmpty shouldBe Vector(VectorTableRow.instance)
     }
   }
 }

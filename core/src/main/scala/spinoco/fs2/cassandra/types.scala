@@ -194,7 +194,7 @@ object CType {
      OptionCType.instance[A]
 
   implicit def collectionInstance[C[_] : CollectionType, A : CType]: CType[C[A]] =
-    CollectionCType.instance[C, A]
+    CollectionCType.instance[C, A](dimension = None)
 
   implicit def mapInstance[K : MapKeyCType, V : CType]:CType[Map[K,V]] =
     MapCType.instance[K,V]

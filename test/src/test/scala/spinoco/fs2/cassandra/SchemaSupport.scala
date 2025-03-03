@@ -3,8 +3,9 @@ package spinoco.fs2.cassandra
 import cats.effect.IO
 import fs2.Stream._
 import shapeless.LabelledGeneric
-import spinoco.fs2.cassandra.sample.{ListTableRow, MapTableRow, OptionalTableRow, SimpleTableRow}
+import spinoco.fs2.cassandra.sample.{ListTableRow, MapTableRow, OptionalTableRow, SimpleTableRow, VectorTableRow}
 import spinoco.fs2.cassandra.support.{DockerCassandra, Fs2CassandraSpec}
+import com.datastax.oss.driver.api.core.Version
 
 import scala.concurrent.ExecutionContext
 
@@ -174,4 +175,25 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
     }
   }
 
+  val vectorTable =
+    ks.table[VectorTableRow]
+      .partition('intColumn)
+      .cluster('longColumn)
+      .build("vector_table")
+
+  def withSessionAndEmptyVectorSchema(f: CassandraSession[IO] => Any): Unit = {
+    withSession { cs =>
+      // TODO: any better way to make sure that we run vector tests only on V5+?
+      if (cs.minCassandraVersion().exists(_.compareTo(Version.V5_0_0) >= 0)) {
+        (for {
+          _ <- cs.create(ks)
+          _ <- cs.create(vectorTable)
+        } yield ()).unsafeRunSync()
+        f(cs)
+      } else {
+        // TODO: use some special logger?
+        println("Skipping vector tests on Cassandra versions < 5.0")
+      }
+    }
+  }
 }

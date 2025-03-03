@@ -5,18 +5,21 @@ import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
+import spinoco.KarelsTweaks.BitVectorPrinter.BitVectorPrinterSyntax
 import spinoco.fs2.cassandra.{CType, CollectionType, util}
 
 import scala.annotation.tailrec
 
 object CollectionCType {
 
-  def instance[C[_] : CollectionType, A : CType]: CType[C[A]] = {
+  case class ConstDimension(dimension: Int, tpe: DataType)
+
+  def instance[C[_] : CollectionType, A : CType](dimension: Option[ConstDimension]): CType[C[A]] = {
     new CType[C[A]] {
-      def cqlType: DataType = CollectionType[C].cqlType(CType[A].cqlType)
+      def cqlType: DataType = dimension.map(_.tpe).getOrElse(CollectionType[C].cqlType(CType[A].cqlType))
 
       def cqlCodec(protocolVersion: ProtocolVersion): Codec[C[A]] =
-        CollectionCType.cqlCodec[C, A](protocolVersion)
+        CollectionCType.cqlCodec[C, A](protocolVersion, dimension = dimension.map(_.dimension))
 
       def format(a: C[A]): Attempt[String] =
         CollectionCType.format(a)
@@ -35,12 +38,15 @@ object CollectionCType {
    * - In cassandra, empty collection and null is the same thing. Therefore, Insert Some(List.empty) will return None on select,
    *   as Option takes precedence.
     */
-  def cqlCodec[C[_] : CollectionType, A: CType](protocolVersion: ProtocolVersion): Codec[C[A]] = {
-    // An int indicating the number of elements in the list, followed by the elements. Each element
-    // is a byte array representing the serialized value, preceded by an int indicating its size.
+  def cqlCodec[C[_] : CollectionType, A: CType](protocolVersion: ProtocolVersion, dimension: Option[Int]): Codec[C[A]] = {
 
-    val elementCodec = codecs.elementCodec(CType[A].cqlCodec(protocolVersion))
+    /**
+     * By default [elementCount (int32), [elem1Size(int32), [ ... ] ], [elem2size(int32), [...] ], ... ]
+     * If dimension is constant, then just the [ ... ] data from above.
+     */
 
+    val elemDataCodec = CType[A].cqlCodec(protocolVersion)
+    val elementCodec = if (dimension.isEmpty) { codecs.elementCodec(elemDataCodec) } else { elemDataCodec }
 
     new Codec[C[A]] {
       def encode(value: C[A]): Attempt[BitVector] = {
@@ -56,29 +62,45 @@ object CollectionCType {
           }
         }
 
-        val elementCount = BitVector.fromInt(CollectionType[C].sizeOf(value))
-        go(value, elementCount)
+        go(value, BitVector.empty).map { elements =>
+          if (dimension.isEmpty) {
+            val elementCount = BitVector.fromInt(CollectionType[C].sizeOf(value))
+            elementCount ++ elements
+          } else {
+            elements
+          }
+        }
       }
 
       def sizeBound: SizeBound = SizeBound.unknown
 
+      def decodeSize(bits: BitVector): Attempt[DecodeResult[Int]] = {
+        dimension.fold(
+          /** if this is a variable sized container, read the size from the bit vector */
+          scodec.codecs.int32.decode(bits)
+        ) (
+          /** if dimension is constant, return dimension */
+          d => Attempt.successful(DecodeResult(d, bits))
+        )
+      }
+
       def decode(bits: BitVector): Attempt[DecodeResult[C[A]]] = {
         if (bits == null || bits.isEmpty) Attempt.Successful(DecodeResult(CollectionType[C].zero, bits))
         else {
-          scodec.codecs.int32.decode(bits).flatMap { case DecodeResult(count, bits) =>
+          decodeSize(bits).flatMap { case DecodeResult(elementCount, bits) =>
             def go(remains: Int, remainsBits: BitVector, acc: C[A]): Attempt[DecodeResult[C[A]]] = {
               if (remains > 0) {
                 elementCodec.decode(remainsBits) match {
                   case Attempt.Successful(DecodeResult(element, rest)) =>
                     go(remains - 1, rest, CollectionType[C].append(acc, element))
                   case Attempt.Failure(err) =>
-                    Attempt.failure(Err.General(s"Failed to decode element at ${count - remains}", err.message +: err.context))
+                    Attempt.failure(Err.General(s"Failed to decode element at ${elementCount - remains}", err.message +: err.context))
                 }
               } else {
                 Attempt.successful(DecodeResult(acc, remainsBits))
               }
             }
-            go(count, bits, CollectionType[C].zero)
+            go(elementCount, bits, CollectionType[C].zero)
           }
         }
       }
@@ -145,9 +167,6 @@ object CollectionCType {
 
         go(CollectionType[C].zero, start + 1) // skip the opening char already
       }
-
     }
   }
-
-
 }

@@ -46,7 +46,7 @@ lazy val testSettings = Seq(
   parallelExecution := false,
   fork := true,
   testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oDF"),
-  testGrouping in Test := (definedTests in Test).map { tests =>
+  Test / testGrouping := (Test / definedTests).map { tests =>
     // group tests individually to fork them in JVM.
     // essentially any CassandraIntegration_* id having its own group, all others share a group
     // this is necessary hence JavaDriver seems to share some sort of global state preventing to switch

@@ -5,7 +5,7 @@ import cats.effect.concurrent.Ref
 import cats.implicits._
 import cats.{Applicative, Traverse}
 import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BatchType, BoundStatement, PagingState, PreparedStatement, Row, SimpleStatement, Statement, BatchStatement => CBatchStatement}
-import com.datastax.oss.driver.api.core.{CqlSession, CqlSessionBuilder, ProtocolVersion}
+import com.datastax.oss.driver.api.core.{CqlSession, CqlSessionBuilder, ProtocolVersion, Version}
 import fs2.Stream._
 import fs2._
 import shapeless.HNil
@@ -14,6 +14,7 @@ import spinoco.fs2.cassandra.util.CompletionStageSyntax._
 import spinoco.fs2.cassandra.util.CqlSessionSyntax._
 import spinoco.fs2.cassandra.util.ToOptionSyntax._
 
+import scala.collection.convert.ImplicitConversions._
 import scala.language.higherKinds
 
 trait CassandraSession[F[_]] {
@@ -89,6 +90,7 @@ trait CassandraSession[F[_]] {
   /** prepares supplied CQL statement **/
   def prepareCql(cql:String):F[PreparedStatement]
 
+  def minCassandraVersion(): Option[Version]
 }
 
 
@@ -167,6 +169,12 @@ object CassandraSession {
                 }
             }
           }
+        }
+
+        def cassandraVersion(): Option[Version] = {
+          cqlSession.getMetadata.getNodes.values().iterator().toSeq
+            .map(_.getCassandraVersion)
+            .reduceOption((a, b) => if (a.compareTo(b) < 0) a else b)
         }
 
         def mkStatement[I](statement:CStatement[I], i:I):F[BoundStatement] = {
@@ -285,6 +293,7 @@ object CassandraSession {
           def executeBatch[I, R](batch: BatchStatement[I, R], o: DMLOptions= Options.defaultDML)(i: I): F[Option[R]] = _executeBatch(batch,o,i)
           def bindStatement[I](statement: DMLStatement[I, _], o: DMLOptions)(i: I): F[BoundStatement] = mkStatement(statement,i).map { bs => Options.applyDMLOptions(bs,o)}
           def executeBatchRaw(statements: Seq[BoundStatement], logged: Boolean): F[AsyncResultSet] = _executeBatchRaw(statements,logged)
+          def minCassandraVersion(): Option[Version] = cassandraVersion()
         }
       }
     }

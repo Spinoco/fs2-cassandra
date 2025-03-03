@@ -192,5 +192,24 @@ class TableBuilderSpec extends Fs2CassandraSpec{
   }
 
 
+  "DDL for table with constant size Vectors with " - {
+
+
+    val tableDef = "CREATE TABLE test_ks.test_table (intColumn int,longColumn bigint,vector4IntColumn vector<int,4>,vector8FloatColumn vector<float,8>,"
+
+
+    "partition key" in {
+      val table =
+        ks.table[VectorTableRow]
+          .partition('intColumn)
+          .build("test_table")
+
+
+
+      table.cqlStatement shouldBe  Seq(s"$tableDef PRIMARY KEY ((intColumn)))")
+    }
+
+  }
+
 
 }

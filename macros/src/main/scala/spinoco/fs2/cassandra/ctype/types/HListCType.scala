@@ -1,4 +1,4 @@
-package spinoco.fs2.cassandra.internal.ctype
+package spinoco.fs2.cassandra.ctype.types
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
@@ -7,7 +7,8 @@ import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 import shapeless.{::, HList, HNil}
-import spinoco.fs2.cassandra.{CType, util}
+import spinoco.fs2.cassandra.baseutil
+import spinoco.fs2.cassandra.ctype.CType
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
@@ -62,7 +63,7 @@ object HListCType {
       def parse(cql: String): Attempt[L] = {
         @tailrec
         def go(cql: String, acc: List[String]): Attempt[List[String]] = {
-          util.attempt(ParseUtils.skipCQLValue(cql, 0)) match {
+          baseutil.attempt(ParseUtils.skipCQLValue(cql, 0)) match {
             case Attempt.Successful(-1) => Attempt.successful(acc.reverse)
             case Attempt.Successful(n) =>
               val (value, rest) = cql.splitAt(n)

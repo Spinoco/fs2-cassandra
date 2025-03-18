@@ -1,6 +1,5 @@
 package spinoco.fs2.cassandra
 
-
 import scodec.{Attempt, Err}
 
 import scala.annotation.tailrec
@@ -9,7 +8,7 @@ import scala.util.Try
 /**
   * Created by pach on 04/06/16.
   */
-package object util {
+package object baseutil {
 
   /** converts `f` to attempt. If `f` throws returns Failure, success otherwise */
   def attempt[A](f: => A): Attempt[A] = {

@@ -1,11 +1,11 @@
 package spinoco.fs2.cassandra
 
 import cats.effect.IO
+import com.datastax.oss.driver.api.core.Version
 import fs2.Stream._
 import shapeless.LabelledGeneric
-import spinoco.fs2.cassandra.sample.{ListTableRow, MapTableRow, OptionalTableRow, SimpleTableRow, VectorTableRow}
+import spinoco.fs2.cassandra.sample._
 import spinoco.fs2.cassandra.support.{DockerCassandra, Fs2CassandraSpec}
-import com.datastax.oss.driver.api.core.Version
 
 import scala.concurrent.ExecutionContext
 

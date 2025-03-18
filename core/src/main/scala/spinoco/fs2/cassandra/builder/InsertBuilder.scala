@@ -7,13 +7,15 @@ import shapeless.ops.hlist.{Align, Prepend, Union}
 import shapeless.ops.record.Selector
 import shapeless.tag.@@
 import shapeless.{::, HList, Witness}
-import spinoco.fs2.cassandra.CType.TTL
-import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, SelectAll}
-import spinoco.fs2.cassandra.util.AnnotatedException
-import spinoco.fs2.cassandra.{BatchResultReader, Insert, Table, internal}
+import spinoco.fs2.cassandra.baseutil.AnnotatedException
+import spinoco.fs2.cassandra.ctype.CType.TTL
+import spinoco.fs2.cassandra.internal.SelectAll
+import spinoco.fs2.cassandra.macros.CTypeRecord
+import spinoco.fs2.cassandra._
 
 import java.nio.ByteBuffer
 import scala.concurrent.duration.FiniteDuration
+import scala.language.experimental.macros
 
 /**
   * Builder for Insert of the columns in table. `I` is at least sum of Partitioning and Cluster Key types
@@ -62,12 +64,12 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
   /** creates insert statement **/
   def build[PR <: HList, PR0 <: HList](
     implicit
-    CTI: CTypeNonEmptyRecordInstance[I]
-    , CTR: CTypeNonEmptyRecordInstance[R]
+    CTI: CTypeRecord[I]
+    , CTR: CTypeRecord[R]
     , P:Prepend.Aux[PK,CK,PR]
     , GETPK:SelectAll.Aux[I,PR,PR0]
     , A:Align[PR0,PR]
-    , CTPK: CTypeNonEmptyRecordInstance[PR]
+    , CTPK: CTypeRecord[PR]
   ):Insert[I,Option[R]] = {
     val columnNames = CTI.types.map(_._1).filterNot(k => ttl.contains(k) || timestamp.contains(k))
     val ttlStmt = ttl.map(k => s"TTL :$k").toSeq
@@ -80,7 +82,7 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
 
     new Insert[I,Option[R]] {
       def cqlStatement: String = cql
-      def cqlFor(s: I): String = spinoco.fs2.cassandra.util.replaceInCql(cql,CTI.writeCql(s))
+      def cqlFor(s: I): String = baseutil.replaceInCql(cql,CTI.writeCql(s))
 
 
       def writeRaw(s: I, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = CTI.writeRaw(s, protocolVersion)

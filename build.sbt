@@ -7,10 +7,29 @@ lazy val contributors = Seq(
   , "adamchlupacek" -> "Adam Chlupáček"
 )
 
+/**
+ * Profiling notes:
+ * - Add these options to commonSettings.scalaOptions:
+ *   ```
+ *   , "-Ystatistics:typer"
+ *   , "-P:scalac-profiling:generate-global-flamegraph"
+ *   , "-P:scalac-profiling:generate-macro-flamegraph"
+ *   , "-P:scalac-profiling:show-concrete-implicit-tparams"
+ *   , "-P:scalac-profiling:print-failed-implicit-macro-candidates"
+ *   , "-P:scalac-profiling:show-profiles"
+ *   , "-P:scalac-profiling:print-search-results"
+ *   , "-Xprint:all"
+ *   ```
+ * - Add this to commonSettings:
+ *   ```
+ *   , addCompilerPlugin("ch.epfl.scala" %% "scalac-profiling" % "1.1.2" cross CrossVersion.full)
+ *   ```
+ */
+
 lazy val commonSettings = Seq(
   organization := "com.spinoco",
-  scalaVersion := "2.12.15",
-  crossScalaVersions := Seq("2.12.15"),
+  scalaVersion := "2.12.20",
+  crossScalaVersions := Seq("2.12.20"),
   scalacOptions ++= Seq(
     "-feature",
     "-deprecation",
@@ -36,7 +55,7 @@ lazy val commonSettings = Seq(
     "co.fs2" %% "fs2-core" % "1.0.0"
     , "co.fs2" %% "fs2-io" % "1.0.0"
     , "com.datastax.oss" % "java-driver-core" % "4.17.0"
-    , "com.chuusai" %% "shapeless" % "2.3.3"
+    , "com.chuusai" %% "shapeless" % "2.3.13"
     , "org.scodec" %% "scodec-core" % "1.10.3"
   )
   , addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
@@ -118,12 +137,20 @@ lazy val noPublish = Seq(
   publishArtifact := false
 )
 
+lazy val macros =
+  project.in(file("macros"))
+    .settings(commonSettings)
+    .settings(
+      name := "fs2-cassandra-macros"
+    )
+
 lazy val core =
   project.in(file("core"))
   .settings(commonSettings)
   .settings(
    name := "fs2-cassandra"
   )
+  .dependsOn(macros)
 
 lazy val testSupport =
   project.in(file("test-support"))
@@ -136,7 +163,7 @@ lazy val testSupport =
       //, "org.slf4j" % "slf4j-simple" % "1.6.1"  // uncomment this for logs when testing
     )
   )
-  .dependsOn(core)
+  .dependsOn(core, macros)
 
 lazy val coreTest =
   project.in(file("test"))
@@ -147,13 +174,14 @@ lazy val coreTest =
   .dependsOn(
     core
     , testSupport % "test"
+    , macros
   )
 
 lazy val fs2Cassandra =
   project.in(file("."))
   .settings(commonSettings ++ noPublish)
   .aggregate(
-    core, testSupport, coreTest
+    core, testSupport, coreTest, macros
   )
 
 lazy val doNotPublish = Seq(

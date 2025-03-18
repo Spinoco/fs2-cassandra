@@ -4,7 +4,7 @@ package spinoco.fs2.cassandra
 import fs2.Chunk
 import shapeless.tag
 import shapeless.tag.{apply => _, _}
-import spinoco.fs2.cassandra.CType.{Ascii, Counter, TTL, Type1}
+import spinoco.fs2.cassandra.ctype.CType.{Ascii, Counter, TTL, Type1}
 import spinoco.fs2.cassandra.sample._
 
 import java.net.InetAddress

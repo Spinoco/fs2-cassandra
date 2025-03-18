@@ -6,6 +6,7 @@ import shapeless.ops.record.Keys
 import shapeless.{HList, HNil}
 import spinoco.fs2.cassandra._
 import spinoco.fs2.cassandra.builder._
+import spinoco.fs2.cassandra.macros.CTypeRecord
 
 /**
   * Created by pach on 03/06/16.
@@ -29,7 +30,7 @@ object TableInstance {
   implicit def forProduct[R <: HList, PK <: HList,  CK <: HList,  IDX <: HList](
     implicit
      RKS: Keys[R]
-    , CTR: CTypeNonEmptyRecordInstance[R]
+    , CTR: CTypeRecord[R]
   ):TableInstance[R, PK, CK, IDX] = {
     new TableInstance[R,PK,CK, IDX] {
 

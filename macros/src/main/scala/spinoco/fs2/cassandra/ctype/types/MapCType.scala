@@ -1,11 +1,12 @@
-package spinoco.fs2.cassandra.internal.ctype
+package spinoco.fs2.cassandra.ctype.types
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.{DataType, DataTypes}
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
 import scodec.bits.{BitVector, ByteVector}
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
-import spinoco.fs2.cassandra.{CType, MapKeyCType, util}
+import spinoco.fs2.cassandra.baseutil
+import spinoco.fs2.cassandra.ctype.{CType, MapKeyCType}
 
 import scala.annotation.tailrec
 
@@ -151,13 +152,13 @@ object MapCType {
             else {
               val parseValueResult: Attempt[((K, V), Int)] =
                 for {
-                  endOfKey <- util.attempt(ParseUtils.skipCQLValue(from, startOfKey))
+                  endOfKey <- baseutil.attempt(ParseUtils.skipCQLValue(from, startOfKey))
                   k <- MapKeyCType[K].parse(from.substring(startOfKey, endOfKey))
-                  startSplit <- util.attempt(ParseUtils.skipSpaces(from, endOfKey))
+                  startSplit <- baseutil.attempt(ParseUtils.skipSpaces(from, endOfKey))
                   _ <- if (from.charAt(startSplit) != ':') Attempt.failure(Err(s"Expected : at $startSplit but got ${from.charAt(startSplit)}"))
                   else Attempt.successful(())
-                  startOfValue <- util.attempt(ParseUtils.skipSpaces(from, startSplit + 1))
-                  endOfValue <- util.attempt(ParseUtils.skipCQLValue(from, startOfValue))
+                  startOfValue <- baseutil.attempt(ParseUtils.skipSpaces(from, startSplit + 1))
+                  endOfValue <- baseutil.attempt(ParseUtils.skipCQLValue(from, startOfValue))
                   v <- CType[V].parse(from.substring(startOfValue, endOfValue))
                 } yield (k -> v, endOfValue)
 

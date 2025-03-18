@@ -1,9 +1,9 @@
-package spinoco.fs2.cassandra.util
+package spinoco.fs2.cassandra.baseutil
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
-import com.datastax.oss.driver.api.core.data.{SettableByIndex, SettableByName}
-import spinoco.fs2.cassandra.CType
-import spinoco.fs2.cassandra.util.CodecSerializerSyntax.CodecSerializeDeserializeSyntax
+import com.datastax.oss.driver.api.core.data.SettableByName
+import spinoco.fs2.cassandra.baseutil.CodecSerializerSyntax.CodecSerializeDeserializeSyntax
+import spinoco.fs2.cassandra.ctype.CType
 
 import java.nio.ByteBuffer
 
@@ -19,16 +19,6 @@ object SettableSyntax {
         .fold(
           e => throw new Throwable(e.message),
           bv => data.setBytesUnsafe(key, bv)
-        )
-    }
-
-    def writeAtSerialized[D <: SettableByIndex[D]](idx: Int, value: V, data: D, protocolVersion: ProtocolVersion): D = {
-      tpe
-        .serialize(value, protocolVersion)
-        .toEither
-        .fold(
-          e => throw new Throwable(e.message),
-          bv =>  data.setBytesUnsafe(idx, bv)
         )
     }
 

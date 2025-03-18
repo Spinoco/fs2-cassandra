@@ -3,11 +3,8 @@ package spinoco.fs2.cassandra
 
 import shapeless.syntax.singleton._
 import shapeless.tag
-import cats.effect.IO
-import com.datastax.oss.driver.api.core.Version
-import spinoco.fs2.cassandra.CType.TTL
+import spinoco.fs2.cassandra.ctype.CType.TTL
 import spinoco.fs2.cassandra.sample.{OptionalTableRow, SimpleTableRow, VectorTableRow}
-
 
 import scala.concurrent.duration._
 

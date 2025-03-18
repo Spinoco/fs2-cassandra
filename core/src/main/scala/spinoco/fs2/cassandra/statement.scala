@@ -1,7 +1,7 @@
 package spinoco.fs2.cassandra
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
-import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BoundStatement, PreparedStatement, Row}
+import com.datastax.oss.driver.api.core.cql.{BoundStatement, PreparedStatement, Row}
 import shapeless.ops.hlist.Tupler
 import shapeless.ops.product.ToHList
 import shapeless.ops.record.Values

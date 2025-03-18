@@ -1,18 +1,11 @@
-package spinoco.fs2.cassandra.internal.ctype
+package spinoco.fs2.cassandra.ctype.types
 
-import cats.effect.Async
-import com.datastax.oss.driver.api.core.`type`.{DataType, DataTypes, VectorType}
-import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, Row}
-import com.datastax.oss.driver.api.core.data.CqlVector
+import com.datastax.oss.driver.api.core.`type`.{DataType, VectorType}
 import com.datastax.oss.driver.api.core.detach.AttachmentPoint
-import fs2.Stream
-import spinoco.fs2.cassandra.CType
 import shapeless.tag
 import shapeless.tag.@@
-import spinoco.fs2.cassandra.internal.ctype.CollectionCType.ConstDimension
-import spinoco.fs2.cassandra.util.CompletionStageSyntax
-
-import java.util.concurrent.CompletionStage
+import spinoco.fs2.cassandra.ctype.CType
+import spinoco.fs2.cassandra.ctype.types.CollectionCType.ConstDimension
 
 
 object VectorCType {

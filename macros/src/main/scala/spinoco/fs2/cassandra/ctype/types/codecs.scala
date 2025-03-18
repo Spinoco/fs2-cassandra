@@ -1,4 +1,4 @@
-package spinoco.fs2.cassandra.internal.ctype
+package spinoco.fs2.cassandra.ctype.types
 
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}

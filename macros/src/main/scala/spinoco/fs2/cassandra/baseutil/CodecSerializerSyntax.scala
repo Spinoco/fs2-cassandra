@@ -1,9 +1,9 @@
-package spinoco.fs2.cassandra.util
+package spinoco.fs2.cassandra.baseutil
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import scodec.Attempt
 import scodec.bits.BitVector
-import spinoco.fs2.cassandra.CType
+import spinoco.fs2.cassandra.ctype.CType
 
 import java.nio.ByteBuffer
 

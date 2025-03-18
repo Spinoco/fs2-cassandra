@@ -3,13 +3,14 @@ package spinoco.fs2.cassandra.sample
 import fs2.Chunk
 import shapeless.tag
 import shapeless.tag._
-import spinoco.fs2.cassandra.CType.{Ascii, Type1}
+import spinoco.fs2.cassandra.ctype.CType.{Ascii, Type1}
+import spinoco.fs2.cassandra.macros.cacheGeneric
 
 import java.net.InetAddress
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
-
+@cacheGeneric
 case class SimpleTableRow(
   intColumn: Int
   , longColumn: Long

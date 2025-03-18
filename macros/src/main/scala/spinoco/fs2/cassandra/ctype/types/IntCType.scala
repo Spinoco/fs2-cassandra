@@ -1,11 +1,12 @@
-package spinoco.fs2.cassandra.internal.ctype
+package spinoco.fs2.cassandra.ctype.types
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.internal.core.`type`.codec.IntCodec
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, SizeBound}
-import spinoco.fs2.cassandra.{CType, util}
+import spinoco.fs2.cassandra.baseutil
+import spinoco.fs2.cassandra.ctype.CType
 
 object IntCType {
 
@@ -33,10 +34,10 @@ object IntCType {
       }
 
       def parse(cql: String): Attempt[Int] =
-        util.attempt(nativeCodec.parse(cql) : Int)
+        baseutil.attempt(nativeCodec.parse(cql) : Int)
 
       def format(a: Int): Attempt[String] =
-        util.attempt(nativeCodec.format(a))
+        baseutil.attempt(nativeCodec.format(a))
     }
   }
 

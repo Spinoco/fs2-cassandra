@@ -2,10 +2,9 @@ package spinoco.fs2.cassandra.sample
 
 import shapeless.tag
 import shapeless.tag.@@
-import spinoco.fs2.cassandra.CType
-import spinoco.fs2.cassandra.internal.ctype.VectorCType
+import spinoco.fs2.cassandra.ctype.CType
+import spinoco.fs2.cassandra.ctype.types.VectorCType
 import spinoco.fs2.cassandra.sample.VectorSizes.{VectorSize4, VectorSize8}
-
 
 
 object VectorSizes {

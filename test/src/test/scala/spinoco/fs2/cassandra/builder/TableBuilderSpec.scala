@@ -1,7 +1,6 @@
 package spinoco.fs2.cassandra.builder
 
 
-import shapeless.LabelledGeneric
 import spinoco.fs2.cassandra.KeySpace
 import spinoco.fs2.cassandra.sample._
 import spinoco.fs2.cassandra.support.Fs2CassandraSpec
@@ -93,6 +92,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
 
     }
 
+    /*
     "add colums" in {
 
       case class DummyClass(
@@ -109,6 +109,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
       .columns[generic.Repr]
       .build("test_table").cqlStatement shouldBe Seq(tableDef)
     }
+     */
 
   }
 

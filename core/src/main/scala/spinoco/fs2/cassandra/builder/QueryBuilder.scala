@@ -7,10 +7,12 @@ import shapeless.ops.hlist.{Prepend, ToTraversable}
 import shapeless.ops.record.{Keys, Selector}
 import shapeless.{::, HList, HNil, Witness}
 import spinoco.fs2.cassandra._
+import spinoco.fs2.cassandra.baseutil.{AnnotatedException, replaceInCql}
 import spinoco.fs2.cassandra.internal._
-import spinoco.fs2.cassandra.util.AnnotatedException
+import spinoco.fs2.cassandra.macros.CTypeRecord
 
 import java.nio.ByteBuffer
+import scala.language.experimental.macros
 
 case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <: HList, S <: HList](
   table: AbstractTable[R, PK, CK, IDX]
@@ -239,8 +241,9 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
 
   /** creates query, that may be used to perform CQL commands on connection **/
   def build(
-   implicit CTQ: CTypeRecordInstance[Q]
-   , CTS: CTypeNonEmptyRecordInstance[S]
+   implicit
+   CTQ: CTypeRecord[Q]
+   , CTS: CTypeRecord[S]
   ):Query[Q,S] = {
     val orderStmt = {
       val ocs =
@@ -300,7 +303,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
 
     new Query[Q, S] {
       def cqlStatement: String = cql
-      def cqlFor(q: Q): String = spinoco.fs2.cassandra.util.replaceInCql(cql,CTQ.writeCql(q))
+      def cqlFor(q: Q): String = replaceInCql(cql,CTQ.writeCql(q))
       def writeRaw(q: Q, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = CTQ.writeRaw(q,protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, S] = CTS.readByName(r, protocolVersion).left.map(AnnotatedException.withStmt(_, cql))
       def fill(q: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {

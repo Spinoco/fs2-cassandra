@@ -1,8 +1,9 @@
-package spinoco.fs2.cassandra
+package spinoco.fs2.cassandra.ctype
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.codec.{TypeCodec, TypeCodecs}
 import com.datastax.oss.driver.api.core.`type`.{DataType, DataTypes}
+import com.datastax.oss.driver.api.core.data.{GettableByName, SettableByName}
 import com.datastax.oss.driver.internal.core.`type`.codec.StringCodec
 import com.datastax.oss.driver.shaded.guava.common.base.Charsets
 import fs2.Chunk
@@ -10,8 +11,11 @@ import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, SizeBound}
 import shapeless.tag.@@
 import shapeless.{::, HList, HNil, tag}
-import spinoco.fs2.cassandra.CType.{Ascii, Type1}
-import spinoco.fs2.cassandra.internal.ctype._
+import spinoco.fs2.cassandra.baseutil
+import spinoco.fs2.cassandra.baseutil.GettableSyntax.{BitVectorReadAsSyntax, GettableByNameSyntax}
+import spinoco.fs2.cassandra.baseutil.SettableSyntax.SettableWriteSyntax
+import spinoco.fs2.cassandra.ctype.CType.{Ascii, Type1}
+import spinoco.fs2.cassandra.ctype.types._
 
 import java.net.{InetAddress, URI}
 import java.nio.ByteBuffer
@@ -61,6 +65,17 @@ trait CType[A] { self =>
     }
   }
 
+  def writeCql(k: String, v: A): Map[String, String] = self.writeFormatted(k, v)
+  def writeRaw(k: String, v: A, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRawSerialized(k, v, protocolVersion)
+  def writeByName[D <: SettableByName[D]](k: String, v: A, data: D, protocolVersion: ProtocolVersion): D =  self.writeByNameSerialized(k, v, data, protocolVersion)
+  def readByName(k: String, data: GettableByName, protocolVersion: ProtocolVersion): Either[Throwable, A] = data.getBitsByName(k).readAs[A](k, protocolVersion)(self)
+  def readByNameIfExists(keys: Set[String], k: String, data: GettableByName, protocolVersion: ProtocolVersion): Either[Throwable, A] = {
+    if (keys.contains(k.toLowerCase)) {
+      readByName(k, data, protocolVersion)
+    } else {
+      Right(None.asInstanceOf[A])
+    }
+  }
 
 }
 
@@ -89,17 +104,17 @@ object CType {
 
       def cqlCodec(protocolVersion: ProtocolVersion): Codec[A] = new Codec[A] {
         def encode(value: A): Attempt[BitVector] =
-          util.attempt(BitVector.view(codec.encode(value, protocolVersion)))
+          baseutil.attempt(BitVector.view(codec.encode(value, protocolVersion)))
 
         def sizeBound: SizeBound = SizeBound.unknown
 
         def decode(bits: BitVector): Attempt[DecodeResult[A]] =
-          util.attempt(codec.decode(bits.toByteBuffer, protocolVersion))
+          baseutil.attempt(codec.decode(bits.toByteBuffer, protocolVersion))
           .map(DecodeResult(_, BitVector.empty)) // this is ok hence primitive codec in cassandra must get only that much bytes how much it can consume
       }
 
-      def parse(cql: String): Attempt[A] = util.attempt(codec.parse(cql))
-      def format(a: A): Attempt[String] = util.attempt(codec.format(a))
+      def parse(cql: String): Attempt[A] = baseutil.attempt(codec.parse(cql))
+      def format(a: A): Attempt[String] = baseutil.attempt(codec.format(a))
     }
   }
 
@@ -175,7 +190,7 @@ object CType {
 
   implicit val uriInstance:CType[URI] =
     stringInstance.exmap(
-      s => util.attempt(URI.create(s))
+      s => baseutil.attempt(URI.create(s))
     )(
       uri => Attempt.successful(uri.toString)
     )
@@ -184,7 +199,7 @@ object CType {
   implicit def enumInstance[E <: Enumeration : ClassTag]:CType[E#Value] = {
     lazy val e = implicitly[ClassTag[E]].runtimeClass.getField("MODULE$").get((): Unit).asInstanceOf[Enumeration]
     stringInstance.exmap(
-      s => util.attempt(e.withName(s).asInstanceOf[E#Value])
+      s => baseutil.attempt(e.withName(s).asInstanceOf[E#Value])
     )(
       e => Attempt.successful(e.toString)
     )

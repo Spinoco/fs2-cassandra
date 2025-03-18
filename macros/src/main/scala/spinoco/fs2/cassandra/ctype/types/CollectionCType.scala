@@ -1,12 +1,12 @@
-package spinoco.fs2.cassandra.internal.ctype
+package spinoco.fs2.cassandra.ctype.types
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
-import spinoco.KarelsTweaks.BitVectorPrinter.BitVectorPrinterSyntax
-import spinoco.fs2.cassandra.{CType, CollectionType, util}
+import spinoco.fs2.cassandra.baseutil
+import spinoco.fs2.cassandra.ctype.{CType, CollectionType}
 
 import scala.annotation.tailrec
 
@@ -153,7 +153,7 @@ object CollectionCType {
             else {
               val parseValueResult =
                 for {
-                  endOfCql <- util.attempt(ParseUtils.skipCQLValue(cql, start2))
+                  endOfCql <- baseutil.attempt(ParseUtils.skipCQLValue(cql, start2))
                   parsed <- CType[A].parse(cql.substring(start2, endOfCql))
                 } yield (parsed, endOfCql)
 

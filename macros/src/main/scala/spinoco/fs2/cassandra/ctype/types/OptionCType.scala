@@ -1,10 +1,10 @@
-package spinoco.fs2.cassandra.internal.ctype
+package spinoco.fs2.cassandra.ctype.types
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import scodec.Attempt.Successful
 import scodec.{Attempt, Codec, SizeBound}
-import spinoco.fs2.cassandra.CType
+import spinoco.fs2.cassandra.ctype.CType
 
 object OptionCType {
 

@@ -1,23 +1,19 @@
 package spinoco.fs2.cassandra.serializers
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
-import com.datastax.oss.driver.api.core.`type`.codec.{TypeCodec, TypeCodecs}
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs
 import com.datastax.oss.driver.api.core.data.CqlVector
-import scodec.{Attempt, DecodeResult}
-import scodec.Attempt.Successful
 import scodec.bits.BitVector
+import scodec.{Attempt, DecodeResult}
 import shapeless.tag
 import shapeless.tag.@@
-import spinoco.KarelsTweaks.BitVectorPrinter.BitVectorPrinterSyntax
-import spinoco.fs2.cassandra.CType
-import spinoco.fs2.cassandra.internal.ctype.{CollectionCType, VectorCType}
+import spinoco.fs2.cassandra.baseutil.CodecSerializerSyntax.CodecSerializeDeserializeSyntax
+import spinoco.fs2.cassandra.ctype.CType
+import spinoco.fs2.cassandra.ctype.types.VectorCType
 import spinoco.fs2.cassandra.sample.VectorSizes.VectorSize4
-import spinoco.fs2.cassandra.sample.VectorTableRow
 import spinoco.fs2.cassandra.support.Fs2CassandraSpec
-import spinoco.fs2.cassandra.util.CodecSerializerSyntax.CodecSerializeDeserializeSyntax
 
 import java.nio.ByteBuffer
-import java.util
 import scala.collection.JavaConverters._
 
 

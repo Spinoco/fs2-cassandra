@@ -4,8 +4,10 @@ import shapeless.labelled._
 import shapeless.ops.hlist.Prepend
 import shapeless.ops.record.Selector
 import shapeless.{::, HList, HNil, Witness}
-import spinoco.fs2.cassandra.internal.{CTypeNonEmptyRecordInstance, TableInstance}
-import spinoco.fs2.cassandra.{CType, KeySpace, Table, internal}
+import spinoco.fs2.cassandra.ctype.CType
+import spinoco.fs2.cassandra.internal.TableInstance
+import spinoco.fs2.cassandra.macros.CTypeRecord
+import spinoco.fs2.cassandra.{KeySpace, Table, internal}
 
 /**
   * Helper to build type safe definition of the table
@@ -31,7 +33,7 @@ case class TableBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList](
 
   /** registers all columns in a given list to the table **/
   def columns[C <: HList](
-    implicit CTR: CTypeNonEmptyRecordInstance[C]
+    implicit CTR: CTypeRecord[C]
     , PP: Prepend[C, R]
   ): TableBuilder[PP.Out, PK, CK, IDX] = TableBuilder(ks, indexes, partitionKeys, clusterKeys)
 

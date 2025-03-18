@@ -1,6 +1,6 @@
 package spinoco.fs2.cassandra.internal
 
-import spinoco.fs2.cassandra.CType
+import spinoco.fs2.cassandra.ctype.CType
 
 /**
   * Instance guarding column type of `Set`

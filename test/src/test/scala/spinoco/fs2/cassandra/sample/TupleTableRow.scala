@@ -1,7 +1,7 @@
 package spinoco.fs2.cassandra.sample
 
 import shapeless.tag._
-import spinoco.fs2.cassandra.CType.{Ascii, Type1}
+import spinoco.fs2.cassandra.ctype.CType.{Ascii, Type1}
 
 import java.time.LocalDateTime
 import java.util.UUID

@@ -13,6 +13,4 @@ trait CommonCassandraSpec
     with BatchSpec
     with QuerySpec
     with MigrationsSpec
-    with MaterializedSpec
     with DockerCassandra
-

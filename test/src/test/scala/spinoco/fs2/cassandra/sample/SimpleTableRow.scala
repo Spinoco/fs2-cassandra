@@ -1,16 +1,16 @@
 package spinoco.fs2.cassandra.sample
 
-import java.net.InetAddress
-import java.util.UUID
-
 import fs2.Chunk
 import shapeless.tag
 import shapeless.tag._
-import spinoco.fs2.cassandra.CType.{Ascii, Type1}
+import spinoco.fs2.cassandra.ctype.CType.{Ascii, Type1}
+import spinoco.fs2.cassandra.macros.cacheGeneric
 
+import java.net.InetAddress
+import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
-
+@cacheGeneric
 case class SimpleTableRow(
   intColumn: Int
   , longColumn: Long
@@ -29,7 +29,9 @@ case class SimpleTableRow(
 )
 
 object SimpleTableRow {
-  import com.datastax.driver.core.utils.UUIDs.timeBased
+
+  private val uuid = UUID.fromString("00000000-0000-0000-0000-000000000000")
+  private val timeUuid = UUID.fromString("00000000-0000-1000-8000-000000000001")
 
   val simpleInstance = SimpleTableRow(
     intColumn = 1
@@ -41,8 +43,8 @@ object SimpleTableRow {
     , bigDecimalColumn = BigDecimal(0.3d)
     , bigIntColumn = BigInt(3)
     , blobColumn = Chunk.bytes(Array.emptyByteArray)
-    , uuidColumn =  timeBased
-    , timeUuidColumn =  tag[Type1](timeBased)
+    , uuidColumn = uuid
+    , timeUuidColumn =  tag[Type1](timeUuid)
     , durationColumn = FiniteDuration(1,"s")
     , inetAddressColumn = InetAddress.getLocalHost
     , enumColumn = TestEnumeration.One

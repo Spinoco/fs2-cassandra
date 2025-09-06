@@ -1,8 +1,9 @@
 package spinoco.fs2.cassandra
 
 
-import com.datastax.driver.core.{ConsistencyLevel, PagingState, Statement}
-import com.datastax.driver.core.policies.RetryPolicy
+import com.datastax.oss.driver.api.core.ConsistencyLevel
+import com.datastax.oss.driver.api.core.cql.{PagingState, Statement}
+import com.datastax.oss.driver.api.core.retry.RetryPolicy
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -103,9 +104,9 @@ case class DMLOptions(
 case class QueryOptions(
  consistencyLevel: Option[ConsistencyLevel]
  , tracing: Option[Boolean]
- , retryPolicy: Option[RetryPolicy]
+ , executionProfileName: Option[String]
  , fetchSize: Option[Int]
- , readTimeout: Option[FiniteDuration]
+ , timeout: Option[FiniteDuration]
  , pagingState: Option[PagingState]
 ) extends Options {
 
@@ -121,23 +122,19 @@ case class QueryOptions(
     copy(tracing = Some(true))
 
   /**
-    * Sets the retry policy to use for this query.
-    * The default retry policy, if this method is not called, is the one returned by
-    * {@link com.datastax.driver.core.policies.Policies#getRetryPolicy} in the
-    * cluster configuration. This method is thus only useful in case you want
-    * to punctually override the default policy for this request.
+    * Sets the execution profile name for the request
     */
-  def withRetryPolicy(policy:RetryPolicy):QueryOptions =
-    copy(retryPolicy = Some(policy))
+  def withExecutionProfileName(name: String):QueryOptions =
+    copy(executionProfileName = Some(name))
 
   /**
-    * Overrides the default per-host read timeout ({@link SocketOptions#getReadTimeoutMillis()})
+    * Overrides the default per-host timeout ({@link SocketOptions#getReadTimeoutMillis()})
     * for this statement.
     * You should override this only for statements for which the coordinator may allow a longer server-side
     * timeout (for example aggregation queries).
     */
-  def withReadTimeout(timeout:FiniteDuration):QueryOptions =
-    copy(readTimeout = Some(timeout))
+  def withTimeout(timeout:FiniteDuration):QueryOptions =
+    copy(timeout = Some(timeout))
 
   /**
     * Sets paging state.
@@ -184,9 +181,9 @@ object Options {
   val defaultQuery: QueryOptions = QueryOptions(
     consistencyLevel = None
     , tracing = None
-    , retryPolicy = None
+    , executionProfileName = None
     , fetchSize = None
-    , readTimeout = None
+    , timeout = None
     , pagingState = None
   )
 
@@ -194,25 +191,26 @@ object Options {
   def pageFrom(page:PagingState):QueryOptions =
     defaultQuery.startFrom(page)
 
-  private[cassandra] def applyQueryOptions[S <: Statement](stmt:S, o:QueryOptions):S = {
-    o.consistencyLevel.foreach(stmt.setConsistencyLevel)
-    o.fetchSize.foreach(stmt.setFetchSize)
-    o.pagingState.foreach(stmt.setPagingState)
-    o.readTimeout.map(_.toMillis.toInt).foreach(stmt.setReadTimeoutMillis)
-    o.retryPolicy.foreach(stmt.setRetryPolicy)
-    o.tracing.foreach{ tracing => if (tracing) stmt.enableTracing() else stmt.disableTracing() }
-    stmt
+  private[cassandra] def applyQueryOptions[S <: Statement[S]](statement:S, o:QueryOptions):S = {
+    val stmt1 = o.consistencyLevel.foldLeft(statement)((s, opt) => s.setConsistencyLevel(opt))
+    val stmt2 = o.fetchSize.foldLeft(stmt1)((s, opt) => s.setPageSize(opt))
+    val stmt3 = o.pagingState.foldLeft(stmt2)((s, opt) => s.setPagingState(opt))
+    val stmt4 = o.tracing.foldLeft(stmt3)((s, opt) => s.setTracing(opt))
+    val stmt5 = o.timeout.foldLeft(stmt4)((s, opt) => s.setTimeout(java.time.Duration.ofNanos(opt.toNanos)))
+    // TODO: what to do with this?
+    // val stmt6 = o.retryPolicy.foldLeft(stmt5){(s, opt) => ???}
+    stmt5
   }
 
-  private[cassandra] def applyDMLOptions[S <: Statement](stmt:S, o:DMLOptions):S = {
-    o.consistencyLevel.foreach(stmt.setConsistencyLevel)
-    o.serialConsistencyLevel.foreach(stmt.setSerialConsistencyLevel)
-    o.retryPolicy.foreach(stmt.setRetryPolicy)
-    o.defaultTimeStamp.foreach(stmt.setDefaultTimestamp)
-    o.idempotent.foreach(stmt.setIdempotent)
-    o.tracing.foreach{ tracing => if (tracing) stmt.enableTracing() else stmt.disableTracing() }
-    stmt
+  private[cassandra] def applyDMLOptions[S <: Statement[S]](statement:S, o:DMLOptions):S = {
+    val stmt1 = o.consistencyLevel.foldLeft(statement)((s, opt) => s.setConsistencyLevel(opt))
+    val stmt2 = o.serialConsistencyLevel.foldLeft(stmt1)((s, opt) => s.setSerialConsistencyLevel(opt))
+    val stmt3 = o.defaultTimeStamp.foldLeft(stmt2)((s, opt) => s.setQueryTimestamp(opt))
+    val stmt4 = o.idempotent.foldLeft(stmt3)((s, opt) => s.setIdempotent(opt))
+    val stmt5 = o.tracing.foldLeft(stmt4)((s, opt) => s.setTracing(opt))
+    // TODO: what to do with this?
+    //val stmt3 = o.retryPolicy.foldLeft(stmt){(s, opt) => ???}
+    stmt5
   }
-
 }
 

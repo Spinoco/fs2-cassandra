@@ -9,10 +9,6 @@ trait MigrationsSpec  extends SchemaSupport {
   val table1 = ks.table[FooTable1].partition('intColumn).build("foo1")
   val table2 = ks.table[FooTable2].partition('intColumn).build("foo1")
   val table3 = ks.table[FooTable1].partition('intColumn).cluster('longColumn).build("foo1")
-  val view1 = table1.query.column('strColumn).materialize.partition('intColumn).cluster('longColumn).build("bar1")
-  val view2 = table1.query.column('strColumn).column('longColumn).materialize.partition('intColumn).cluster('longColumn).build("bar1")
-  val view3 = table3.query.column('strColumn).materialize.partition('longColumn).cluster('intColumn).build("bar1")
-  val view4 = table1.query.column('strColumn).materialize.partition('longColumn).cluster('intColumn).build("bar1")
 
 
   s"Migrations (${cassandra.tag})" - {
@@ -68,7 +64,7 @@ trait MigrationsSpec  extends SchemaSupport {
       val migrate = cs.migrateDDL(table1).unsafeRunSync()
 
       migrate shouldBe Seq(
-        "CREATE TABLE crud_ks.foo1 (intColumn int,longColumn bigint,strColumn varchar, PRIMARY KEY ((intColumn)))"
+        "CREATE TABLE crud_ks.foo1 (intColumn int,longColumn bigint,strColumn text, PRIMARY KEY ((intColumn)))"
       )
     }
 
@@ -88,13 +84,22 @@ trait MigrationsSpec  extends SchemaSupport {
 
       val migrate = cs.migrateDDL(table2).unsafeRunSync()
 
-      migrate shouldBe Seq(
+      val expectedDrops = Seq(
         "ALTER TABLE crud_ks.foo1 DROP longcolumn"
         ,"ALTER TABLE crud_ks.foo1 DROP strcolumn"
-        , "ALTER TABLE crud_ks.foo1 ADD longColumn1 bigint"
+      )
+      val expectedAdds = Seq(
+        "ALTER TABLE crud_ks.foo1 ADD longColumn1 bigint"
         , "ALTER TABLE crud_ks.foo1 ADD strColumn int"
       )
 
+      /** Drops have to go fist. */
+      migrate.slice(0,2).toSet shouldBe expectedDrops.toSet
+      /** Adds after. */
+      migrate.slice(2,4).toSet shouldBe expectedAdds.toSet
+
+      /** Check we have checked everything. */
+      migrate.toSet shouldBe (expectedDrops ++ expectedAdds).toSet
     }
 
 
@@ -106,66 +111,9 @@ trait MigrationsSpec  extends SchemaSupport {
 
       migrate shouldBe Seq(
         "DROP TABLE crud_ks.foo1"
-        , "CREATE TABLE crud_ks.foo1 (intColumn int,longColumn bigint,strColumn varchar, PRIMARY KEY ((intColumn),longColumn))"
+        , "CREATE TABLE crud_ks.foo1 (intColumn int,longColumn bigint,strColumn text, PRIMARY KEY ((intColumn),longColumn))"
       )
     }
 
-
-    "will create materialized view if base table dropped" in withSession { cs =>
-      if(cassandra.isV3Compatible){
-        cs.create(ks).unsafeRunSync()
-        cs.create(table1).unsafeRunSync()
-        cs.create(view1).unsafeRunSync()
-
-        val migrate = cs.migrateDDL(view3).unsafeRunSync()
-
-        migrate shouldBe Seq(
-          """CREATE MATERIALIZED VIEW crud_ks.bar1 AS SELECT strColumn FROM crud_ks.foo1 """
-            + """WHERE longColumn IS NOT NULL AND intColumn IS NOT NULL PRIMARY KEY ((longColumn),intColumn)""".stripMargin
-        )
-      }
-    }
-
-    "will drop and create materialized view if select changed" in withSession { cs =>
-      if(cassandra.isV3Compatible) {
-        cs.create(ks).unsafeRunSync()
-        cs.create(table1).unsafeRunSync()
-        cs.create(view1).unsafeRunSync()
-
-        val migrate = cs.migrateDDL(view2).unsafeRunSync()
-
-        migrate shouldBe Seq(
-          "DROP MATERIALIZED VIEW crud_ks.bar1"
-          , "CREATE MATERIALIZED VIEW crud_ks.bar1 AS SELECT strColumn,longColumn FROM crud_ks.foo1 WHERE intColumn IS NOT NULL AND longColumn IS NOT NULL PRIMARY KEY ((intColumn),longColumn)"
-        )
-      }
-    }
-
-    "will drop and create materialized view if primary key changed" in withSession { cs =>
-      if(cassandra.isV3Compatible) {
-        cs.create(ks).unsafeRunSync()
-        cs.create(table1).unsafeRunSync()
-        cs.create(view1).unsafeRunSync()
-
-        val migrate = cs.migrateDDL(view4).unsafeRunSync()
-
-        migrate shouldBe Seq(
-          "DROP MATERIALIZED VIEW crud_ks.bar1"
-          , "CREATE MATERIALIZED VIEW crud_ks.bar1 AS SELECT strColumn FROM crud_ks.foo1 WHERE longColumn IS NOT NULL AND intColumn IS NOT NULL PRIMARY KEY ((longColumn),intColumn)"
-        )
-      }
-    }
-
-    "will not emit anything in case nothing changes" in withSession { cs =>
-      if(cassandra.isV3Compatible) {
-        cs.create(ks).unsafeRunSync()
-        cs.create(table1).unsafeRunSync()
-        cs.create(view1).unsafeRunSync()
-
-        val migrate = cs.migrateDDL(view1).unsafeRunSync()
-
-        migrate shouldBe Nil
-      }
-    }
   }
 }

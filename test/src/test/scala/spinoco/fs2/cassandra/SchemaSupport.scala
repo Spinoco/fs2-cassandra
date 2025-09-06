@@ -1,10 +1,13 @@
 package spinoco.fs2.cassandra
 
 import cats.effect.IO
+import com.datastax.oss.driver.api.core.Version
 import fs2.Stream._
 import shapeless.LabelledGeneric
-import spinoco.fs2.cassandra.sample.{ListTableRow, MapTableRow, OptionalTableRow, SimpleTableRow}
+import spinoco.fs2.cassandra.sample._
 import spinoco.fs2.cassandra.support.{DockerCassandra, Fs2CassandraSpec}
+
+import scala.concurrent.ExecutionContext
 
 
 trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
@@ -42,6 +45,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
   val strGen = LabelledGeneric[SimpleTableRow]
 
 
+  implicit val timer = IO.timer(ExecutionContext.global)
 
   def createValuesAndSchema[A](cs:CassandraSession[IO])(table:Table[_,_,_,_], insert:Insert[A,_])(f: (Int,Long) => A):Unit = {
     val records =
@@ -65,6 +69,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
       f(cs)
     }
   }
+
 
   def withSessionAndEmptySimpleSchema(f: CassandraSession[IO] => Any): Unit = {
     withSession { cs =>
@@ -153,11 +158,42 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
       .build
       .as[OptionalTableRow]
 
-  def withSessionAndOptionalSchema(f: CassandraSession[IO] => Any): Unit = {
+  def withSessionAndOptionalSchema (f: CassandraSession[IO] => Any): Unit = {
     withSession { cs =>
       createValuesAndSchema(cs)(optionalTable,otInsert){ case (i,l) => OptionalTableRow.instance.copy(intColumn = i, longColumn = l)}
       f(cs)
     }
   }
 
+  def withSessionAndEmptyOptionalSchema(f: CassandraSession[IO] => Any): Unit = {
+    withSession { cs =>
+      (for {
+        _ <- cs.create(ks)
+        _ <- cs.create(optionalTable)
+      } yield ()).unsafeRunSync()
+      f(cs)
+    }
+  }
+
+  val vectorTable =
+    ks.table[VectorTableRow]
+      .partition('intColumn)
+      .cluster('longColumn)
+      .build("vector_table")
+
+  def withSessionAndEmptyVectorSchema(f: CassandraSession[IO] => Any): Unit = {
+    withSession { cs =>
+      // TODO: any better way to make sure that we run vector tests only on V5+?
+      if (cs.minCassandraVersion().exists(_.compareTo(Version.V5_0_0) >= 0)) {
+        (for {
+          _ <- cs.create(ks)
+          _ <- cs.create(vectorTable)
+        } yield ()).unsafeRunSync()
+        f(cs)
+      } else {
+        // TODO: use some special logger?
+        println("Skipping vector tests on Cassandra versions < 5.0")
+      }
+    }
+  }
 }

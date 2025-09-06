@@ -1,6 +1,6 @@
 package spinoco.fs2.cassandra.internal
 
-import spinoco.fs2.cassandra.{CType, MapKeyCType}
+import spinoco.fs2.cassandra.ctype.{CType, MapKeyCType}
 
 /**
   * Created by pach on 11/06/16.

@@ -1,10 +1,10 @@
 package spinoco.fs2.cassandra
 
 
-import shapeless. tag
-import spinoco.fs2.cassandra.sample.SimpleTableRow
 import shapeless.syntax.singleton._
-import spinoco.fs2.cassandra.CType.TTL
+import shapeless.tag
+import spinoco.fs2.cassandra.ctype.CType.TTL
+import spinoco.fs2.cassandra.sample.{OptionalTableRow, SimpleTableRow, VectorTableRow}
 
 import scala.concurrent.duration._
 
@@ -12,8 +12,6 @@ import scala.concurrent.duration._
   * Created by pach on 11/06/16.
   */
 trait InsertSpec extends SchemaSupport {
-
-
 
   s"INSERT statement (${cassandra.tag})" - {
 
@@ -49,7 +47,6 @@ trait InsertSpec extends SchemaSupport {
 
       //insert filed without ttl
       cs.execute(strInsert)(SimpleTableRow.simpleInstance.copy(intColumn = 2)).unsafeRunSync()
-
 
       val selectTTL =
         simpleTable.query
@@ -127,7 +124,55 @@ trait InsertSpec extends SchemaSupport {
 
     }
 
+    "will insert default and null values" in withSessionAndEmptyOptionalSchema { cs =>
+      val insert =
+        optionalTable.insert
+          .all
+          .build
+          .from[OptionalTableRow]
+          .as[OptionalTableRow]
 
+      val select =
+        optionalTable
+          .query
+          .all
+          .partition
+          .build
+          .fromA
+          .as[OptionalTableRow]
+
+      cs.execute(insert)(OptionalTableRow.emptyInstance).unsafeRunSync()
+      cs.execute(insert)(OptionalTableRow.noneInstance).unsafeRunSync()
+
+      val resultEmpty = cs.query(select)(OptionalTableRow.emptyInstance.intColumn).compile.toVector.unsafeRunSync()
+      val resultNone = cs.query(select)(OptionalTableRow.noneInstance.intColumn).compile.toVector.unsafeRunSync()
+
+      resultEmpty shouldBe Vector(OptionalTableRow.emptyInstance)
+      resultNone shouldBe Vector(OptionalTableRow.noneInstance)
+    }
+
+    "will insert constant size vector values" in withSessionAndEmptyVectorSchema { cs =>
+      val insert =
+        vectorTable.insert
+          .all
+          .build
+          .from[VectorTableRow]
+          .as[VectorTableRow]
+
+      val select =
+        vectorTable
+          .query
+          .all
+          .partition
+          .build
+          .fromA
+          .as[VectorTableRow]
+
+      cs.execute(insert)(VectorTableRow.instance).unsafeRunSync()
+
+      val resultEmpty = cs.query(select)(VectorTableRow.instance.intColumn).compile.toVector.unsafeRunSync()
+
+      resultEmpty shouldBe Vector(VectorTableRow.instance)
+    }
   }
-
 }

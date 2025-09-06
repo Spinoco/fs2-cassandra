@@ -1,9 +1,9 @@
 package spinoco.fs2.cassandra.builder
 
 import shapeless.LabelledGeneric
-import spinoco.fs2.cassandra.{Comparison, KeySpace}
 import spinoco.fs2.cassandra.sample.{CounterTableRow, ListTableRow, MapTableRow, SimpleTableRow}
 import spinoco.fs2.cassandra.support.Fs2CassandraSpec
+import spinoco.fs2.cassandra.{Comparison, KeySpace}
 
 
 class UpdateBuilderSpec extends Fs2CassandraSpec {
@@ -121,6 +121,7 @@ class UpdateBuilderSpec extends Fs2CassandraSpec {
       listTable
         .update
         .prepend('listColumn)
+
         .build.cqlStatement shouldBe
         "UPDATE test_ks.list_table SET listColumn = :listColumn + listColumn" +
           " WHERE intColumn = :intColumn AND longColumn = :longColumn"

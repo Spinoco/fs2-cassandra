@@ -1,22 +1,24 @@
 package spinoco.fs2.cassandra.builder
 
 
-import java.nio.ByteBuffer
-
-import com.datastax.driver.core._
+import com.datastax.oss.driver.api.core.ProtocolVersion
+import com.datastax.oss.driver.api.core.cql.{BoundStatement, PreparedStatement, Row}
 import shapeless.labelled._
 import shapeless.ops.hlist.Prepend
-import shapeless.{::, HList, HNil, Witness}
 import shapeless.ops.record.Selector
 import shapeless.tag._
-import spinoco.fs2.cassandra.CType.{Counter, TTL}
+import shapeless.{::, HList, HNil, Witness}
+import spinoco.fs2.cassandra._
+import spinoco.fs2.cassandra.baseutil.{AnnotatedException, replaceInCql}
 import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
+import spinoco.fs2.cassandra.ctype.CType.{Counter, TTL}
 import spinoco.fs2.cassandra.internal._
-import spinoco.fs2.cassandra.{BatchResultReader, Comparison, Table, Update, internal}
+import spinoco.fs2.cassandra.macros.CTypeRecord
+import spinoco.fs2.cassandra.util.RowSyntax.RowKeySyntax
 
-import scala.collection.JavaConverters._
+import java.nio.ByteBuffer
 import scala.concurrent.duration.FiniteDuration
-import spinoco.fs2.cassandra.util.AnnotatedException
+import scala.language.experimental.macros
 
 /**
   * Builder of update statement
@@ -306,8 +308,8 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
     */
   def build(
     implicit
-    CTQ: CTypeNonEmptyRecordInstance[Q]
-    , CTR: CTypeRecordInstance[RIF]
+    CTQ: CTypeRecord[Q]
+    , CTR: CTypeRecord[RIF]
   ): Update[Q, RIF] = {
     val ifExistsStmt = if (ifExistsCondition) " IF EXISTS" else ""
     val ifStmts = ifConditions.map { case (c,as, op) =>  s"$c $op :$as" }.mkString(" AND ")
@@ -339,27 +341,25 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
 
     new Update[Q,RIF] {
       def cqlStatement: String = cql
-      def cqlFor(q: Q): String = spinoco.fs2.cassandra.util.replaceInCql(cql,CTQ.writeCql(q))
+      def cqlFor(q: Q): String = replaceInCql(cql,CTQ.writeCql(q))
       def writeRaw(q: Q, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = CTQ.writeRaw(q, protocolVersion)
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
         CTR.readByName(r,protocolVersion).left.map(AnnotatedException.withStmt(_, cql))
       }
       def fill(i: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {
-        val bs = s.bind()
-        CTQ.writeByName(i,bs,protocolVersion)
-        bs
+        val boundStatement = s.bind()
+        CTQ.writeByName(i,boundStatement,protocolVersion)
       }
-      def read(r: ResultSet, protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
-        (Option(r.one()) match {
+
+      def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {
+        r match {
           case None =>
             if (ifExistsCondition || ifConditions.nonEmpty) Left(new Throwable("Expected update result but got nothing"))
             else Right(HNil.asInstanceOf[RIF]) // safe hence result must be always empty HList (HNil) in this case
           case Some(row) =>
-            val columns = r.getColumnDefinitions.asList().asScala.map(_.getName).toSet
-            CTR.readByNameIfExists(columns,row,protocolVersion)
-        }).left.map(AnnotatedException.withStmt(_, cql))
+            CTR.readByNameIfExists(row.keys,row,protocolVersion)
+        }
       }
-
 
       def readBatchResult(i: Q): BatchResultReader[RIF] = {
         new BatchResultReader[RIF] {
@@ -379,6 +379,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
 }
 
 object UpdateBuilder {
+
 
   type IfExistsField = Witness.`"[applied]"`.->>[Boolean]
 

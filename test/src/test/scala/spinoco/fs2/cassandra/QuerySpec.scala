@@ -2,7 +2,7 @@ package spinoco.fs2.cassandra
 
 import shapeless.tag
 import shapeless.tag._
-import spinoco.fs2.cassandra.CType.Ascii
+import spinoco.fs2.cassandra.ctype.CType.Ascii
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 

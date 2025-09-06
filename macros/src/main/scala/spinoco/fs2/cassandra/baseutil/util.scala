@@ -1,15 +1,22 @@
 package spinoco.fs2.cassandra
 
+import scodec.{Attempt, Err}
 
 import scala.annotation.tailrec
+import scala.util.Try
 
 /**
   * Created by pach on 04/06/16.
   */
-package object util {
+package object baseutil {
 
-  def Try[A](f: => A):Either[Throwable,A] =
-    try { Right(f) } catch { case t: Throwable => Left(t) }
+  /** converts `f` to attempt. If `f` throws returns Failure, success otherwise */
+  def attempt[A](f: => A): Attempt[A] = {
+    Try(f).fold(
+      e => Attempt.failure(Err(e.getMessage)),
+      a => Attempt.successful(a)
+    )
+  }
 
   /**
     * Iterate through supplied iterator, but only collect up to `count` elements in iterator
@@ -23,7 +30,7 @@ package object util {
     go(Vector.empty,count)
   }
 
-  /** replaces in rpepared statement the name palceholders with CQL form values **/
+  /** replaces in prepared statement the name placeholders with CQL form values **/
   def replaceInCql(cql:String, values:Map[String,String]):String = {
     @tailrec
     def go(pos:Int, acc:String):String = {
@@ -58,4 +65,5 @@ package object util {
       new Throwable(s"At field: '$field'", err)
     }
   }
+
 }

@@ -1,8 +1,8 @@
 package spinoco.fs2.cassandra.builder
 
-import spinoco.fs2.cassandra.{Comparison, KeySpace}
 import spinoco.fs2.cassandra.sample.{OptionalTableRow, SimpleTableRow}
 import spinoco.fs2.cassandra.support.Fs2CassandraSpec
+import spinoco.fs2.cassandra.{Comparison, KeySpace}
 
 /**
   * Created by pach on 11/06/16.

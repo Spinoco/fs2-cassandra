@@ -1,13 +1,11 @@
 package spinoco.fs2.cassandra
 
 import cats.effect.IO
-import com.datastax.driver.core.PagingState
+import com.datastax.oss.driver.api.core.cql.PagingState
 import fs2._
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 trait PagingSpec extends SchemaSupport {
-
-
 
   s"Query paging (${cassandra.tag})" - {
 
@@ -26,9 +24,7 @@ trait PagingSpec extends SchemaSupport {
 
       val result = go(None).compile.toVector.unsafeRunSync()
 
-
       result should have size(11*11)
-
     }
 
     s"will fetch up to fetchSize in single batch" in withSessionAndSimpleSchema { cs =>
@@ -46,7 +42,6 @@ trait PagingSpec extends SchemaSupport {
       val result = go(None,0).compile.toVector.unsafeRunSync()
 
       result should have size(11*11)
-
 
     }
 

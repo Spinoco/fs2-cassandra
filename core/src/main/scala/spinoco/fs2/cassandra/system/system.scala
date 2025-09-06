@@ -1,6 +1,8 @@
 package spinoco.fs2.cassandra
 
-import com.datastax.driver.core._
+
+import com.datastax.oss.driver.api.core.`type`.DataType
+import com.datastax.oss.driver.api.core.metadata.schema._
 
 import scala.collection.JavaConverters._
 
@@ -11,7 +13,7 @@ package object system {
     maybeCurrent match {
       case None => desired.cqlStatement
       case Some(current) =>
-        if (desired.name.toLowerCase != current.getName.toLowerCase) Nil
+        if (desired.name.toLowerCase != current.getName.asInternal().toLowerCase) Nil
         else {
           val currentReplication = current.getReplication.asScala
           val desiredReplication = desired.strategyOptions.toMap + ("class" -> desired.strategyClass)
@@ -41,41 +43,31 @@ package object system {
 
   /** checks whether these two columns are of the same name and type **/
   def sameColumnDef(nameA:String, tpeA:DataType)(nameB:String, tpeB:DataType):Boolean = {
-    lazy val argsA = tpeA.getTypeArguments.asScala.map(_.getName)
-    lazy val argsB = tpeB.getTypeArguments.asScala.map(_.getName)
-    lazy val sameArgs:Boolean = {
-      if (argsA.size != argsB.size) false
-      else {
-        (argsA zip argsB).forall{ case (nA,nB) => nA.isCompatibleWith(nB) }
-      }
-    }
-
-    nameA.equalsIgnoreCase(nameB) &&
-      tpeA.getName.isCompatibleWith(tpeB.getName) &&
-      sameArgs
-  }
+    val typesEqual = tpeA.asCql(true, false) == tpeB.asCql(true, false)
+    val namesEqual = nameA.equalsIgnoreCase(nameB)
+    namesEqual && typesEqual
+}
 
   /** checks whether the primary keys of given tables are the same **/
-  def samePrimaryKey(current: AbstractTableMetadata, desired: AbstractTable[_,_,_,_]):Boolean = {
-    val currentPk = current.getPartitionKey.asScala.map(_.getName.toLowerCase)
-    val currentCk = current.getClusteringColumns.asScala.map(_.getName.toLowerCase)
-    desired.clusterKey.map(_.toLowerCase) == currentCk && desired.partitionKey.map(_.toLowerCase) == currentPk
+  def samePrimaryKey(current: TableMetadata, desired: AbstractTable[_,_,_,_]):Boolean = {
+    val currentPk = current.getPartitionKey.asScala.map(_.getName.asInternal.toLowerCase).toSeq
+    val desiredPk = desired.partitionKey.map(_.toLowerCase)
+    val currentCk = current.getClusteringColumns.asScala.keys.map(_.getName.asInternal.toLowerCase).toSeq
+    val desiredCk = desired.clusterKey.map(_.toLowerCase)
+     desiredCk == currentCk && desiredPk == currentPk
   }
 
   /** migrates table to desired state comparing with current metadata of the table **/
   def migrateTable(desiredTable:Table[_,_,_,_], maybeCurrent:Option[TableMetadata]):Seq[String] = {
-    // todo: support for index migration, AND options
-
     maybeCurrent match {
       case None => desiredTable.cqlStatement
       case Some(current) =>
         val fullTableName = s"${desiredTable.keySpaceName}.${desiredTable.name}"
 
-        if (desiredTable.name != current.getName) Nil
+        if (desiredTable.name != current.getName.asInternal) Nil
         else if (!samePrimaryKey(current, desiredTable)) s"DROP TABLE $fullTableName" +: desiredTable.cqlStatement
         else {
-          val currentColumns =
-            current.getColumns.asScala.map { c => c.getName.toLowerCase -> c.getType }
+          val currentColumns = current.getColumns.asScala.map { c => c._1.asInternal.toLowerCase -> c._2.getType }
           val desiredColumns =  desiredTable.columns
 
           val removed = currentColumns.filterNot { case (k,tpe) =>
@@ -87,32 +79,10 @@ package object system {
 
           lazy val tableTemplate = s"ALTER TABLE $fullTableName"
           val cqlRemoved = removed.map { case (k, _) => s"$tableTemplate DROP $k" }
-          val cqlAdded = added.map {case (k, tpe) => s"$tableTemplate ADD $k $tpe"}
-          cqlRemoved ++ cqlAdded
-
+          val cqlAdded = added.map {case (k, tpe) => s"$tableTemplate ADD $k ${tpe.asCql(true, false)}"}
+          val res = cqlRemoved ++ cqlAdded
+          res.toSeq
         }
-    }
-  }
-
-  /** migrates materialized view to desired state while comparing with current metadata of the table **/
-  def migrateMaterializedView(desiredView: MaterializedView[_,_,_], maybeCurrent: Option[MaterializedViewMetadata]): Seq[String] = {
-    //TODO support for options migration
-
-    maybeCurrent match {
-      case None => desiredView.cqlStatement
-      case Some(current) =>
-
-        def sameColumns: Boolean = {
-          val currentColumns =
-            current.getColumns.asScala.map { c => c.getName.toLowerCase -> c.getType }.sortBy(_._1)
-          if(desiredView.columns.size != currentColumns.size) false
-          else desiredView.columns.sortBy(_._1).zip(currentColumns).forall{case (dc, cc) => (sameColumnDef _).tupled(dc).tupled(cc)}
-        }
-
-        if (desiredView.name != current.getName) Nil
-        else if (!samePrimaryKey(current.getBaseTable, desiredView.table)) desiredView.cqlStatement
-        else if (!samePrimaryKey(current, desiredView) || !sameColumns) s"DROP MATERIALIZED VIEW ${desiredView.fullName}" +: desiredView.cqlStatement
-        else Nil
     }
   }
 }

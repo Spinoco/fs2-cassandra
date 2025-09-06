@@ -1,8 +1,7 @@
 package spinoco.fs2.cassandra.support
 
 import shapeless.HNil
-import spinoco.fs2.cassandra.Query
-import spinoco.fs2.cassandra.system
+import spinoco.fs2.cassandra.{Query, system}
 
 /**
   * Created by pach on 08/06/16.
@@ -62,8 +61,34 @@ object CassandraDefinition {
       , allKeySpaceQuery = system.schema.queryAllKeySpaces.map(_.keyspace_name)
     )
 
+  val `3.11`:CassandraDefinition =
+    latest.copy(
+      tag = "3.11"
+      , allKeySpaceQuery = system.schema.queryAllKeySpaces.map(_.keyspace_name)
+    )
+
+  val `4.0`:CassandraDefinition =
+    latest.copy(
+      tag = "4.0"
+      , allKeySpaceQuery = system.schema.queryAllKeySpaces.map(_.keyspace_name)
+    )
+
+  val `4.1`:CassandraDefinition =
+    latest.copy(
+      tag = "4.1"
+      , allKeySpaceQuery = system.schema.queryAllKeySpaces.map(_.keyspace_name)
+    )
+
+  val `5.0`:CassandraDefinition =
+    latest.copy(
+      tag = "5.0"
+      , allKeySpaceQuery = system.schema.queryAllKeySpaces.map(_.keyspace_name)
+    )
+
+
+
   lazy val All:Seq[CassandraDefinition] = Seq(
-    `2.1`, `2.2`, `3.0`, `3.5`, `3.7`, `3.9`
+    `2.1`, `2.2`, `3.0`, `3.5`, `3.7`, `3.9`, `3.11`, `4.0`, `4.1`, `5.0`
   )
 
 

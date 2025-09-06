@@ -6,7 +6,7 @@ import spinoco.fs2.cassandra.ctype.CType.Ascii
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 
-trait QuerySpec extends SchemaSupport {
+class QuerySpec extends SchemaSupport {
 
   "Specific queries" - {
 

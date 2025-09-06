@@ -1,7 +1,7 @@
 package spinoco.fs2.cassandra
 
 
-trait MigrationsSpec  extends SchemaSupport {
+class MigrationsSpec extends SchemaSupport {
 
   case class FooTable1(intColumn:Int, longColumn:Long, strColumn:String )
   case class FooTable2(intColumn:Int, longColumn1:Long, strColumn:Int )

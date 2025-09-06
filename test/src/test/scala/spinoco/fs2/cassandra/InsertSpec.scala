@@ -11,7 +11,7 @@ import scala.concurrent.duration._
 /**
   * Created by pach on 11/06/16.
   */
-trait InsertSpec extends SchemaSupport {
+class InsertSpec extends SchemaSupport {
 
   s"INSERT statement (${cassandra.tag})" - {
 

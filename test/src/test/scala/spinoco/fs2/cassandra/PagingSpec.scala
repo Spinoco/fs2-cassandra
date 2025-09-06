@@ -5,7 +5,7 @@ import com.datastax.oss.driver.api.core.cql.PagingState
 import fs2._
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 
-trait PagingSpec extends SchemaSupport {
+class PagingSpec extends SchemaSupport {
 
   s"Query paging (${cassandra.tag})" - {
 

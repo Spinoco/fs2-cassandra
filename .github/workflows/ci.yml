@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, series/* ]
+  pull_request:
+    branches: [ main, series/* ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [ '8', '11', '17', '21' ]
+        scala: [ '2.12.20' ]
+        cassandra: [ '3.0', '3.5', '3.7', '3.9', '3.11', '4.0', '4.1', '5.0' ]
+        # Note: 3.x series is EOL, but kept for compatibility testing
+        # Latest available versions as of 2025: 3.11.19, 4.0.17, 4.1.8, 5.0.3
+    
+    name: Test JDK ${{ matrix.java }}, Scala ${{ matrix.scala }}, Cassandra ${{ matrix.cassandra }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ matrix.java }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: 'temurin'
+        cache: 'sbt'
+
+    - name: Setup SBT
+      uses: sbt/setup-sbt@v1
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Cache Docker layers
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+
+    - name: Pull Cassandra ${{ matrix.cassandra }} Docker image
+      run: docker pull cassandra:${{ matrix.cassandra }}
+
+    - name: Run tests
+      env:
+        CASSANDRA_SPEC_VERSION: ${{ matrix.cassandra }}
+      run: sbt ++${{ matrix.scala }} test
+
+  compile:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [ '8', '11', '17', '21' ]
+        scala: [ '2.12.20' ]
+    
+    name: Compile JDK ${{ matrix.java }}, Scala ${{ matrix.scala }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ matrix.java }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: 'temurin'
+        cache: 'sbt'
+
+    - name: Setup SBT
+      uses: sbt/setup-sbt@v1
+
+    - name: Compile
+      run: sbt ++${{ matrix.scala }} compile
+
+    - name: Compile tests
+      run: sbt ++${{ matrix.scala }} "test:compile"

@@ -5,7 +5,7 @@ import fs2._
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 
-trait SchemaSpec extends SchemaSupport {
+class SchemaSpec extends SchemaSupport {
 
   s"Create Schema (${cassandra.tag})" - {
     val ks = KeySpace("spec_ks")

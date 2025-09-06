@@ -4,7 +4,7 @@ import shapeless.HNil
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 
-trait BatchSpec extends SchemaSupport {
+class BatchSpec extends SchemaSupport {
 
   s"BATCH statement (${cassandra.tag})" - {
 

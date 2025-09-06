@@ -2,7 +2,7 @@ package spinoco.fs2.cassandra
 
 
 
-trait DeleteSpec  extends SchemaSupport {
+class DeleteSpec extends SchemaSupport {
 
   s"DELETE statement (${cassandra.tag})" - {
 

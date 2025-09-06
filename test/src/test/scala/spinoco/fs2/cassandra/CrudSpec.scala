@@ -5,7 +5,7 @@ import fs2._
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 
-trait CrudSpec extends SchemaSupport {
+class CrudSpec extends SchemaSupport {
   s"Simple CRUD (${cassandra.tag})" - {
 
     "insert, update and delete SimpleTableRow" in withCluster { c =>

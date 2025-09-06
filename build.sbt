@@ -64,24 +64,7 @@ lazy val commonSettings = Seq(
 lazy val testSettings = Seq(
   parallelExecution := false,
   fork := true,
-  testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oDF"),
-  Test / testGrouping := (Test / definedTests).map { tests =>
-    // group tests individually to fork them in JVM.
-    // essentially any CassandraIntegration_* id having its own group, all others share a group
-    // this is necessary hence JavaDriver seems to share some sort of global state preventing to switch
-    // different cluster versions correctly in single JVM
-    tests.groupBy { td =>
-      if (td.name.contains(".CassandraIntegration")) {
-        td.name
-      } else "default_group"
-    }.map { case (groupName, tests) =>
-      Group(
-        name = groupName
-        , tests = tests
-        , runPolicy = Tests.SubProcess(ForkOptions())
-      )
-    }.toSeq
-  }.value
+  testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oDF")
 )
 
 lazy val scaladocSettings = Seq(
@@ -191,5 +174,3 @@ lazy val doNotPublish = Seq(
   //skip in publish := true
 )
 
-// CI build
-addCommandAlias("ciBuild", ";clean;project coreTest;test;project microsite;tut")

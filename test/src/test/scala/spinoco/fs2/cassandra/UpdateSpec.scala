@@ -11,7 +11,7 @@ import java.net.InetAddress
 import java.util.UUID
 import scala.concurrent.duration._
 
-trait UpdateSpec extends SchemaSupport {
+class UpdateSpec extends SchemaSupport {
 
   s"UPDATE statement (${cassandra.tag})" - {
 

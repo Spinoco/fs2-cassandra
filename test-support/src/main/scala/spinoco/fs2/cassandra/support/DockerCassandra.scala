@@ -29,8 +29,12 @@ trait DockerCassandra
   // when developing tests, this likely shall be false, so there is no additional overhead starting C*
   lazy val startContainers:Boolean = true
 
-  // this has to be overridden to provide exact casandra definition. latest is default
-  lazy val cassandra: CassandraDefinition = CassandraDefinition.latest
+  // this has to be overridden to provide exact casandra definition. 3.11 is default
+  // can be controlled via CASSANDRA_SPEC_VERSION environment variable
+  lazy val cassandra: CassandraDefinition = {
+    val version = sys.env.getOrElse("CASSANDRA_SPEC_VERSION", "3.11")
+    CassandraDefinition.fromVersion(version)
+  }
 
   implicit val cts: ContextShift[IO] = IO.contextShift(ExecutionContext.Implicits.global)
 
@@ -60,7 +64,7 @@ trait DockerCassandra
 
   private var dockerInstanceId: Option[String] = None
 
-   var sessionInstance:Option[(CqlSession, CassandraSession[IO])] = None
+  var sessionInstance:Option[(CqlSession, CassandraSession[IO])] = None
 
   def withCluster(f: CassandraCluster[IO] => Any):Unit = {
     sessionInstance match {
@@ -123,7 +127,7 @@ object DockerCassandra {
 
   def downloadCImage(cdef:CassandraDefinition):Unit = {
     val current:String= Process(s"docker images ${cdef.dockerImageUrl}").!!
-    if (current.lines.size <= 1) {
+    if (current.linesIterator.size <= 1) {
       println(s"Pulling docker image for ${cdef.dockerImageUrl}")
       Process(s"docker pull ${cdef.dockerImageUrl}").!!
       ()

@@ -1,15 +1,15 @@
 package spinoco.fs2.cassandra.support
 
-import cats.effect.{ContextShift, IO}
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.datastax.oss.driver.api.core.config.{DefaultDriverOption, DriverConfigLoader}
 import com.datastax.oss.driver.api.core.{CqlSession, CqlSessionBuilder}
 import fs2.Stream._
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
-import spinoco.fs2.cassandra.{CassandraCluster, CassandraSession}
+import spinoco.fs2.cassandra.CassandraSession
 
 import java.net.InetSocketAddress
 import java.time.Duration
-import scala.concurrent.ExecutionContext
 
 
 
@@ -25,7 +25,6 @@ trait DockerCassandra
   // Cassandra version for display purposes, controlled via CASSANDRA_SPEC_VERSION environment variable
   lazy val cassandraVersion: String = sys.env.getOrElse("CASSANDRA_SPEC_VERSION", "3.11")
 
-  implicit val cts: ContextShift[IO] = IO.contextShift(ExecutionContext.Implicits.global)
 
   // yields to true, if given KeySpace has to be preserved between tests, all other KeySpaces will be dropped after each test will end
   def preserveKeySpace(s:String):Boolean = systemKeySpaces.contains(s)
@@ -36,7 +35,6 @@ trait DockerCassandra
   def clusterConfig: CqlSessionBuilder = {
     val loader = DriverConfigLoader
       .programmaticBuilder
-      // TODO: what to do about this? (Tests timeout on PT2S otherwise)
       .withDuration(DefaultDriverOption.RECONNECTION_BASE_DELAY, Duration.ofMillis(20000))
       .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofMillis(20000))
       .withDuration(DefaultDriverOption.CONNECTION_CONNECT_TIMEOUT, Duration.ofMillis(20000))
@@ -53,12 +51,6 @@ trait DockerCassandra
 
   var sessionInstance:Option[(CqlSession, CassandraSession[IO])] = None
 
-  def withCluster(f: CassandraCluster[IO] => Any):Unit = {
-    sessionInstance match {
-      case None => throw new Throwable("Cassandra session not yet ready")
-      case Some((_,cs)) => f(CassandraCluster.wrap(cs)); ()
-    }
-  }
 
   def withSession(f: CassandraSession[IO] => Any):Unit = {
     sessionInstance match {
@@ -111,7 +103,5 @@ object DockerCassandra {
       .compile.drain.unsafeRunSync()
   }
 
-
-  // Container management methods removed - now handled externally via scripts/CI
 
 }

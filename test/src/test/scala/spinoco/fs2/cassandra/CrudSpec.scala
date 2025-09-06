@@ -1,5 +1,4 @@
 package spinoco.fs2.cassandra
-
 import fs2.Stream._
 import fs2._
 import spinoco.fs2.cassandra.sample.SimpleTableRow
@@ -8,7 +7,7 @@ import spinoco.fs2.cassandra.sample.SimpleTableRow
 class CrudSpec extends SchemaSupport {
   "Simple CRUD" - {
 
-    "insert, update and delete SimpleTableRow" in withCluster { c =>
+    "insert, update and delete SimpleTableRow" in withSession { cs =>
 
       val table =
         ks.table[SimpleTableRow]
@@ -30,24 +29,24 @@ class CrudSpec extends SchemaSupport {
       val entries = for (i <- 0 to 100) yield SimpleTableRow.simpleInstance.copy(intColumn = i)
 
       // create table
-      Stream.resource(c.session) .flatMap { cs => eval_(cs.create(ks)) ++ eval_(cs.create(table)) }.compile.drain.unsafeRunSync()
+      (exec(cs.create(ks)) ++ exec(cs.create(table))).compile.drain.unsafeRunSync()
 
       // insert all
-      Stream.resource(c.session) .flatMap { cs => emits(entries).flatMap { e => eval_(cs.execute(insert)(e)) }}.compile.drain.unsafeRunSync()
+      emits(entries).flatMap { e => eval(cs.execute(insert)(e)).drain }.compile.drain.unsafeRunSync()
 
       // query all
-      val result1 = Stream.resource(c.session).flatMap { _.queryAll(query) }.compile.toVector.unsafeRunSync()
+      val result1 = cs.queryAll(query).compile.toVector.unsafeRunSync()
 
       // update some
-      Stream.resource(c.session).flatMap { cs => eval_(cs.execute(update)("UPDATED" -> 99)) }.compile.toVector.unsafeRunSync()
+      eval(cs.execute(update)("UPDATED" -> 99)).compile.drain.unsafeRunSync()
 
       // query with updated
-      val result2 = Stream.resource(c.session).flatMap { _.queryAll(query) }.compile.toVector.unsafeRunSync()
+      val result2 = cs.queryAll(query).compile.toVector.unsafeRunSync()
 
       // delete some
-      Stream.resource(c.session).flatMap { cs => eval_(cs.execute(delete)(99)) }.compile.drain.unsafeRunSync()
+      eval(cs.execute(delete)(99)).compile.drain.unsafeRunSync()
 
-      val result3 = Stream.resource(c.session).flatMap { _.queryAll(query) }.compile.toVector.unsafeRunSync()
+      val result3 = cs.queryAll(query).compile.toVector.unsafeRunSync()
 
       result1.toSet shouldBe entries.toSet
       result2.find(_.intColumn == 99).map(_.stringColumn) shouldBe Some("UPDATED")

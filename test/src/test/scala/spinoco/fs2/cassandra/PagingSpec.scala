@@ -1,5 +1,4 @@
 package spinoco.fs2.cassandra
-
 import cats.effect.IO
 import com.datastax.oss.driver.api.core.cql.PagingState
 import fs2._

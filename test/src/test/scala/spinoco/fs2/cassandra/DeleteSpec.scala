@@ -1,7 +1,6 @@
 package spinoco.fs2.cassandra
 
 
-
 class DeleteSpec extends SchemaSupport {
 
   "DELETE statement" - {

@@ -48,12 +48,6 @@ jobs:
         CASSANDRA_SPEC_VERSION: ${{ matrix.cassandra }}
       run: sbt ++${{ matrix.scala }} test
 
-    - name: Debug containers (on failure)
-      if: failure()
-      run: |
-        echo "=== Debugging container state ==="
-        ./scripts/debug-containers.sh
-
     - name: Stop Cassandra container
       if: always()
       run: |

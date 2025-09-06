@@ -9,8 +9,8 @@ import shapeless.{::, HList, HNil, Witness}
 import spinoco.fs2.cassandra._
 import spinoco.fs2.cassandra.baseutil._
 import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
+import spinoco.fs2.cassandra.internal.Util
 import spinoco.fs2.cassandra.macros.CTypeRecord
-import spinoco.fs2.cassandra.util.RowSyntax.RowKeySyntax
 
 import java.nio.ByteBuffer
 import scala.language.experimental.macros
@@ -122,7 +122,7 @@ case class DeleteBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
             if (!ifExistsCondition && ifConditions.isEmpty) Right(HNil.asInstanceOf[RIF]) // guaranteed to be safe always Hnil result if no ifExists or conditions
             else Left(new Throwable("Expected result row but none returned"))
           case Some(row: Row) =>
-            CTR.readByNameIfExists(row.keys, row, protocolVersion)
+            CTR.readByNameIfExists(Util.keys(row), row, protocolVersion)
         }
         result.left.map(AnnotatedException.withStmt(_, cql))
       }

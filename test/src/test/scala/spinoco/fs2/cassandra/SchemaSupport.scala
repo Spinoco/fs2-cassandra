@@ -1,5 +1,4 @@
 package spinoco.fs2.cassandra
-
 import cats.effect.IO
 import com.datastax.oss.driver.api.core.Version
 import fs2.Stream._
@@ -7,7 +6,6 @@ import shapeless.LabelledGeneric
 import spinoco.fs2.cassandra.sample._
 import spinoco.fs2.cassandra.support.{DockerCassandra, Fs2CassandraSpec}
 
-import scala.concurrent.ExecutionContext
 
 
 trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
@@ -45,7 +43,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
   val strGen = LabelledGeneric[SimpleTableRow]
 
 
-  implicit val timer = IO.timer(ExecutionContext.global)
+  // Timer no longer needed in CE 3.x
 
   def createValuesAndSchema[A](cs:CassandraSession[IO])(table:Table[_,_,_,_], insert:Insert[A,_])(f: (Int,Long) => A):Unit = {
     val records =
@@ -57,7 +55,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
     (for {
       _ <- cs.create(ks)
       _ <- cs.create(table)
-      _ <- emits(records).flatMap(a => eval_(cs.execute(insert)(a))).compile.drain
+      _ <- emits(records).flatMap(a => eval(cs.execute(insert)(a)).drain).compile.drain
     } yield ()).unsafeRunSync()
 
   }
@@ -181,19 +179,15 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
       .cluster('longColumn)
       .build("vector_table")
 
-  def withSessionAndEmptyVectorSchema(f: CassandraSession[IO] => Any): Unit = {
+  def withSessionFor(versionCheck: String => Boolean)(f: CassandraSession[IO] => Any): Unit = {
     withSession { cs =>
-      // TODO: any better way to make sure that we run vector tests only on V5+?
-      if (cs.minCassandraVersion().exists(_.compareTo(Version.V5_0_0) >= 0)) {
-        (for {
-          _ <- cs.create(ks)
-          _ <- cs.create(vectorTable)
-        } yield ()).unsafeRunSync()
+      if (versionCheck(cassandraVersion)) {
         f(cs)
       } else {
-        // TODO: use some special logger?
-        println("Skipping vector tests on Cassandra versions < 5.0")
+        println(s"Skipping test on Cassandra version $cassandraVersion")
       }
     }
   }
+
+
 }

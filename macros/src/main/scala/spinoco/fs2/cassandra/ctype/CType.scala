@@ -155,11 +155,7 @@ object CType {
    CType.fromCodec(TypeCodecs.BLOB)
 
   implicit val bytesInstance:CType[Chunk[Byte]] =
-    byteBufferInstance.xmap(
-      { bb =>  val bb0 = bb.duplicate(); val arr = Array.ofDim[Byte](bb.remaining); bb.get(arr); Chunk.bytes(arr) } // todo likely we don't have to copy here
-      , { bs => val bs0 = bs.toBytes; ByteBuffer.wrap(bs0.values, bs0.offset, bs0.size)
-      }
-    )
+    byteBufferInstance.xmap(Chunk.byteBuffer,_.toByteBuffer)
 
   implicit val uuidInstance: CType[UUID]  =  CType.fromCodec(TypeCodecs.UUID)
 

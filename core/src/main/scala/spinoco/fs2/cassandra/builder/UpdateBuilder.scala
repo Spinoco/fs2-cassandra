@@ -14,7 +14,6 @@ import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
 import spinoco.fs2.cassandra.ctype.CType.{Counter, TTL}
 import spinoco.fs2.cassandra.internal._
 import spinoco.fs2.cassandra.macros.CTypeRecord
-import spinoco.fs2.cassandra.util.RowSyntax.RowKeySyntax
 
 import java.nio.ByteBuffer
 import scala.concurrent.duration.FiniteDuration
@@ -357,7 +356,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
             if (ifExistsCondition || ifConditions.nonEmpty) Left(new Throwable("Expected update result but got nothing"))
             else Right(HNil.asInstanceOf[RIF]) // safe hence result must be always empty HList (HNil) in this case
           case Some(row) =>
-            CTR.readByNameIfExists(row.keys,row,protocolVersion)
+            CTR.readByNameIfExists(Util.keys(row),row,protocolVersion)
         }
       }
 

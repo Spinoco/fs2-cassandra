@@ -11,7 +11,6 @@ case class DMLOptions(
  consistencyLevel: Option[ConsistencyLevel]
  , serialConsistencyLevel: Option[ConsistencyLevel]
  , tracing: Option[Boolean]
- , retryPolicy: Option[RetryPolicy]
  , defaultTimeStamp: Option[Long]
  , idempotent: Option[Boolean]
 ) extends Options {
@@ -53,15 +52,7 @@ case class DMLOptions(
   def enableTracing:DMLOptions =
     copy(tracing = Some(true))
 
-  /**
-    * Sets the retry policy to use for this query.
-    * The default retry policy, if this method is not called, is the one returned by
-    * {@link com.datastax.driver.core.policies.Policies#getRetryPolicy} in the
-    * cluster configuration. This method is thus only useful in case you want
-    * to punctually override the default policy for this request.
-    */
-  def withRetryPolicy(policy:RetryPolicy):DMLOptions =
-    copy(retryPolicy = Some(policy))
+
 
   /**
     * Sets the default timestamp for this query (in microseconds since the epoch).
@@ -173,7 +164,6 @@ object Options {
     consistencyLevel = None
     , serialConsistencyLevel = None
     , tracing = None
-    , retryPolicy = None
     , defaultTimeStamp = None
     , idempotent = None
   )
@@ -191,26 +181,20 @@ object Options {
   def pageFrom(page:PagingState):QueryOptions =
     defaultQuery.startFrom(page)
 
-  private[cassandra] def applyQueryOptions[S <: Statement[S]](statement:S, o:QueryOptions):S = {
-    val stmt1 = o.consistencyLevel.foldLeft(statement)((s, opt) => s.setConsistencyLevel(opt))
-    val stmt2 = o.fetchSize.foldLeft(stmt1)((s, opt) => s.setPageSize(opt))
-    val stmt3 = o.pagingState.foldLeft(stmt2)((s, opt) => s.setPagingState(opt))
-    val stmt4 = o.tracing.foldLeft(stmt3)((s, opt) => s.setTracing(opt))
-    val stmt5 = o.timeout.foldLeft(stmt4)((s, opt) => s.setTimeout(java.time.Duration.ofNanos(opt.toNanos)))
-    // TODO: what to do with this?
-    // val stmt6 = o.retryPolicy.foldLeft(stmt5){(s, opt) => ???}
-    stmt5
+  private[cassandra] def applyQueryOptions[S <: Statement[S]](statement:S, o:QueryOptions):Unit = {
+    o.consistencyLevel.foreach(statement.setConsistencyLevel)
+    o.fetchSize.foreach(statement.setPageSize)
+    o.pagingState.foreach(statement.setPagingState)
+    o.tracing.foreach(statement.setTracing)
+    o.timeout.foreach(timeout => statement.setTimeout(java.time.Duration.ofNanos(timeout.toNanos)))
   }
 
-  private[cassandra] def applyDMLOptions[S <: Statement[S]](statement:S, o:DMLOptions):S = {
-    val stmt1 = o.consistencyLevel.foldLeft(statement)((s, opt) => s.setConsistencyLevel(opt))
-    val stmt2 = o.serialConsistencyLevel.foldLeft(stmt1)((s, opt) => s.setSerialConsistencyLevel(opt))
-    val stmt3 = o.defaultTimeStamp.foldLeft(stmt2)((s, opt) => s.setQueryTimestamp(opt))
-    val stmt4 = o.idempotent.foldLeft(stmt3)((s, opt) => s.setIdempotent(opt))
-    val stmt5 = o.tracing.foldLeft(stmt4)((s, opt) => s.setTracing(opt))
-    // TODO: what to do with this?
-    //val stmt3 = o.retryPolicy.foldLeft(stmt){(s, opt) => ???}
-    stmt5
+  private[cassandra] def applyDMLOptions[S <: Statement[S]](statement:S, o:DMLOptions):Unit = {
+    o.consistencyLevel.foreach(statement.setConsistencyLevel)
+    o.serialConsistencyLevel.foreach(statement.setSerialConsistencyLevel)
+    o.defaultTimeStamp.foreach(statement.setQueryTimestamp)
+    o.idempotent.foreach(idempotent => statement.setIdempotent(idempotent))
+    o.tracing.foreach(statement.setTracing)
   }
 }
 

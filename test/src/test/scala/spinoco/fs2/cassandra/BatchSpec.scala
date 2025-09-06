@@ -1,5 +1,4 @@
 package spinoco.fs2.cassandra
-
 import shapeless.HNil
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 

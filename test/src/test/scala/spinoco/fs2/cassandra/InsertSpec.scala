@@ -1,6 +1,5 @@
 package spinoco.fs2.cassandra
 
-
 import shapeless.syntax.singleton._
 import shapeless.tag
 import spinoco.fs2.cassandra.ctype.CType.TTL
@@ -151,7 +150,12 @@ class InsertSpec extends SchemaSupport {
       resultNone shouldBe Vector(OptionalTableRow.noneInstance)
     }
 
-    "will insert constant size vector values" in withSessionAndEmptyVectorSchema { cs =>
+    "will insert constant size vector values" in withSessionFor(_.startsWith("5")) { cs =>
+      (for {
+        _ <- cs.create(ks)
+        _ <- cs.create(vectorTable)
+      } yield ()).unsafeRunSync()
+      
       val insert =
         vectorTable.insert
           .all

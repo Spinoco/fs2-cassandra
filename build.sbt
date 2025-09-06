@@ -1,10 +1,13 @@
 import sbt.Tests.{Group, SubProcess}
+import xerial.sbt.Sonatype.sonatypeCentralHost
 
 val ReleaseTag = """^release/([\d\.]+a?)$""".r
 
 lazy val contributors = Seq(
   "pchlupacek" -> "Pavel Chlupáček"
   , "adamchlupacek" -> "Adam Chlupáček"
+  , "kareltucek" -> "Karel Tuček"
+  , "mraulim" -> "Milan Raulim"
 )
 
 /**
@@ -48,18 +51,18 @@ lazy val commonSettings = Seq(
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
   initialCommands := s"""
     import fs2._
-    import fs2.util._
     import spinoco.fs2.cassandra._
   """
   , libraryDependencies ++= Seq(
-    "co.fs2" %% "fs2-core" % "1.0.0"
-    , "co.fs2" %% "fs2-io" % "1.0.0"
+    "co.fs2" %% "fs2-core" % "3.12.2"
+    , "co.fs2" %% "fs2-io" % "3.12.2"
     , "com.datastax.oss" % "java-driver-core" % "4.17.0"
     , "com.chuusai" %% "shapeless" % "2.3.13"
-    , "org.scodec" %% "scodec-core" % "1.10.3"
+    , "org.scodec" %% "scodec-core" % "1.11.11"
+    , "org.scala-lang" % "scala-reflect" % scalaVersion.value
   )
   , addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
-) ++ testSettings //++ scaladocSettings ++ publishingSettings ++ releaseSettings
+) ++ testSettings ++ publishingSettings ++ releaseSettings
 
 lazy val testSettings = Seq(
   parallelExecution := false,
@@ -67,46 +70,29 @@ lazy val testSettings = Seq(
   testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oDF")
 )
 
-lazy val scaladocSettings = Seq(
-)
 
 lazy val publishingSettings = Seq(
-  publishArtifact  := false
-  , publishTo := {
-    val nexus = "https://oss.sonatype.org/"
-    if (version.value.trim.endsWith("SNAPSHOT"))
-      Some("snapshots" at nexus + "content/repositories/snapshots")
-    else
-      Some("releases" at nexus + "service/local/staging/deploy/maven2")
-  },
-  credentials ++= Seq(Credentials(Path.userHome / ".ivy2" / ".credentials.sonatype")) ++ (for {
-    username <- Option(System.getenv().get("SONATYPE_USERNAME"))
-    password <- Option(System.getenv().get("SONATYPE_PASSWORD"))
-  } yield Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", username, password)).toSeq,
-  publishMavenStyle := true,
-  pomIncludeRepository := { _ => false },
-  pomExtra := {
-    <url>https://github.com/Spinoco/fs2-cassandra.git</url>
-    <developers>
-      {for ((username, name) <- contributors) yield
-      <developer>
-        <id>{username}</id>
-        <name>{name}</name>
-        <url>http://github.com/{username}</url>
-      </developer>
-      }
-    </developers>
-  }
-  ,pomPostProcess := { node =>
-    import scala.xml._
-    import scala.xml.transform._
-    def stripIf(f: Node => Boolean) = new RewriteRule {
-      override def transform(n: Node) =
-        if (f(n)) NodeSeq.Empty else n
-    }
-    val stripTestScope = stripIf { n => n.label == "dependency" && (n \ "scope").text == "test" }
-    new RuleTransformer(stripTestScope).transform(node)(0)
-  }
+  sonatypeCredentialHost := sonatypeCentralHost,
+  publishTo := sonatypePublishToBundle.value,
+  versionScheme := Some("early-semver"),
+  organization := "com.spinoco",
+  homepage := Some(url("https://github.com/spinoco/fs2-cassandra")),
+  licenses := List("MIT" -> url("http://opensource.org/licenses/MIT")),
+  developers := {
+    for ((username, name) <- contributors) yield
+      Developer(
+        username,
+        name,
+        "",
+        url(s"https://github.com/$username")
+      )
+  }.toList,
+  scmInfo := Some(
+    ScmInfo(
+      url("https://github.com/spinoco/fs2-cassandra"),
+      "scm:git@github.com:spinoco/fs2-cassandra.git"
+    )
+  )
 )
 
 lazy val releaseSettings = Seq(

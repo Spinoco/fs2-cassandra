@@ -17,6 +17,7 @@ class Fs2CassandraSpec extends FreeSpec
   with TimeLimitedTests
   with Eventually {
 
+  implicit val ioRuntimeGlobal = cats.effect.unsafe.implicits.global
 
   val timeLimit = Span(90, Seconds)
 
@@ -28,7 +29,6 @@ class Fs2CassandraSpec extends FreeSpec
 
 
   implicit val EC: ExecutionContext = spinoco.fs2.cassandra.support.EC
-//  implicit val Sch: Scheduler =  spinoco.fs2.cassandra.support.Sch
 
 
 }

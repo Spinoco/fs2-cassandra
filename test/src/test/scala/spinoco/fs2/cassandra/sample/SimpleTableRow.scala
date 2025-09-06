@@ -42,7 +42,7 @@ object SimpleTableRow {
     , doubleColumn =  2.2d
     , bigDecimalColumn = BigDecimal(0.3d)
     , bigIntColumn = BigInt(3)
-    , blobColumn = Chunk.bytes(Array.emptyByteArray)
+    , blobColumn = Chunk.array(Array.emptyByteArray)
     , uuidColumn = uuid
     , timeUuidColumn =  tag[Type1](timeUuid)
     , durationColumn = FiniteDuration(1,"s")

@@ -1,5 +1,4 @@
 package spinoco.fs2.cassandra
-
 import shapeless.tag
 import shapeless.tag._
 import spinoco.fs2.cassandra.ctype.CType.Ascii

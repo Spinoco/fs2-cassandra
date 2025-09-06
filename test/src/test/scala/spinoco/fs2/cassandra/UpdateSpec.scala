@@ -1,6 +1,5 @@
 package spinoco.fs2.cassandra
 
-
 import fs2.Chunk
 import shapeless.tag
 import shapeless.tag.{apply => _, _}
@@ -35,7 +34,7 @@ class UpdateSpec extends SchemaSupport {
         , doubleColumn = 0d
         , bigDecimalColumn = BigDecimal(0)
         , bigIntColumn = BigInt(0)
-        , blobColumn = Chunk.bytes(Array(1,2,3))
+        , blobColumn = Chunk.array(Array[Byte](1,2,3))
         , uuidColumn =  uuid
         , timeUuidColumn =  tag[Type1](timeUuid)
         , durationColumn = FiniteDuration(1,"min")

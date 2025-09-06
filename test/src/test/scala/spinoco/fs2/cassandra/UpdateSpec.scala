@@ -13,7 +13,7 @@ import scala.concurrent.duration._
 
 class UpdateSpec extends SchemaSupport {
 
-  s"UPDATE statement (${cassandra.tag})" - {
+  "UPDATE statement" - {
 
     "will update all given columns" in withSessionAndSimpleSchema { cs =>
       val update =

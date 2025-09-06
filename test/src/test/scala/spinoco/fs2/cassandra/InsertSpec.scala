@@ -13,7 +13,7 @@ import scala.concurrent.duration._
   */
 class InsertSpec extends SchemaSupport {
 
-  s"INSERT statement (${cassandra.tag})" - {
+  "INSERT statement" - {
 
     "will insert IF NOT EXISTS " in withSessionAndEmptySimpleSchema { cs =>
 

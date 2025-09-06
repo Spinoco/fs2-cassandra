@@ -4,7 +4,7 @@ package spinoco.fs2.cassandra
 
 class DeleteSpec extends SchemaSupport {
 
-  s"DELETE statement (${cassandra.tag})" - {
+  "DELETE statement" - {
 
     val delete =
       simpleTable.delete

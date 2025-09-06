@@ -6,7 +6,7 @@ import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 class BatchSpec extends SchemaSupport {
 
-  s"BATCH statement (${cassandra.tag})" - {
+  "BATCH statement" - {
 
     "will construct simple batch logged statement" in withSessionAndEmptySimpleSchema { cs =>
 

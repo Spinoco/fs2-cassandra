@@ -11,7 +11,7 @@ class MigrationsSpec extends SchemaSupport {
   val table3 = ks.table[FooTable1].partition('intColumn).cluster('longColumn).build("foo1")
 
 
-  s"Migrations (${cassandra.tag})" - {
+  "Migrations" - {
 
     "will emit create for KeySpace that does not exists" in withSession { cs =>
 

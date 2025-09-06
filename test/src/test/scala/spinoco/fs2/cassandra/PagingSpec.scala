@@ -7,7 +7,7 @@ import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 class PagingSpec extends SchemaSupport {
 
-  s"Query paging (${cassandra.tag})" - {
+  "Query paging" - {
 
     s"will page through results manually" in withSessionAndSimpleSchema { cs =>
 

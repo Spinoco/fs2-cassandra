@@ -12,13 +12,13 @@ class QuerySpec extends SchemaSupport {
     "aliased cluster column statement" in  withSessionAndSimpleSchema { cs =>
       val query =
         simpleTable.query.all
-          .partition.cluster('longColumn, 'lv, Comparison.GTEQ)
+          .partition.cluster(Symbol("longColumn"), Symbol("lv"), Comparison.GTEQ)
           .build
           .fromHList
           .fromTuple[(Int, Long)]
           .as[SimpleTableRow]
 
-      val r = cs.query(query)(1 -> 9l).compile.toVector.unsafeRunSync()
+      val r = cs.query(query)(1 -> 9L).compile.toVector.unsafeRunSync()
 
       r.size shouldBe 2
       r.map(_.longColumn) shouldBe Vector(9, 10)
@@ -27,7 +27,7 @@ class QuerySpec extends SchemaSupport {
 
     "will query by index" in  withSessionAndSimpleSchema { cs =>
       val update =
-        simpleTable.update.set('asciiColumn)
+        simpleTable.update.set(Symbol("asciiColumn"))
           .build
           .fromHList.fromTuple[(String @@ Ascii, Int, Long)]
 
@@ -35,7 +35,7 @@ class QuerySpec extends SchemaSupport {
 
       val query =
         simpleTable.query.all
-          .byIndex('asciiColumn, Comparison.EQ)
+          .byIndex(Symbol("asciiColumn"), Comparison.EQ)
           .build
           .fromA[String @@ Ascii]
           .as[SimpleTableRow]

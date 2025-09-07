@@ -15,7 +15,6 @@ import spinoco.fs2.cassandra._
 
 import java.nio.ByteBuffer
 import scala.concurrent.duration.FiniteDuration
-import scala.language.experimental.macros
 
 /**
   * Builder for Insert of the columns in table. `I` is at least sum of Partitioning and Cluster Key types
@@ -89,7 +88,7 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {
         if (ifNotExistsFlag) {
           if (r.getBoolean("[applied]")) Right(None)
-          else CTR.readByName(r, protocolVersion).left.map(AnnotatedException.withStmt(_, cql)).right.map(Some(_))
+          else CTR.readByName(r, protocolVersion).left.map(AnnotatedException.withStmt(_, cql)).map(Some(_))
         }
         else Right(None)
       }
@@ -113,7 +112,7 @@ case class InsertBuilder[R <: HList, PK<:HList, CK <: HList,  I <: HList](
             CTPK.readByName(row,protocolVersion).fold(_ => false, _  == primKey)
 
           def read(row: Row, protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] =
-            CTR.readByName(row,protocolVersion).right.map(Some(_))
+            CTR.readByName(row,protocolVersion).map(Some(_))
 
         }
       }

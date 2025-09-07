@@ -12,7 +12,6 @@ import spinoco.fs2.cassandra.internal._
 import spinoco.fs2.cassandra.macros.CTypeRecord
 
 import java.nio.ByteBuffer
-import scala.language.experimental.macros
 
 case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <: HList, S <: HList](
   table: AbstractTable[R, PK, CK, IDX]

@@ -22,7 +22,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
     "partition key" in {
      val table =
        ks.table[SimpleTableRow]
-         .partition('intColumn)
+         .partition(Symbol("intColumn"))
          .build("test_table")
 
      table.cqlStatement shouldBe Seq(s"$simpleTableDef PRIMARY KEY ((intColumn)))")
@@ -31,8 +31,8 @@ class TableBuilderSpec extends Fs2CassandraSpec{
     "cluster key" in {
       val table =
         ks.table[SimpleTableRow]
-        .partition('intColumn)
-        .cluster('longColumn)
+        .partition(Symbol("intColumn"))
+        .cluster(Symbol("longColumn"))
         .build("test_table")
 
       table.cqlStatement shouldBe Seq(s"$simpleTableDef PRIMARY KEY ((intColumn),longColumn))")
@@ -41,8 +41,8 @@ class TableBuilderSpec extends Fs2CassandraSpec{
     "compound partition key" in {
       val table =
         ks.table[SimpleTableRow]
-          .partition('intColumn)
-          .partition('longColumn)
+          .partition(Symbol("intColumn"))
+          .partition(Symbol("longColumn"))
           .build("test_table")
 
       table.cqlStatement shouldBe Seq(s"$simpleTableDef PRIMARY KEY ((intColumn,longColumn)))")
@@ -51,9 +51,9 @@ class TableBuilderSpec extends Fs2CassandraSpec{
     "compound cluster key" in {
       val table =
         ks.table[SimpleTableRow]
-          .partition('intColumn)
-          .cluster('longColumn)
-          .cluster('stringColumn)
+          .partition(Symbol("intColumn"))
+          .cluster(Symbol("longColumn"))
+          .cluster(Symbol("stringColumn"))
           .build("test_table")
 
       table.cqlStatement shouldBe Seq(s"$simpleTableDef PRIMARY KEY ((intColumn),longColumn,stringColumn))")
@@ -62,9 +62,9 @@ class TableBuilderSpec extends Fs2CassandraSpec{
     "indexed" in {
       val table =
         ks.table[SimpleTableRow]
-          .partition('intColumn)
-          .indexBy('asciiColumn, "asciiColumn_idx")
-          .indexBy('enumColumn, "enumColumn_idx")
+          .partition(Symbol("intColumn"))
+          .indexBy(Symbol("asciiColumn"), "asciiColumn_idx")
+          .indexBy(Symbol("enumColumn"), "enumColumn_idx")
           .build("test_table")
 
       table.cqlStatement.toSet shouldBe Set(
@@ -77,10 +77,10 @@ class TableBuilderSpec extends Fs2CassandraSpec{
     "sasi indexes" in {
       val table =
         ks.table[SimpleTableRow]
-          .partition('intColumn)
-          .indexByPrefix('asciiColumn, "prefix_index")
-          .indexBySparse('floatColumn, "sparse_index")
-          .indexByContains('doubleColumn, "contains_index")
+          .partition(Symbol("intColumn"))
+          .indexByPrefix(Symbol("asciiColumn"), "prefix_index")
+          .indexBySparse(Symbol("floatColumn"), "sparse_index")
+          .indexByContains(Symbol("doubleColumn"), "contains_index")
           .build("test_table")
 
       table.cqlStatement.toSet shouldBe Set(
@@ -105,7 +105,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
       val tableDef = "CREATE TABLE test_ks.test_table (name text,height text,intColumn int,longColumn bigint,stringColumn text,asciiColumn ascii,floatColumn float,doubleColumn double,bigDecimalColumn decimal,bigIntColumn varint,blobColumn blob,uuidColumn uuid,timeUuidColumn timeuuid,durationColumn bigint,inetAddressColumn inet,enumColumn text, PRIMARY KEY ((intColumn)))"
 
       ks.table[SimpleTableRow]
-      .partition('intColumn)
+      .partition(Symbol("intColumn"))
       .columns[generic.Repr]
       .build("test_table").cqlStatement shouldBe Seq(tableDef)
     }
@@ -122,7 +122,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
     "partition key" in {
       val table =
         ks.table[OptionalTableRow]
-          .partition('intColumn)
+          .partition(Symbol("intColumn"))
           .build("test_table")
 
 
@@ -142,7 +142,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
     "partition key" in {
       val table =
         ks.table[ListTableRow]
-          .partition('intColumn)
+          .partition(Symbol("intColumn"))
           .build("test_table")
 
 
@@ -163,7 +163,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
     "partition key" in {
       val table =
         ks.table[TupleTableRow]
-          .partition('intColumn)
+          .partition(Symbol("intColumn"))
           .build("test_table")
 
 
@@ -182,7 +182,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
     "partition key" in {
       val table =
         ks.table[MapTableRow]
-          .partition('intColumn)
+          .partition(Symbol("intColumn"))
           .build("test_table")
 
 
@@ -202,7 +202,7 @@ class TableBuilderSpec extends Fs2CassandraSpec{
     "partition key" in {
       val table =
         ks.table[VectorTableRow]
-          .partition('intColumn)
+          .partition(Symbol("intColumn"))
           .build("test_table")
 
 

@@ -42,7 +42,7 @@ trait BatchStatement[R,O] { self =>
 
   def map[O2](f: O => O2):BatchStatement[R,O2] = new BatchStatement[R,O2] {
     def readResult(r: R)(rows: Seq[Row], protocolVersion: ProtocolVersion): Either[Throwable, O2] =
-      self.readResult(r)(rows,protocolVersion).right.map(f(_))
+      self.readResult(r)(rows,protocolVersion).map(f(_))
     def createStatement(statements: Seq[PreparedStatement], r: R, protocolVersion: ProtocolVersion): Either[Throwable, CBatchStatement] =
       self.createStatement(statements,r,protocolVersion)
     def statements: Seq[String] = self.statements
@@ -88,6 +88,6 @@ trait BatchResultReader[O] { self =>
   /** transoforms output type to O2 **/
   def map[O2](f: O => O2):BatchResultReader[O2] = new BatchResultReader[O2] {
     def readsFrom(row: Row, protocolVersion: ProtocolVersion): Boolean = self.readsFrom(row,protocolVersion)
-    def read(row: Row, protocolVersion: ProtocolVersion): Either[Throwable, O2] = self.read(row,protocolVersion).right.map(f)
+    def read(row: Row, protocolVersion: ProtocolVersion): Either[Throwable, O2] = self.read(row,protocolVersion).map(f)
   }
 }

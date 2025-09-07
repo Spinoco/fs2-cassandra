@@ -11,7 +11,7 @@ import spinoco.fs2.cassandra.baseutil
 import spinoco.fs2.cassandra.ctype.CType
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait HListCType[L <: HList]  {
   // CType of this hlist `L` types

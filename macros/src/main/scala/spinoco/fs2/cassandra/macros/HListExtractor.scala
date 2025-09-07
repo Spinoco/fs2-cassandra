@@ -3,7 +3,6 @@ package spinoco.fs2.cassandra.macros
 import shapeless._
 
 import scala.annotation.tailrec
-import scala.language.experimental.macros
 
 case class HListExtractor(fc: FieldTypeContext) {
   import fc.c.universe._

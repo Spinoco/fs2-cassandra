@@ -1,6 +1,5 @@
 package spinoco.fs2.cassandra
 import fs2.Stream._
-import fs2._
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 
@@ -22,7 +21,7 @@ class SchemaSpec extends SchemaSupport {
 
     "create SimpleTable" in withSession { cs =>
 
-      val table = ks.table[SimpleTableRow].partition('intColumn).build("simple_table")
+      val table = ks.table[SimpleTableRow].partition(Symbol("intColumn")).build("simple_table")
 
       val query = system.schema.queryAllTables.map(t => t.keyspace_name -> t.table_name)
 
@@ -41,8 +40,8 @@ class SchemaSpec extends SchemaSupport {
     "create SimpleTable with compound primary key" in withSession { cs =>
       val table =
         ks.table[SimpleTableRow]
-          .partition('intColumn)
-          .partition('longColumn)
+          .partition(Symbol("intColumn"))
+          .partition(Symbol("longColumn"))
           .build("simple_compound_pk_table")
 
       val query = system.schema.queryAllColumns.map(c => (c.keyspace_name, c.table_name, c.column_name, c.kind))
@@ -70,10 +69,10 @@ class SchemaSpec extends SchemaSupport {
     "create SimpleTable with compound cluster key" in withSession { cs =>
         val table =
           ks.table[SimpleTableRow]
-            .partition('intColumn)
-            .partition('longColumn)
-            .cluster('stringColumn)
-            .cluster('asciiColumn)
+            .partition(Symbol("intColumn"))
+            .partition(Symbol("longColumn"))
+            .cluster(Symbol("stringColumn"))
+            .cluster(Symbol("asciiColumn"))
             .build("simple_compound_ck_table")
 
         val query =

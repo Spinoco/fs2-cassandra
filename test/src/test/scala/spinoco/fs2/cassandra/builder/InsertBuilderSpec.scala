@@ -14,8 +14,8 @@ class InsertBuilderSpec extends Fs2CassandraSpec {
 
     val table =
       ks.table[SimpleTableRow]
-        .partition('intColumn)
-        .cluster('longColumn)
+        .partition(Symbol("intColumn"))
+        .cluster(Symbol("longColumn"))
         .build("test_table")
 
     "with simple primary key all columns" in {
@@ -60,12 +60,12 @@ class InsertBuilderSpec extends Fs2CassandraSpec {
 
 
     "with only subset of columns specified" in {
-        table.insert.column('stringColumn).build.cqlStatement shouldBe
+        table.insert.column(Symbol("stringColumn")).build.cqlStatement shouldBe
       "INSERT INTO test_ks.test_table (stringColumn,intColumn,longColumn) VALUES (:stringColumn,:intColumn,:longColumn)   "
     }
 
     "will fill cqlFor" in {
-      table.insert.column('stringColumn).build.fromHList.fromTuple[(String, Int, Long)].cqlFor(("Hello", 1 ,2)) shouldBe
+      table.insert.column(Symbol("stringColumn")).build.fromHList.fromTuple[(String, Int, Long)].cqlFor(("Hello", 1 ,2)) shouldBe
         "INSERT INTO test_ks.test_table (stringColumn,intColumn,longColumn) VALUES ('Hello',1,2)   "
     }
 

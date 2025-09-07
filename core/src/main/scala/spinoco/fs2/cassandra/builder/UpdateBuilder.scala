@@ -17,7 +17,6 @@ import spinoco.fs2.cassandra.macros.CTypeRecord
 
 import java.nio.ByteBuffer
 import scala.concurrent.duration.FiniteDuration
-import scala.language.experimental.macros
 
 /**
   * Builder of update statement

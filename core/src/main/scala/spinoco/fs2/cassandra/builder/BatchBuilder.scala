@@ -6,7 +6,7 @@ import com.datastax.oss.driver.api.core.cql.{BoundStatement, DefaultBatchType, P
 import shapeless.{::, HList, HNil}
 import spinoco.fs2.cassandra.{BatchStatement, DMLStatement}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 
 case class BatchBuilder[Q <: HList, R <: HList] (
@@ -34,7 +34,7 @@ case class BatchBuilder[Q <: HList, R <: HList] (
       stmts.headOption match {
         case None => Left(new Throwable(s"Failed do bind prepeared statement (no prepared statement found) ${dml.cqlStatement}"))
         case Some(ps) =>
-          self.fill(iq.tail,stmts.tail, protocolVersion).right
+          self.fill(iq.tail,stmts.tail, protocolVersion)
             .map { dml.fill(iq.head,ps,protocolVersion) +: _  }
       }
     }
@@ -42,9 +42,9 @@ case class BatchBuilder[Q <: HList, R <: HList] (
     def readRow(iq: I :: Q)(rows:Seq[Row], protocolVersion: ProtocolVersion):Either[Throwable, Option[O] :: R] = {
       val bb = dml.readBatchResult(iq.head)
       rows.find(bb.readsFrom(_,protocolVersion)) match {
-        case None => self.readResult(iq.tail)(rows, protocolVersion).right.map( None :: _)
+        case None => self.readResult(iq.tail)(rows, protocolVersion).map( None :: _)
         case Some(row) =>
-          bb.read(row, protocolVersion).right.flatMap{ o => self.readResult(iq.tail)(rows,protocolVersion).right.map( Some(o) :: _) }
+          bb.read(row, protocolVersion).flatMap{ o => self.readResult(iq.tail)(rows,protocolVersion).map( Some(o) :: _) }
       }
     }
 
@@ -65,7 +65,7 @@ case class BatchBuilder[Q <: HList, R <: HList] (
       def readResult(r: Q)(rows: Seq[Row], protocolVersion: ProtocolVersion): Either[Throwable, R] = self.readResult(r)(rows,protocolVersion)
 
       def createStatement(statements: Seq[PreparedStatement], r: Q, protocolVersion: ProtocolVersion): Either[Throwable, CBatchStatement] =
-        self.fill(r,statements,protocolVersion).right.map { bs =>
+        self.fill(r,statements,protocolVersion).map { bs =>
           val tpe = if (self.isLogged) DefaultBatchType.LOGGED else DefaultBatchType.UNLOGGED
           val batch = CBatchStatement.newInstance(tpe)
           batch.addAll(bs.asJava)

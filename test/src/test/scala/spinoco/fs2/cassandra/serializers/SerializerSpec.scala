@@ -14,7 +14,7 @@ import spinoco.fs2.cassandra.sample.VectorSizes.VectorSize4
 import spinoco.fs2.cassandra.support.Fs2CassandraSpec
 
 import java.nio.ByteBuffer
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 
 class SerializerSpec  extends Fs2CassandraSpec {

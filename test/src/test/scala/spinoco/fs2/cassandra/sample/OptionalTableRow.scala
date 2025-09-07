@@ -21,7 +21,7 @@ case class OptionalTableRow(
 object OptionalTableRow {
   val instance = new OptionalTableRow(
    intColumn = 1
-   , longColumn = 1l
+   , longColumn = 1L
    , boolColumn = Some(true)
    , maybeIntColumn = Some(1)
    , stringColumn = Some("sc")
@@ -34,7 +34,7 @@ object OptionalTableRow {
 
  val emptyInstance = new OptionalTableRow(
    intColumn =11
-   , longColumn = 11l
+   , longColumn = 11L
    , boolColumn = Some(false)
    , maybeIntColumn = Some(0)
    , stringColumn = Some("")
@@ -48,7 +48,7 @@ object OptionalTableRow {
 
   val noneInstance = new OptionalTableRow(
     intColumn =12
-    , longColumn = 12l
+    , longColumn = 12L
     , boolColumn = None
     , maybeIntColumn = None
     , stringColumn = None

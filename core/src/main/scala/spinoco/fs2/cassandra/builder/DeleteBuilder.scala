@@ -13,7 +13,6 @@ import spinoco.fs2.cassandra.internal.Util
 import spinoco.fs2.cassandra.macros.CTypeRecord
 
 import java.nio.ByteBuffer
-import scala.language.experimental.macros
 
 case class DeleteBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <: HList](
   table: Table[R,PK, CK, _ <: HList]

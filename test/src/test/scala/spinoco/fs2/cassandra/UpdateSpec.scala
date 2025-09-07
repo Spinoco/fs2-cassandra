@@ -44,7 +44,7 @@ class UpdateSpec extends SchemaSupport {
 
       cs.execute(update)(modified).unsafeRunSync()
 
-      val result = cs.query(strSelectOne)(9 -> 9l).compile.toVector.unsafeRunSync()
+      val result = cs.query(strSelectOne)(9 -> 9L).compile.toVector.unsafeRunSync()
 
       result shouldBe Vector(modified)
     }
@@ -54,7 +54,7 @@ class UpdateSpec extends SchemaSupport {
       val update =
         simpleTable
           .update
-          .set('stringColumn)
+          .set(Symbol("stringColumn"))
           .build
           .fromHList
           .fromTuple[(String,Int,Long)]
@@ -62,7 +62,7 @@ class UpdateSpec extends SchemaSupport {
       cs.execute(update)(("UPDATED",9,9)).unsafeRunSync()
 
 
-      val result = cs.query(strSelectOne)(9 -> 9l).compile.toVector.unsafeRunSync()
+      val result = cs.query(strSelectOne)(9 -> 9L).compile.toVector.unsafeRunSync()
 
       result.map(_.stringColumn) shouldBe Vector("UPDATED")
     }
@@ -71,7 +71,7 @@ class UpdateSpec extends SchemaSupport {
       val update =
         simpleTable
           .update
-          .set('stringColumn)
+          .set(Symbol("stringColumn"))
           .onlyIfExists
           .build
           .fromHList
@@ -92,8 +92,8 @@ class UpdateSpec extends SchemaSupport {
       val update =
         simpleTable
           .update
-          .set('stringColumn)
-          .onlyIf('doubleColumn, "double_gt", Comparison.GT)
+          .set(Symbol("stringColumn"))
+          .onlyIf(Symbol("doubleColumn"), "double_gt", Comparison.GT)
           .build
           .fromHList
           .fromTuple[(Double,String,Int,Long)]
@@ -116,9 +116,9 @@ class UpdateSpec extends SchemaSupport {
       val update =
         simpleTable
           .update
-          .set('stringColumn)
-          .onlyIf('doubleColumn, Comparison.GT)
-          .onlyIf('floatColumn, "float_greater",Comparison.GT)
+          .set(Symbol("stringColumn"))
+          .onlyIf(Symbol("doubleColumn"), Comparison.GT)
+          .onlyIf(Symbol("floatColumn"), "float_greater",Comparison.GT)
           .build
           .fromHList
           .fromTuple[(Float,Double,String,Int,Long)]
@@ -138,7 +138,7 @@ class UpdateSpec extends SchemaSupport {
       val update =
         listTable
           .update
-          .set('listColumn)
+          .set(Symbol("listColumn"))
           .build
           .fromHList
           .fromTuple[(List[String],Int,Long)]
@@ -164,7 +164,7 @@ class UpdateSpec extends SchemaSupport {
       val update =
       listTable
         .update
-        .append('listColumn)
+        .append(Symbol("listColumn"))
         .build
         .fromHList
         .fromTuple[(List[String],Int,Long)]
@@ -189,7 +189,7 @@ class UpdateSpec extends SchemaSupport {
       val update =
         listTable
           .update
-          .prepend('listColumn)
+          .prepend(Symbol("listColumn"))
           .build
           .fromHList
           .fromTuple[(List[String],Int,Long)]
@@ -212,7 +212,7 @@ class UpdateSpec extends SchemaSupport {
       val update =
         listTable
           .update
-          .addAt('listColumn, 0)
+          .addAt(Symbol("listColumn"), 0)
           .build
           .fromHList
           .fromTuple[(String,Int,Long)]
@@ -235,7 +235,7 @@ class UpdateSpec extends SchemaSupport {
       val update =
         listTable
           .update
-          .remove('listColumn)
+          .remove(Symbol("listColumn"))
           .build
           .fromHList
           .fromTuple[(List[String],Int,Long)]
@@ -258,7 +258,7 @@ class UpdateSpec extends SchemaSupport {
       val update =
         listTable
           .update
-          .add('setColumn)
+          .add(Symbol("setColumn"))
           .build
           .fromHList
           .fromTuple[(Set[String],Int,Long)]
@@ -281,7 +281,7 @@ class UpdateSpec extends SchemaSupport {
       val update =
         listTable
           .update
-          .remove('setColumn)
+          .remove(Symbol("setColumn"))
           .build
           .fromHList
           .fromTuple[(Set[String],Int,Long)]
@@ -305,7 +305,7 @@ class UpdateSpec extends SchemaSupport {
       val update =
         mapTable
           .update
-          .addToMap('mapStringColumn)
+          .addToMap(Symbol("mapStringColumn"))
           .build
           .fromHList
           .fromTuple[(Map[String,String],Int,Long)]
@@ -329,7 +329,7 @@ class UpdateSpec extends SchemaSupport {
       val update =
         mapTable
           .update
-          .removeFromMap('mapStringColumn)
+          .removeFromMap(Symbol("mapStringColumn"))
           .build
           .fromHList
           .fromTuple[(Set[String],Int,Long)]
@@ -354,15 +354,15 @@ class UpdateSpec extends SchemaSupport {
       val update =
         simpleTable
           .update
-          .set('stringColumn)
-          .withTTL('ttl)
+          .set(Symbol("stringColumn"))
+          .withTTL(Symbol("ttl"))
           .build
           .fromHList
           .fromTuple[(FiniteDuration @@ TTL, String,Int,Long)]
 
       val selectTTL =
         simpleTable.query
-        .functionAt(functions.ttlOf[String],'stringColumn, 'ttl)
+        .functionAt(functions.ttlOf[String],Symbol("stringColumn"), Symbol("ttl"))
         .primary
         .build
         .fromHList
@@ -372,7 +372,7 @@ class UpdateSpec extends SchemaSupport {
 
       cs.execute(update)((tag[TTL](1.hour),"UPDATED",9,9)).unsafeRunSync()
 
-      val result = cs.query(selectTTL)(9 -> 9l).compile.toVector.unsafeRunSync()
+      val result = cs.query(selectTTL)(9 -> 9L).compile.toVector.unsafeRunSync()
 
       result.map(_.isDefined) shouldBe Vector(true)
 
@@ -384,8 +384,8 @@ class UpdateSpec extends SchemaSupport {
       val update =
         simpleTable
           .update
-          .set('stringColumn)
-          .withTimeStamp('ts)
+          .set(Symbol("stringColumn"))
+          .withTimeStamp(Symbol("ts"))
           .build
           .fromHList
           .fromTuple[(Long, String,Int,Long)]
@@ -394,7 +394,7 @@ class UpdateSpec extends SchemaSupport {
 
       val selectTimeStamp =
         simpleTable.query
-          .functionAt(functions.writeTimeOfMicro[String],'stringColumn, 'ts)
+          .functionAt(functions.writeTimeOfMicro[String],Symbol("stringColumn"), Symbol("ts"))
           .primary
           .build
           .fromHList
@@ -405,7 +405,7 @@ class UpdateSpec extends SchemaSupport {
 
       cs.execute(update)((ts,"UPDATED",9,9)).unsafeRunSync()
 
-      val result = cs.query(selectTimeStamp)(9 -> 9l).compile.toVector.unsafeRunSync()
+      val result = cs.query(selectTimeStamp)(9 -> 9L).compile.toVector.unsafeRunSync()
 
       result shouldBe Vector(ts)
 
@@ -418,20 +418,20 @@ class UpdateSpec extends SchemaSupport {
 
       val counterTable =
         ks.table[CounterTableRow]
-          .partition('intColumn)
-          .cluster('longColumn)
+          .partition(Symbol("intColumn"))
+          .cluster(Symbol("longColumn"))
           .build("counter_table")
 
       val increment =
         counterTable.update
-          .increment('counterColumn)
+          .increment(Symbol("counterColumn"))
           .build
           .fromHList
           .fromTuple[(Long, Int,Long)]
 
       val decrement =
         counterTable.update
-          .decrement('counterColumn)
+          .decrement(Symbol("counterColumn"))
           .build
           .fromHList
           .fromTuple[(Long, Int,Long)]
@@ -447,7 +447,7 @@ class UpdateSpec extends SchemaSupport {
       cs.execute(decrement)((5,1,1)).unsafeRunSync()
 
       cs.queryAll(select).compile.toVector.unsafeRunSync() shouldBe Vector(
-        CounterTableRow(1,1l,tag[Counter](5l))  // +10 -5 = 5
+        CounterTableRow(1,1L,tag[Counter](5L))  // +10 -5 = 5
       )
 
     }

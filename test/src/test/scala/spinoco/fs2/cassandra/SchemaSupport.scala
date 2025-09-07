@@ -1,6 +1,5 @@
 package spinoco.fs2.cassandra
 import cats.effect.IO
-import com.datastax.oss.driver.api.core.Version
 import fs2.Stream._
 import shapeless.LabelledGeneric
 import spinoco.fs2.cassandra.sample._
@@ -14,9 +13,9 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
 
   val simpleTable =
     ks.table[SimpleTableRow]
-      .partition('intColumn)
-      .cluster('longColumn)
-      .indexBy('asciiColumn, "asciiColumn_idx")
+      .partition(Symbol("intColumn"))
+      .cluster(Symbol("longColumn"))
+      .indexBy(Symbol("asciiColumn"), "asciiColumn_idx")
       .build("test_table")
 
   val strInsert =
@@ -28,7 +27,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
   val strSelectOne =
     simpleTable.query.all
       .partition
-      .cluster('longColumn, Comparison.EQ)
+      .cluster(Symbol("longColumn"), Comparison.EQ)
       .build
       .fromHList
       .fromTuple[(Int,Long)]
@@ -49,7 +48,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
     val records =
       for {
         i <- 0 to 10
-        l <- 0l to 10l
+        l <- 0L to 10L
       } yield f(i,l)
 
     (for {
@@ -82,8 +81,8 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
 
   val listTable =
     ks.table[ListTableRow]
-      .partition('intColumn)
-      .cluster('longColumn)
+      .partition(Symbol("intColumn"))
+      .cluster(Symbol("longColumn"))
       .build("list_table")
 
   val ltInsert =
@@ -113,8 +112,8 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
 
   val mapTable =
     ks.table[MapTableRow]
-      .partition('intColumn)
-      .cluster('longColumn)
+      .partition(Symbol("intColumn"))
+      .cluster(Symbol("longColumn"))
       .build("list_table")
 
   val mtInsert =
@@ -141,8 +140,8 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
 
   val optionalTable =
     ks.table[OptionalTableRow]
-      .partition('intColumn)
-      .cluster('longColumn)
+      .partition(Symbol("intColumn"))
+      .cluster(Symbol("longColumn"))
       .build("optional_table")
 
   val otInsert =
@@ -175,8 +174,8 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
 
   val vectorTable =
     ks.table[VectorTableRow]
-      .partition('intColumn)
-      .cluster('longColumn)
+      .partition(Symbol("intColumn"))
+      .cluster(Symbol("longColumn"))
       .build("vector_table")
 
   def withSessionFor(versionCheck: String => Boolean)(f: CassandraSession[IO] => Any): Unit = {

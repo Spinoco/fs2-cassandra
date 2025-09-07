@@ -22,7 +22,7 @@ object CodecSerializerSyntax {
         .decode(bv)
         .toEither
         .left.map(e => new Throwable(e.message))
-        .right.map(_.value)
+        .map(_.value)
     }
 
     def deserialize(bv: ByteBuffer, protocolVersion: ProtocolVersion): Either[Throwable, V] = {

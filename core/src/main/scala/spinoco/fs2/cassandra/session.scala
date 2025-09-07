@@ -13,8 +13,7 @@ import spinoco.fs2.cassandra.internal.Util.evalCS
 import cats.data.OptionT
 import spinoco.fs2.cassandra.internal.Util
 
-import scala.collection.convert.ImplicitConversions._
-import scala.language.higherKinds
+import scala.jdk.CollectionConverters._
 
 trait CassandraSession[F[_]] {
 
@@ -165,7 +164,7 @@ object CassandraSession {
         }
 
         def cassandraVersion(): Option[Version] = {
-          cqlSession.getMetadata.getNodes.values().iterator().toSeq
+          cqlSession.getMetadata.getNodes.values().asScala.toSeq
             .map(_.getCassandraVersion)
             .reduceOption((a, b) => if (a.compareTo(b) < 0) a else b)
         }
@@ -219,7 +218,7 @@ object CassandraSession {
                   if (rs.wasApplied()) Applicative[F].pure(None)
                   else Sync[F].rethrow {
                     Util.asStream[F](rs).compile.toVector.map { all =>
-                      batch.readResult(i)(all, protocolVersion).right.map(Option(_))
+                      batch.readResult(i)(all, protocolVersion).map(Option(_))
                     }
                   }
                 }

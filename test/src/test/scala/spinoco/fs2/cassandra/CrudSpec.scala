@@ -1,6 +1,5 @@
 package spinoco.fs2.cassandra
 import fs2.Stream._
-import fs2._
 import spinoco.fs2.cassandra.sample.SimpleTableRow
 
 
@@ -11,7 +10,7 @@ class CrudSpec extends SchemaSupport {
 
       val table =
         ks.table[SimpleTableRow]
-          .partition('intColumn)
+          .partition(Symbol("intColumn"))
           .build("simple_table")
 
       val insert =
@@ -21,7 +20,7 @@ class CrudSpec extends SchemaSupport {
         table.query.all.build.as[SimpleTableRow]
 
       val update =
-        table.update.set('stringColumn).build.fromHList.fromTuple[(String,Int)]
+        table.update.set(Symbol("stringColumn")).build.fromHList.fromTuple[(String,Int)]
 
       val delete =
         table.delete.row.build.fromA

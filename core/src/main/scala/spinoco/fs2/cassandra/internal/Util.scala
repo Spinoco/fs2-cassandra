@@ -9,7 +9,7 @@ import fs2.Stream
 import java.util.Optional
 import java.util.concurrent.CompletionStage
 import java.util.function.BiConsumer
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object Util {
 

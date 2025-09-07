@@ -1,6 +1,5 @@
 package spinoco.fs2.cassandra.macros
 
-import scala.language.experimental.macros
 import scala.reflect.macros.blackbox
 
 /**

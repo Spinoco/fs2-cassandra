@@ -37,9 +37,9 @@ class InsertSpec extends SchemaSupport {
       val insert =
         simpleTable.insert
           .all
-          .withTTL('ttl)
+          .withTTL(Symbol("ttl"))
           .build
-          .mapIn[(FiniteDuration, SimpleTableRow)] { case (dur, row) => ('ttl ->> tag[TTL](dur)) +: strGen.to(row) }
+          .mapIn[(FiniteDuration, SimpleTableRow)] { case (dur, row) => (Symbol("ttl") ->> tag[TTL](dur)) +: strGen.to(row) }
 
       //insert filed with ttl
       cs.execute(insert)(1.hour -> SimpleTableRow.simpleInstance).unsafeRunSync()
@@ -49,7 +49,7 @@ class InsertSpec extends SchemaSupport {
 
       val selectTTL =
         simpleTable.query
-          .functionAt(functions.ttlOf[String], 'stringColumn, 'ttl)
+          .functionAt(functions.ttlOf[String], Symbol("stringColumn"), Symbol("ttl"))
           .partition
           .build
           .fromA
@@ -69,18 +69,18 @@ class InsertSpec extends SchemaSupport {
       val insert =
         simpleTable.insert
           .all
-          .withTimestamp('ts)
+          .withTimestamp(Symbol("ts"))
           .build
-          .mapIn[(Long, SimpleTableRow)] { case (ts, row) => ('ts ->> ts) +: strGen.to(row) }
+          .mapIn[(Long, SimpleTableRow)] { case (ts, row) => (Symbol("ts") ->> ts) +: strGen.to(row) }
 
 
       //insert filed with ts
-      cs.execute(insert)(999l-> SimpleTableRow.simpleInstance).unsafeRunSync()
+      cs.execute(insert)(999L-> SimpleTableRow.simpleInstance).unsafeRunSync()
 
 
       val select =
         simpleTable.query
-          .functionAt(functions.writeTimeOfMicro[String], 'stringColumn, 'ts)
+          .functionAt(functions.writeTimeOfMicro[String], Symbol("stringColumn"), Symbol("ts"))
           .partition
           .build
           .fromA
@@ -88,7 +88,7 @@ class InsertSpec extends SchemaSupport {
 
       val result = cs.query(select)(1).compile.toVector.unsafeRunSync()
 
-     result shouldBe Vector(999l)
+     result shouldBe Vector(999L)
 
     }
 
@@ -98,19 +98,19 @@ class InsertSpec extends SchemaSupport {
       val insert =
         simpleTable.insert
           .all
-          .withTimestamp('ts)
-          .withTTL('ttl)
+          .withTimestamp(Symbol("ts"))
+          .withTTL(Symbol("ttl"))
           .build
           .as[SimpleTableRow]
-          .mapIn[(FiniteDuration, Long, SimpleTableRow)] { case (dur, ts, row) => ('ttl ->> tag[TTL](dur)) +: (('ts ->> ts) +: strGen.to(row)) }
+          .mapIn[(FiniteDuration, Long, SimpleTableRow)] { case (dur, ts, row) => (Symbol("ttl") ->> tag[TTL](dur)) +: ((Symbol("ts") ->> ts) +: strGen.to(row)) }
 
 
-      cs.execute(insert)((1.hour,999l, SimpleTableRow.simpleInstance)).unsafeRunSync()
+      cs.execute(insert)((1.hour,999L, SimpleTableRow.simpleInstance)).unsafeRunSync()
 
       val select =
         simpleTable.query
-          .functionAt(functions.writeTimeOfMicro[String], 'stringColumn, 'ts)
-          .functionAt(functions.ttlOf[String], 'stringColumn, 'ttl)
+          .functionAt(functions.writeTimeOfMicro[String], Symbol("stringColumn"), Symbol("ts"))
+          .functionAt(functions.ttlOf[String], Symbol("stringColumn"), Symbol("ttl"))
           .partition
           .build
           .fromA
@@ -119,7 +119,7 @@ class InsertSpec extends SchemaSupport {
 
       val resultQ = cs.query(select)(1).compile.toVector.unsafeRunSync()
 
-      resultQ.map{ case (ttl, ts) => ttl.nonEmpty -> ts} shouldBe Vector(true -> 999l)
+      resultQ.map{ case (ttl, ts) => ttl.nonEmpty -> ts} shouldBe Vector(true -> 999L)
 
     }
 

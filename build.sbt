@@ -31,8 +31,8 @@ lazy val contributors = Seq(
 
 lazy val commonSettings = Seq(
   organization := "com.spinoco",
-  scalaVersion := "2.12.20",
-  crossScalaVersions := Seq("2.12.20"),
+  scalaVersion := "2.13.16",
+  crossScalaVersions := Seq("2.13.16", "2.12.20"),
   scalacOptions ++= Seq(
     "-feature",
     "-deprecation",
@@ -40,12 +40,19 @@ lazy val commonSettings = Seq(
     "-language:higherKinds",
     "-language:existentials",
     "-language:postfixOps",
-    "-Xfatal-warnings",
-    "-Yno-adapted-args",
-    "-Ywarn-value-discard",
-    "-Ywarn-unused-import"
-  ),
-  scalacOptions --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports"),
+    "-Xfatal-warnings"
+  ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 12)) => Seq(
+      "-Yno-adapted-args",
+      "-Ywarn-value-discard",
+      "-Ywarn-unused-import"
+    )
+    case Some((2, 13)) => Seq(
+      "-Wvalue-discard",
+      "-Wunused:imports"
+    )
+    case _ => Seq.empty
+  }),
   scmInfo := Some(ScmInfo(url("https://github.com/Spinoco/fs2-cassandra"), "git@github.com:Spinoco/fs2-cassandra.git")),
   homepage := None,
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
@@ -60,8 +67,12 @@ lazy val commonSettings = Seq(
     , "com.chuusai" %% "shapeless" % "2.3.13"
     , "org.scodec" %% "scodec-core" % "1.11.11"
     , "org.scala-lang" % "scala-reflect" % scalaVersion.value
+    , "org.scala-lang.modules" %% "scala-collection-compat" % "2.12.0"
   )
-  , addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+  , libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 12)) => Seq(compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full))
+    case _ => Seq.empty
+  })
 ) ++ testSettings ++ publishingSettings ++ releaseSettings
 
 lazy val testSettings = Seq(
@@ -127,8 +138,9 @@ lazy val testSupport =
   .settings(
     name := "fs2-cassandra-test-support"
     , libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.0.4"
-      , "org.scalacheck" %% "scalacheck" % "1.13.4"
+      "org.scalatest" %% "scalatest" % "3.2.18"
+      , "org.scalacheck" %% "scalacheck" % "1.17.0"
+      , "org.scalatestplus" %% "scalacheck-1-17" % "3.2.18.0"
       //, "org.slf4j" % "slf4j-simple" % "1.6.1"  // uncomment this for logs when testing
     )
   )

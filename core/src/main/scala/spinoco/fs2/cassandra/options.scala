@@ -3,7 +3,6 @@ package spinoco.fs2.cassandra
 
 import com.datastax.oss.driver.api.core.ConsistencyLevel
 import com.datastax.oss.driver.api.core.cql.{PagingState, Statement}
-import com.datastax.oss.driver.api.core.retry.RetryPolicy
 
 import scala.concurrent.duration.FiniteDuration
 

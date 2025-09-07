@@ -1,4 +1,3 @@
-import sbt.Tests.{Group, SubProcess}
 import xerial.sbt.Sonatype.sonatypeCentralHost
 
 val ReleaseTag = """^release/([\d\.]+a?)$""".r
@@ -69,11 +68,7 @@ lazy val commonSettings = Seq(
     , "org.scala-lang" % "scala-reflect" % scalaVersion.value
     , "org.scala-lang.modules" %% "scala-collection-compat" % "2.12.0"
   )
-  , libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 12)) => Seq(compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full))
-    case _ => Seq.empty
-  })
-) ++ testSettings ++ publishingSettings ++ releaseSettings
+) ++ testSettings
 
 lazy val testSettings = Seq(
   parallelExecution := false,
@@ -112,14 +107,18 @@ lazy val releaseSettings = Seq(
 )
 
 lazy val noPublish = Seq(
-  publish := (()),
-  publishLocal := (()),
-  publishArtifact := false
+  publish := {},
+  publishLocal := {},
+  publishArtifact := false,
+  skip in publish := true,
+  sonatypeCredentialHost := sonatypeCentralHost
 )
 
 lazy val macros =
   project.in(file("macros"))
     .settings(commonSettings)
+    .settings(publishingSettings)
+    .settings(releaseSettings)
     .settings(
       name := "fs2-cassandra-macros"
     )
@@ -127,6 +126,8 @@ lazy val macros =
 lazy val core =
   project.in(file("core"))
   .settings(commonSettings)
+  .settings(publishingSettings)
+  .settings(releaseSettings)
   .settings(
    name := "fs2-cassandra"
   )
@@ -135,6 +136,8 @@ lazy val core =
 lazy val testSupport =
   project.in(file("test-support"))
   .settings(commonSettings)
+  .settings(publishingSettings)
+  .settings(releaseSettings)
   .settings(
     name := "fs2-cassandra-test-support"
     , libraryDependencies ++= Seq(
@@ -148,7 +151,8 @@ lazy val testSupport =
 
 lazy val coreTest =
   project.in(file("test"))
-  .settings(commonSettings ++ noPublish)
+  .settings(commonSettings)
+  .settings(noPublish)
   .settings(
     name := "fs2-cassandra-test"
   )
@@ -160,15 +164,11 @@ lazy val coreTest =
 
 lazy val fs2Cassandra =
   project.in(file("."))
-  .settings(commonSettings ++ noPublish)
+  .settings(commonSettings)
+  .settings(noPublish)
   .aggregate(
     core, testSupport, coreTest, macros
   )
 
-lazy val doNotPublish = Seq(
-  publish := {},
-  publishLocal := {},
-  publishArtifact := false,
-  //skip in publish := true
-)
+
 

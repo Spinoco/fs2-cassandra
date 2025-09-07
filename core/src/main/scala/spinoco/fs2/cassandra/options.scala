@@ -56,7 +56,7 @@ case class DMLOptions(
   /**
     * Sets the default timestamp for this query (in microseconds since the epoch).
     *
-    * This feature is only available when version {@link ProtocolVersion#V3 V3} or
+    * This feature is only available when version V3 or
     * higher of the native protocol is in use. With earlier versions, calling this
     * method has no effect.
     *
@@ -66,9 +66,9 @@ case class DMLOptions(
     *  the timestamp specified directly in the CQL query string (using the
     * {@code USING TIMESTAMP} syntax)
     *  the timestamp specified through this method, if different from
-    * {@link Long#MIN_VALUE};
-    *  the timestamp returned by the {@link TimestampGenerator} currently in use,
-    * if different from {@link Long#MIN_VALUE}.
+    * Long.MIN_VALUE;
+    *  the timestamp returned by the TimestampGenerator currently in use,
+    * if different from Long.MIN_VALUE.
     *
     * If none of these apply, no timestamp will be sent with the query and Cassandra
     * will generate a server-side one (similar to the pre-V3 behavior).
@@ -118,7 +118,7 @@ case class QueryOptions(
     copy(executionProfileName = Some(name))
 
   /**
-    * Overrides the default per-host timeout ({@link SocketOptions#getReadTimeoutMillis()})
+    * Overrides the default per-host timeout
     * for this statement.
     * You should override this only for statements for which the coordinator may allow a longer server-side
     * timeout (for example aggregation queries).

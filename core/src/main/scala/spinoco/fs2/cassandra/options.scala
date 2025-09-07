@@ -180,20 +180,24 @@ object Options {
   def pageFrom(page:PagingState):QueryOptions =
     defaultQuery.startFrom(page)
 
-  private[cassandra] def applyQueryOptions[S <: Statement[S]](statement:S, o:QueryOptions):Unit = {
-    o.consistencyLevel.foreach(statement.setConsistencyLevel)
-    o.fetchSize.foreach(statement.setPageSize)
-    o.pagingState.foreach(statement.setPagingState)
-    o.tracing.foreach(statement.setTracing)
-    o.timeout.foreach(timeout => statement.setTimeout(java.time.Duration.ofNanos(timeout.toNanos)))
+  private[cassandra] def applyQueryOptions[S <: Statement[S]](statement:S, o:QueryOptions):S = {
+    var s = statement
+    o.consistencyLevel.foreach(level => s = s.setConsistencyLevel(level))
+    o.fetchSize.foreach(size => s = s.setPageSize(size))
+    o.pagingState.foreach(state => s = s.setPagingState(state))
+    o.tracing.foreach(tracing => s = s.setTracing(tracing))
+    o.timeout.foreach(timeout => s = s.setTimeout(java.time.Duration.ofNanos(timeout.toNanos)))
+    s
   }
 
-  private[cassandra] def applyDMLOptions[S <: Statement[S]](statement:S, o:DMLOptions):Unit = {
-    o.consistencyLevel.foreach(statement.setConsistencyLevel)
-    o.serialConsistencyLevel.foreach(statement.setSerialConsistencyLevel)
-    o.defaultTimeStamp.foreach(statement.setQueryTimestamp)
-    o.idempotent.foreach(idempotent => statement.setIdempotent(idempotent))
-    o.tracing.foreach(statement.setTracing)
+  private[cassandra] def applyDMLOptions[S <: Statement[S]](statement:S, o:DMLOptions):S = {
+    var s = statement
+    o.consistencyLevel.foreach(level => s = s.setConsistencyLevel(level))
+    o.serialConsistencyLevel.foreach(level => s = s.setSerialConsistencyLevel(level))
+    o.defaultTimeStamp.foreach(timestamp => s = s.setQueryTimestamp(timestamp))
+    o.idempotent.foreach(idempotent => s = s.setIdempotent(idempotent))
+    o.tracing.foreach(tracing => s = s.setTracing(tracing))
+    s
   }
 }
 

@@ -125,8 +125,8 @@ object CassandraSession {
 
         def executeDML[I, R](statement: DMLStatement[I, R],o: DMLOptions,i: I): F[R] = {
           mkStatement(statement, i).flatMap { bs =>
-            Options.applyDMLOptions(bs, o)
-            evalCS(cqlSession.executeAsync(bs)).flatMap { rs =>
+            val configuredStatement = Options.applyDMLOptions(bs, o)
+            evalCS(cqlSession.executeAsync(configuredStatement)).flatMap { rs =>
               Sync[F].rethrow(
                 Stream.emit(rs)
                 .flatMap { ars => Util.asStream[F](ars) }
@@ -138,8 +138,8 @@ object CassandraSession {
         }
 
         def _queryRows[T <: Statement[T]](statement: T, o:QueryOptions):Stream[F,Row] = {
-         Options.applyQueryOptions(statement,o)
-         val asyncResult = evalCS(cqlSession.executeAsync(statement))
+         val configuredStatement = Options.applyQueryOptions(statement,o)
+         val asyncResult = evalCS(cqlSession.executeAsync(configuredStatement))
           Stream.eval(asyncResult).flatMap { ars => Util.asStream[F](ars) }
         }
 
@@ -178,8 +178,8 @@ object CassandraSession {
         // pages single query from supplied statement. Instead fetching next results,
         // this will return paging state on left, unless exhausted.
         def _pageQueryRows[S <: Statement[S]](s: S, o:QueryOptions):Stream[F,Either[Option[PagingState], Row]] = {
-          Options.applyQueryOptions(s,o)
-          Stream.eval(evalCS(cqlSession.executeAsync(s))).flatMap { rs =>
+          val configuredStatement = Options.applyQueryOptions(s,o)
+          Stream.eval(evalCS(cqlSession.executeAsync(configuredStatement))).flatMap { rs =>
             // paging state must be taken before the iteration starts
             val paging:Option[PagingState] = {
               if (rs.remaining == 0 && !rs.hasMorePages) None
@@ -213,8 +213,8 @@ object CassandraSession {
               // here we have guaranteed that `cache` contains all statements, so we can just apply for them
               val allStatements = statements.map(cache.cache.apply)
               Sync[F].rethrow(Applicative[F].pure(batch.createStatement(allStatements,i,protocolVersion))).flatMap { statement =>
-                Options.applyDMLOptions(statement,o)
-                evalCS(cqlSession.executeAsync(statement)).flatMap { rs =>
+                val configuredStatement = Options.applyDMLOptions(statement,o)
+                evalCS(cqlSession.executeAsync(configuredStatement)).flatMap { rs =>
                   if (rs.wasApplied()) Applicative[F].pure(None)
                   else Sync[F].rethrow {
                     Util.asStream[F](rs).compile.toVector.map { all =>
@@ -244,9 +244,9 @@ object CassandraSession {
         def _queryOne[Q,R](query: Query[Q, R], o: QueryOptions, q: Q): F[Option[R]] = {
           getOrRegisterStatement(query.cqlStatement).flatMap { ps =>
             val bs = query.fill(q,ps, protocolVersion)
-            Options.applyQueryOptions(bs,o)
-            bs.setPageSize(1) // only one item we are interested in no need to fetch more
-            evalCS(cqlSession.executeAsync(bs)).flatMap {resultSet =>
+            val configuredStatement = Options.applyQueryOptions(bs,o)
+            configuredStatement.setPageSize(1) // only one item we are interested in no need to fetch more
+            evalCS(cqlSession.executeAsync(configuredStatement)).flatMap {resultSet =>
               OptionT.fromOption[F](Option(resultSet.one())).semiflatMap { row =>
                 Sync[F].rethrow(Applicative[F].pure(query.read(row,protocolVersion)))
               }.value
@@ -280,7 +280,7 @@ object CassandraSession {
           def pageStatement(boundStatement: BoundStatement): Stream[F, Either[Option[PagingState], Row]] = _pageQueryRows(boundStatement,Options.defaultQuery)
           def prepareCql(cql: String): F[PreparedStatement] = evalCS(cqlSession.prepareAsync(cql))
           def executeBatch[I, R](batch: BatchStatement[I, R], o: DMLOptions= Options.defaultDML)(i: I): F[Option[R]] = _executeBatch(batch,o,i)
-          def bindStatement[I](statement: DMLStatement[I, _], o: DMLOptions)(i: I): F[BoundStatement] = mkStatement(statement,i).map { bs => Options.applyDMLOptions(bs,o); bs}
+          def bindStatement[I](statement: DMLStatement[I, _], o: DMLOptions)(i: I): F[BoundStatement] = mkStatement(statement,i).map { bs => Options.applyDMLOptions(bs,o)}
           def executeBatchRaw(statements: Seq[BoundStatement], logged: Boolean): F[AsyncResultSet] = _executeBatchRaw(statements,logged)
           def minCassandraVersion(): Option[Version] = cassandraVersion()
         }

@@ -94,6 +94,8 @@ trait CassandraSession[F[_]] {
 
 object CassandraSession {
 
+  @inline def apply[F[_]](implicit instance: CassandraSession[F]): CassandraSession[F] = instance
+
   /** given cluster this will create a single element stream with session **/
   def instance[F[_]
   : Async

@@ -45,26 +45,6 @@ trait CType[A] { self =>
   /** serializes the value to be used in CQL statement **/
   def format(a: A): Attempt[String]
 
-  /** create new CType by applying fa and fb to `A` and `B` respectively */
-  def xmap[B](fa: A => B, fb: B => A):CType[B] = {
-    new CType[B] {
-      def cqlType: DataType = self.cqlType
-      def cqlCodec(protocolVersion: ProtocolVersion): Codec[B] = self.cqlCodec(protocolVersion).xmap(fa,fb)
-      def parse(cql: String): Attempt[B] = self.parse(cql).map(fa)
-      def format(a: B): Attempt[String] = self.format(fb(a))
-    }
-  }
-
-  /** like `xmap` but allows eventually to fail parse `A` to `B` and `B` to `A` **/
-  def exmap[B](fa: A => Attempt[B])(fb: B => Attempt[A]):CType[B] = {
-    new CType[B] {
-      def cqlType: DataType = self.cqlType
-      def cqlCodec(protocolVersion: ProtocolVersion): Codec[B] = self.cqlCodec(protocolVersion).exmapc(fa)(fb)
-      def parse(cql: String): Attempt[B] = self.parse(cql).flatMap(fa)
-      def format(a: B): Attempt[String] = fb(a).flatMap(self.format)
-    }
-  }
-
   def writeCql(k: String, v: A): Map[String, String] = self.writeFormatted(k, v)
   def writeRaw(k: String, v: A, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRawSerialized(k, v, protocolVersion)
   def writeByName[D <: SettableByName[D]](k: String, v: A, data: D, protocolVersion: ProtocolVersion): D =  self.writeByNameSerialized(k, v, data, protocolVersion)
@@ -97,6 +77,28 @@ object CType {
 
   @inline def apply[A](implicit instance: CType[A]): CType[A] = instance
 
+
+  implicit class CTypeSyntax[A](val self: CType[A]) extends AnyVal {
+    /** create new CType by applying fa and fb to `A` and `B` respectively */
+    def xmap[B](fa: A => B, fb: B => A):CType[B] = {
+      new CType[B] {
+        def cqlType: DataType = self.cqlType
+        def cqlCodec(protocolVersion: ProtocolVersion): Codec[B] = self.cqlCodec(protocolVersion).xmap(fa,fb)
+        def parse(cql: String): Attempt[B] = self.parse(cql).map(fa)
+        def format(a: B): Attempt[String] = self.format(fb(a))
+      }
+    }
+
+    /** like `xmap` but allows eventually to fail parse `A` to `B` and `B` to `A` **/
+    def exmap[B](fa: A => Attempt[B])(fb: B => Attempt[A]):CType[B] = {
+      new CType[B] {
+        def cqlType: DataType = self.cqlType
+        def cqlCodec(protocolVersion: ProtocolVersion): Codec[B] = self.cqlCodec(protocolVersion).exmapc(fa)(fb)
+        def parse(cql: String): Attempt[B] = self.parse(cql).flatMap(fa)
+        def format(a: B): Attempt[String] = fb(a).flatMap(self.format)
+      }
+    }
+  }
 
   def fromCodec[A](codec: TypeCodec[A]): CType[A] = {
     new CType[A] {
@@ -293,6 +295,29 @@ trait MapKeyCType[A] extends CType[A]
 object MapKeyCType {
 
   @inline def apply[A](implicit instance: MapKeyCType[A]): MapKeyCType[A] = instance
+
+  implicit class MapKeyCTypeSyntax[A](val self: MapKeyCType[A]) extends AnyVal {
+    /** create new CType by applying fa and fb to `A` and `B` respectively */
+    def xmap[B](fa: A => B, fb: B => A):MapKeyCType[B] = {
+      new MapKeyCType[B] {
+        def cqlType: DataType = self.cqlType
+        def cqlCodec(protocolVersion: ProtocolVersion): Codec[B] = self.cqlCodec(protocolVersion).xmap(fa,fb)
+        def parse(cql: String): Attempt[B] = self.parse(cql).map(fa)
+        def format(a: B): Attempt[String] = self.format(fb(a))
+      }
+    }
+
+    /** like `xmap` but allows eventually to fail parse `A` to `B` and `B` to `A` **/
+    def exmap[B](fa: A => Attempt[B])(fb: B => Attempt[A]):MapKeyCType[B] = {
+      new MapKeyCType[B] {
+        def cqlType: DataType = self.cqlType
+        def cqlCodec(protocolVersion: ProtocolVersion): Codec[B] = self.cqlCodec(protocolVersion).exmapc(fa)(fb)
+        def parse(cql: String): Attempt[B] = self.parse(cql).flatMap(fa)
+        def format(a: B): Attempt[String] = fb(a).flatMap(self.format)
+      }
+    }
+  }
+
 
   def fromCType[A](ct: CType[A]): MapKeyCType[A] = {
     new MapKeyCType[A] {

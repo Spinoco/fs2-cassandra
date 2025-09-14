@@ -5,6 +5,7 @@ import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, ColumnDefinition, Row}
 import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata
 import fs2.Stream
+import shapeless.=:!=
 
 import java.util.Optional
 import java.util.concurrent.CompletionStage
@@ -21,7 +22,10 @@ object Util {
     */
   def evalCS[F[_]
     : Async
-    , A](cs: => CompletionStage[A]): F[A] = {
+    , A ](cs: => CompletionStage[A])(
+    implicit
+    evNotVoid: A =:!= Void // prevent accidental usage of Void, use evalCS_ instead
+  ): F[A] = {
     Async[F].async_[A] { cb =>
       cs.whenComplete(new BiConsumer[A, Throwable] {
         def accept(a: A, t: Throwable): Unit = {
@@ -30,7 +34,29 @@ object Util {
           else cb(Left(new RuntimeException("CompletionStage returned null for both value and error")))
         }
       })
-      () // ignore the result of whenComplete
+      ()
+    }
+  }
+
+  /**
+   * Like evalCS, but for CompletionStage[Void], returning F[Unit]
+   * This is b/c a is now null, and the callback needs to be called with Right(())
+   *
+   * Note that cs is lazily passed allowing it to be run when resulting [F] is run
+   *
+   * @param cs  completion stage to convert.
+   * @tparam F
+   * @return
+   */
+  def evalCS_[F[_]: Async](cs: => CompletionStage[Void]): F[Unit] = {
+    Async[F].async_[Unit] { cb =>
+      cs.whenComplete(new BiConsumer[Void, Throwable] {
+        def accept(a: Void, t: Throwable): Unit = {
+          if (t != null) cb(Left(t))
+          else cb(Right(()))
+        }
+      })
+      ()
     }
   }
 

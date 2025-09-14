@@ -9,7 +9,7 @@ import com.datastax.oss.driver.api.core.{CqlSession, CqlSessionBuilder, Protocol
 import fs2.Stream._
 import fs2._
 import shapeless.HNil
-import spinoco.fs2.cassandra.internal.Util.evalCS
+import spinoco.fs2.cassandra.internal.Util.{ evalCS, evalCS_ }
 import cats.data.OptionT
 import spinoco.fs2.cassandra.internal.Util
 
@@ -105,14 +105,11 @@ object CassandraSession {
       evalCS(sessionBuilder.buildAsync())
 
     def closeSession(cqlSession: CqlSession): F[Unit] =
-      evalCS(cqlSession.closeAsync()).void
+      evalCS_(cqlSession.closeAsync()).void
 
-    Resource.make(
-      buildCqlSession.flatMap { cqlSession =>
-        impl.mkSession[F](cqlSession, cqlSession.getContext.getProtocolVersion).map { cs => (cs, cqlSession) }
-      }
-    )({ case (_, cqlSession) => closeSession(cqlSession) })
-    .map { case (cs, _) => cs }
+    Resource.make(buildCqlSession)(closeSession).evalMap { cqlSession =>
+      impl.mkSession[F](cqlSession, cqlSession.getContext.getProtocolVersion)
+    }
   }
 
   object impl {

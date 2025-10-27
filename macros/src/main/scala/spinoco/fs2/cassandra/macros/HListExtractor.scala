@@ -74,12 +74,13 @@ case class HListExtractor(fc: FieldTypeContext) {
   }
 
   /** Given a complex labelled type, returns the label and the simple type. */
-  def extractLabelAndTypeOption(tpe: fc.c.universe.Type): Option[(String, fc.c.universe.Type)] = {
+  def extractLabelAndTypeOption(tpe: fc.c.universe.Type): Option[(String, fc.c.universe.Type, fc.c.universe.Type)] = {
     val dealiasedType = tpe.dealias
 
     dealiasedType match {
       case refinedType: RefinedType =>
-        refinedType.parents.foldLeft[Option[(String, Type)]](None) {
+        println("Refined type: " + refinedType)
+        refinedType.parents.foldLeft[Option[(String, Type, Type)]](None) {
           (acc, parent) =>
             if (acc.isDefined) acc
             else extractLabelAndTypeOption(parent)
@@ -92,7 +93,7 @@ case class HListExtractor(fc: FieldTypeContext) {
           val valueType = typeArgs(1)
           val labelName = extractStringFromLiteral(labelType)
 
-          Some((labelName, valueType))
+          Some((labelName, labelType, valueType))
         } else {
           None
         }
@@ -102,7 +103,7 @@ case class HListExtractor(fc: FieldTypeContext) {
   }
 
   /** Given a complex labelled type, returns the label and the simple type, but aborts macro on failure. */
-  def extractLabelAndType(tpe: fc.c.universe.Type): (String, fc.c.universe.Type) = {
+  def extractLabelAndType(tpe: fc.c.universe.Type): (String, fc.c.universe.Type, fc.c.universe.Type) = {
     extractLabelAndTypeOption(tpe) match {
       case Some(labelAndType) => labelAndType
       case None =>
@@ -113,9 +114,9 @@ case class HListExtractor(fc: FieldTypeContext) {
   /** Converts a possibly labelled HList of labelled types into a list of simple types and their labels. */
   def toLabeledTypeList(tpe: fc.c.universe.Type): List[fc.FieldType] = {
     toTypeList(tpe)
-      .zipWithIndex.map { case (taggedTpe, idx) =>
-      val (label, tpe) = extractLabelAndType(taggedTpe)
-      fc.FieldType(tpe, label, idx)
+    .zipWithIndex.map { case (taggedTpe, idx) =>
+      val (label, labelTpe, tpe) = extractLabelAndType(taggedTpe)
+      fc.FieldType(tpe, labelTpe, label, idx)
     }
   }
 }

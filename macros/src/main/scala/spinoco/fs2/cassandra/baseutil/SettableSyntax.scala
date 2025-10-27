@@ -14,32 +14,32 @@ object SettableSyntax {
   implicit class SettableWriteSyntax[V](val tpe: CType[V]) extends AnyVal {
     def writeByNameSerialized[D <: SettableByName[D]](key: String, value: V, data: D, protocolVersion: ProtocolVersion): D = {
       tpe
-        .serialize(value, protocolVersion)
-        .toEither
-        .fold(
-          e => throw new Throwable(e.message),
-          bv => data.setBytesUnsafe(key, bv)
-        )
+      .serialize(value, protocolVersion)
+      .toEither
+      .fold(
+        e => throw new Throwable(e.message)
+        , bv => data.setBytesUnsafe(key, bv)
+      )
     }
 
     def writeRawSerialized(key: String, value: V, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = {
       tpe
-        .serialize(value, protocolVersion)
-        .toEither
-        .fold(
-          e => throw new Throwable(e.message),
-          bv => Map(key -> bv)
-        )
+      .serialize(value, protocolVersion)
+      .toEither
+      .fold(
+        e => throw new Throwable(e.message)
+        , bv => Map(key -> bv)
+      )
     }
 
     def writeFormatted(key: String, value: V): Map[String, String] = {
       tpe
-        .format(value)
-        .toEither
-        .fold(
-          e => throw new Throwable(e.message),
-          bv => Map(key -> bv)
-        )
+      .format(value)
+      .toEither
+      .fold(
+        e => throw new Throwable(e.message)
+        , bv => Map(key -> bv)
+      )
     }
   }
 }

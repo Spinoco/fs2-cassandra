@@ -12,7 +12,7 @@ import scala.annotation.tailrec
 
 object MapCType {
 
-  def instance[K : MapKeyCType, V : CType]: CType[Map[K,V]] = {
+  def instance[K: MapKeyCType, V: CType]: CType[Map[K,V]] = {
     new CType[Map[K, V]] {
       def cqlType: DataType =
         DataTypes.mapOf(MapKeyCType[K].cqlType, CType[V].cqlType)
@@ -32,7 +32,7 @@ object MapCType {
   /**
     * Formats the map to CQL type serialized string form
     */
-  def format[K : MapKeyCType, V : CType](a: Map[K, V]): Attempt[String] = {
+  def format[K: MapKeyCType, V: CType](a: Map[K, V]): Attempt[String] = {
     @tailrec
     def go(rem: Map[K, V], acc: String): Attempt[String] = {
       rem.headOption match {
@@ -54,6 +54,7 @@ object MapCType {
           }
       }
     }
+
     go(a, "")
   }
 
@@ -136,7 +137,7 @@ object MapCType {
     * Perser to parse value form the string representation
     * @param from String to parse
     */
-  def parse[K : MapKeyCType, V : CType](from: String): Attempt[Map[K, V]] = {
+  def parse[K: MapKeyCType, V: CType](from: String): Attempt[Map[K, V]] = {
     if (from == null || from.isEmpty || from == "NULL") Attempt.successful(Map.empty)
     else {
       val start = ParseUtils.skipSpaces(from, 0)

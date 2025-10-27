@@ -24,13 +24,13 @@ object SelectAll {
       def apply(l: L): Out = HNil
     }
 
-  implicit def hconsSelectAll[L <: HList, K,V, KT <: HList]
-  (implicit
-   sh: Selector.Aux[L, K,V],
-   st: SelectAll[L, KT]
-  ): Aux[L, FieldType[K,V] :: KT, FieldType[K,V] :: st.Out] =
-    new SelectAll[L, FieldType[K,V] :: KT] {
-      type Out = FieldType[K,V] :: st.Out
-      def apply(l: L): Out = sh(l).asInstanceOf[FieldType[K,V]] :: st(l)
+  implicit def hconsSelectAll[L <: HList, K,V, KT <: HList](
+    implicit
+    sh: Selector.Aux[L, K,V],
+    st: SelectAll[L, KT]
+  ): Aux[L, FieldType[K, V] :: KT, FieldType[K, V] :: st.Out] =
+    new SelectAll[L, FieldType[K, V] :: KT] {
+      type Out = FieldType[K, V] :: st.Out
+      def apply(l: L): Out = sh(l).asInstanceOf[FieldType[K, V]] :: st(l)
     }
 }

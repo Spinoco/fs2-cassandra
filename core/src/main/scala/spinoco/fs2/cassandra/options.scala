@@ -1,23 +1,22 @@
 package spinoco.fs2.cassandra
 
-
 import com.datastax.oss.driver.api.core.ConsistencyLevel
 import com.datastax.oss.driver.api.core.cql.{PagingState, Statement}
 
 import scala.concurrent.duration.FiniteDuration
 
 case class DMLOptions(
- consistencyLevel: Option[ConsistencyLevel]
- , serialConsistencyLevel: Option[ConsistencyLevel]
- , tracing: Option[Boolean]
- , defaultTimeStamp: Option[Long]
- , idempotent: Option[Boolean]
+  consistencyLevel: Option[ConsistencyLevel]
+  , serialConsistencyLevel: Option[ConsistencyLevel]
+  , tracing: Option[Boolean]
+  , defaultTimeStamp: Option[Long]
+  , idempotent: Option[Boolean]
 ) extends Options {
 
   /**
     * Sets the consistency level for the DML statement.
     */
-  def withConsistencyLevel(level:ConsistencyLevel):DMLOptions =
+  def withConsistencyLevel(level: ConsistencyLevel): DMLOptions =
     copy(consistencyLevel = Some(level))
 
   /**
@@ -44,14 +43,12 @@ case class DMLOptions(
     *
     * @return
     */
-  def withSerialConsistencyLevel(level:ConsistencyLevel):DMLOptions =
+  def withSerialConsistencyLevel(level: ConsistencyLevel): DMLOptions =
     copy(serialConsistencyLevel = Some(level))
 
   /**  Enables tracing for this DML statement **/
-  def enableTracing:DMLOptions =
+  def enableTracing: DMLOptions =
     copy(tracing = Some(true))
-
-
 
   /**
     * Sets the default timestamp for this query (in microseconds since the epoch).
@@ -73,7 +70,7 @@ case class DMLOptions(
     * If none of these apply, no timestamp will be sent with the query and Cassandra
     * will generate a server-side one (similar to the pre-V3 behavior).
     */
-  def withDefaultTimeStamp(ts:Long):DMLOptions =
+  def withDefaultTimeStamp(ts: Long): DMLOptions =
     copy(defaultTimeStamp = Some(ts))
 
   /**
@@ -86,35 +83,34 @@ case class DMLOptions(
     * - uses function call
     *
     */
-  def setIdempotent(idempotent:Boolean):DMLOptions =
+  def setIdempotent(idempotent: Boolean): DMLOptions =
     copy(idempotent = Some(idempotent))
 
 }
 
 case class QueryOptions(
- consistencyLevel: Option[ConsistencyLevel]
- , tracing: Option[Boolean]
- , executionProfileName: Option[String]
- , fetchSize: Option[Int]
- , timeout: Option[FiniteDuration]
- , pagingState: Option[PagingState]
+  consistencyLevel: Option[ConsistencyLevel]
+  , tracing: Option[Boolean]
+  , executionProfileName: Option[String]
+  , fetchSize: Option[Int]
+  , timeout: Option[FiniteDuration]
+  , pagingState: Option[PagingState]
 ) extends Options {
 
   /**
     * Sets the consistency level for the Query.
     */
-  def withConsistencyLevel(level:ConsistencyLevel):QueryOptions =
+  def withConsistencyLevel(level: ConsistencyLevel): QueryOptions =
     copy(consistencyLevel = Some(level))
 
-
   /**  Enables tracing for this Query **/
-  def enableTracing:QueryOptions =
+  def enableTracing: QueryOptions =
     copy(tracing = Some(true))
 
   /**
     * Sets the execution profile name for the request
     */
-  def withExecutionProfileName(name: String):QueryOptions =
+  def withExecutionProfileName(name: String): QueryOptions =
     copy(executionProfileName = Some(name))
 
   /**
@@ -123,17 +119,16 @@ case class QueryOptions(
     * You should override this only for statements for which the coordinator may allow a longer server-side
     * timeout (for example aggregation queries).
     */
-  def withTimeout(timeout:FiniteDuration):QueryOptions =
+  def withTimeout(timeout: FiniteDuration): QueryOptions =
     copy(timeout = Some(timeout))
 
   /**
     * Sets paging state.
-    * See java driver documentation about paging (http://datastax.github.io/java-driver/manual/paging/).
+    * See java driver documentation about paging (http: //datastax.github.io/java-driver/manual/paging/).
     * To be used with `page` methods on cassandra session.
     * @param page
-    * @return
     */
-  def startFrom(page:PagingState):QueryOptions =
+  def startFrom(page: PagingState): QueryOptions =
     copy(pagingState = Some(page))
 
   /**
@@ -148,18 +143,16 @@ case class QueryOptions(
     * idea.
     *
     */
-  def withFetchSize(sz:Int):QueryOptions =
+  def withFetchSize(sz: Int): QueryOptions =
     copy(fetchSize = Some(sz))
 
-
 }
-
 
 sealed trait Options
 
 object Options {
 
-  val defaultDML:DMLOptions = DMLOptions(
+  val defaultDML: DMLOptions = DMLOptions(
     consistencyLevel = None
     , serialConsistencyLevel = None
     , tracing = None
@@ -177,10 +170,10 @@ object Options {
   )
 
   /** sets starts of paging from given paging state **/
-  def pageFrom(page:PagingState):QueryOptions =
+  def pageFrom(page: PagingState): QueryOptions =
     defaultQuery.startFrom(page)
 
-  private[cassandra] def applyQueryOptions[S <: Statement[S]](statement:S, o:QueryOptions):S = {
+  private[cassandra] def applyQueryOptions[S <: Statement[S]](statement: S, o: QueryOptions): S = {
     var s = statement
     o.consistencyLevel.foreach(level => s = s.setConsistencyLevel(level))
     o.fetchSize.foreach(size => s = s.setPageSize(size))
@@ -190,7 +183,7 @@ object Options {
     s
   }
 
-  private[cassandra] def applyDMLOptions[S <: Statement[S]](statement:S, o:DMLOptions):S = {
+  private[cassandra] def applyDMLOptions[S <: Statement[S]](statement: S, o: DMLOptions): S = {
     var s = statement
     o.consistencyLevel.foreach(level => s = s.setConsistencyLevel(level))
     o.serialConsistencyLevel.foreach(level => s = s.setSerialConsistencyLevel(level))

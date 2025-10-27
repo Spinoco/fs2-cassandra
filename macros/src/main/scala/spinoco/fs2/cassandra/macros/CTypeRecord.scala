@@ -11,7 +11,7 @@ import scala.language.experimental.macros
  * CTypeRecord repressents a reader/writer class for a given HList type.
  */
 trait CTypeRecord[H] {
-  def types:Seq[(String,DataType)]
+  def types: Seq[(String, DataType)]
   def writeCql(r: H): Map[String, String]
   def writeRaw(r: H, protocolVersion: ProtocolVersion): Map[String, ByteBuffer]
   def writeByName[D <: SettableByName[D]](r: H, data: D, protocolVersion: ProtocolVersion): D

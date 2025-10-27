@@ -9,10 +9,8 @@ object codecs {
     * This is similar to variableSizeBytes but also handles -1 as an empty string on read.
     * On encode we should not receive null. And so the negative length is not used.
     * On read, we may receive -1 ans it is then threat as "0" so we pass
-    * decision on null conversion to upper coded (emtpy string, 0, empty collection)
+    * decision on null conversion to upper coded (empty string, 0, empty collection)
     * @param codec
-    * @tparam A
-    * @return
     */
   def elementCodec[A](codec: Codec[A]): Codec[A] = {
     new Codec[A] {

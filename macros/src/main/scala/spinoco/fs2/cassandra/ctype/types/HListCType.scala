@@ -18,8 +18,7 @@ trait HListCType[L <: HList]  {
   type CTypes
 
   /** all  types in this hlist */
-  def types:Seq[DataType]
-
+  def types: Seq[DataType]
 
   /**
     * Codec that is used to encode this type instance to cql protocol bytes (not the string representation)
@@ -49,11 +48,9 @@ object HListCType {
   @inline def apply[R <: HList](implicit instance: HListCType[R]): HListCType[R] = instance
 
   /**
-    * Matrializes CType for HList from HListCType
-    * @tparam L
-    * @return
+    * Materializes CType for HList from HListCType
     */
-  def instance[L <:  HList : HListCType]: CType[L] = {
+  def instance[L <:  HList: HListCType]: CType[L] = {
     new CType[L] {
       def cqlType: DataType = new DefaultTupleType(HListCType[L].types.asJava)
 
@@ -65,9 +62,11 @@ object HListCType {
         def go(cql: String, acc: List[String]): Attempt[List[String]] = {
           baseutil.attempt(ParseUtils.skipCQLValue(cql, 0)) match {
             case Attempt.Successful(-1) => Attempt.successful(acc.reverse)
+
             case Attempt.Successful(n) =>
               val (value, rest) = cql.splitAt(n)
               go(rest.drop(1), value +: acc)
+
             case Attempt.Failure(err) => Attempt.failure(err)
           }
         }

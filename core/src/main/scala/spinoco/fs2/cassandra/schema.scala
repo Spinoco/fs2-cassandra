@@ -34,7 +34,7 @@ case class KeySpace(
   def emptyTable: TableBuilder[HNil, HNil, HNil, HNil]= TableBuilder(self, Nil, Nil, Nil)
 
   lazy val cql = {
-    val replication = (("class" -> strategyClass) +: strategyOptions).map {case (k, v) => s"'$k': '$v'"}.mkString("{", ",", "}")
+    val replication = (("class" -> strategyClass) +: strategyOptions).map {case (k, v) => s"'$k':'$v'"}.mkString("{", ",", "}")
 
     s"CREATE KEYSPACE $name WITH REPLICATION = $replication AND DURABLE_WRITES = $durableWrites "
   }

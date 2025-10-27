@@ -79,7 +79,6 @@ case class HListExtractor(fc: FieldTypeContext) {
 
     dealiasedType match {
       case refinedType: RefinedType =>
-        println("Refined type: " + refinedType)
         refinedType.parents.foldLeft[Option[(String, Type, Type)]](None) {
           (acc, parent) =>
             if (acc.isDefined) acc

@@ -275,7 +275,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
       table
       , collectionUpdates
       , collectionKeys
-      , ifConditions :+ (internal.keyOf(name), internal.keyOf(as), op)
+      , ifConditions :+ ((internal.keyOf(name), internal.keyOf(as), op))
       , timestamp
       , ttl
       , counterColumns

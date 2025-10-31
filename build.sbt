@@ -78,12 +78,18 @@ lazy val testSettings = Seq(
 
 
 lazy val publishingSettings = Seq(
-  sonatypeCredentialHost := sonatypeCentralHost,
-  publishTo := sonatypePublishToBundle.value,
+  publishTo := {
+    val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
+    if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
+    else localStaging.value
+  },
   versionScheme := Some("early-semver"),
   organization := "com.spinoco",
+  organizationName := "Spinoco",
   homepage := Some(url("https://github.com/spinoco/fs2-cassandra")),
   licenses := List("MIT" -> url("http://opensource.org/licenses/MIT")),
+  pomIncludeRepository := { _ => false },
+  publishMavenStyle := true,
   developers := {
     for ((username, name) <- contributors) yield
       Developer(

@@ -241,7 +241,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
    implicit
    CTQ: CTypeRecord[Q]
    , CTS: CTypeRecord[S]
-  ):Query[Q, S] = {
+  ): Query[Q, S] = {
     val orderStmt = {
       val ocs =
         orderColumns.map {

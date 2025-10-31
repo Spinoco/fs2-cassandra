@@ -31,10 +31,10 @@ package object baseutil {
             case idx => idx
           }
 
-        val key = cql.substring(start+1, end).trim
+        val key = cql.substring(start + 1, end).trim
         val value =
         values.get(key) match {
-          case None => s":"+key
+          case None => s":" + key
           case Some(v) => v
         }
         go(end, acc + cql.substring(pos, start) + value)

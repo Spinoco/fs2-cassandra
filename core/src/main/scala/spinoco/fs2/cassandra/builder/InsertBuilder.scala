@@ -49,8 +49,9 @@ case class InsertBuilder[R <: HList, PK <: HList, CK <: HList,  I <: HList](
   /**
     * Inserts specific column to table.
     */
-  def column[K, V](wt: Witness.Aux[K])(implicit ev: Selector.Aux[R, K, V])
-  : InsertBuilder[R, PK, CK, FieldType[K, V] :: I] =
+  def column[K, V](wt: Witness.Aux[K])(
+    implicit ev: Selector.Aux[R, K, V]
+  ): InsertBuilder[R, PK, CK, FieldType[K, V] :: I] =
     InsertBuilder(table, ttl, timestamp, ifNotExistsFlag)
 
   /** Inserts all columns in a given list to the table **/

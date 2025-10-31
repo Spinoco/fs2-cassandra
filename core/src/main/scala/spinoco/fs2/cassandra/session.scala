@@ -5,6 +5,7 @@ import cats.data.OptionT
 import cats.effect._
 import cats.implicits._
 import com.datastax.oss.driver.api.core.cql.{AsyncResultSet, BatchType, BoundStatement, PagingState, PreparedStatement, Row, SimpleStatement, Statement, BatchStatement => CBatchStatement}
+import com.datastax.oss.driver.api.core.metadata.Metadata
 import com.datastax.oss.driver.api.core.{CqlSession, CqlSessionBuilder, ProtocolVersion, Version}
 import fs2.Stream._
 import fs2._
@@ -88,6 +89,9 @@ trait CassandraSession[F[_]] {
   def prepareCql(cql: String): F[PreparedStatement]
 
   def minCassandraVersion: Option[Version]
+
+  /** returns metadata for inspecting status of the cluster, keyspaces and tables */
+  def getMetadata: F[Metadata]
 }
 
 
@@ -281,6 +285,8 @@ object CassandraSession {
           def bindStatement[I](statement: DMLStatement[I, _], o: DMLOptions)(i: I): F[BoundStatement] = mkStatement(statement, i).map { bs => Options.applyDMLOptions(bs, o)}
           def executeBatchRaw(statements: Seq[BoundStatement], logged: Boolean): F[AsyncResultSet] = _executeBatchRaw(statements, logged)
           def minCassandraVersion: Option[Version] = cassandraVersion
+          def getMetadata: F[Metadata] = Sync[F].delay(cqlSession.getMetadata)
+
         }
       }
     }

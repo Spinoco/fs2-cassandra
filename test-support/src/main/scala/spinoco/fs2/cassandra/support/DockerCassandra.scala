@@ -30,7 +30,7 @@ trait DockerCassandra
   def preserveKeySpace(s:String):Boolean = systemKeySpaces.contains(s)
 
   // Port where CQL interface is available
-  lazy val cqlPort: Int = 9042
+  lazy val cqlPort: Int = 12000
 
   def clusterConfig: CqlSessionBuilder = {
     val loader = DriverConfigLoader

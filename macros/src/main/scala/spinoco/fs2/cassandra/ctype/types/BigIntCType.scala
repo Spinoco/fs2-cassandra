@@ -38,7 +38,7 @@ object BigIntCType {
       }
 
       def parse(cql: String): Attempt[Long] =
-        baseutil.attempt(nativeCodec.parse(cql) : Long)
+        baseutil.attempt(nativeCodec.parse(cql): Long)
 
       def format(a: Long): Attempt[String] =
         baseutil.attempt(nativeCodec.format(a))

@@ -21,10 +21,9 @@ object Util {
     * @param cs Compelting stage
     */
   def evalCS[F[_]
-    : Async
-    , A ](cs: => CompletionStage[A])(
-    implicit
-    evNotVoid: A =:!= Void // prevent accidental usage of Void, use evalCS_ instead
+  : Async
+  , A ](cs: => CompletionStage[A])(
+    implicit evNotVoid: A =:!= Void // prevent accidental usage of Void, use evalCS_ instead
   ): F[A] = {
     Async[F].async_[A] { cb =>
       cs.whenComplete(new BiConsumer[A, Throwable] {
@@ -45,8 +44,6 @@ object Util {
    * Note that cs is lazily passed allowing it to be run when resulting [F] is run
    *
    * @param cs  completion stage to convert.
-   * @tparam F
-   * @return
    */
   def evalCS_[F[_]: Async](cs: => CompletionStage[Void]): F[Unit] = {
     Async[F].async_[Unit] { cb =>
@@ -81,7 +78,7 @@ object Util {
   }
 
   /** converts resultset to stream that fetches next pages as the stream is evaluated */
-  def asStream[F[_] : Async](rs: AsyncResultSet): Stream[F, Row] = {
+  def asStream[F[_]: Async](rs: AsyncResultSet): Stream[F, Row] = {
     def go(drained: AsyncResultSet): Stream[F, Row] = {
       if (!drained.hasMorePages) {
         Stream.empty

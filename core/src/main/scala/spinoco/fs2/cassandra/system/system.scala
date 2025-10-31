@@ -1,6 +1,5 @@
 package spinoco.fs2.cassandra
 
-
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.metadata.schema._
 
@@ -9,7 +8,7 @@ import scala.jdk.CollectionConverters._
 package object system {
 
   /** helper allowing to construct ALTER statement, that will modify keyspaced to `desired` state **/
-  def migrateKeySpace(desired:KeySpace, maybeCurrent: Option[KeyspaceMetadata]):Seq[String] = {
+  def migrateKeySpace(desired: KeySpace, maybeCurrent: Option[KeyspaceMetadata]): Seq[String] = {
     maybeCurrent match {
       case None => desired.cqlStatement
       case Some(current) =>
@@ -42,23 +41,23 @@ package object system {
   }
 
   /** checks whether these two columns are of the same name and type **/
-  def sameColumnDef(nameA:String, tpeA:DataType)(nameB:String, tpeB:DataType):Boolean = {
+  def sameColumnDef(nameA: String, tpeA: DataType)(nameB: String, tpeB: DataType): Boolean = {
     val typesEqual = tpeA.asCql(true, false) == tpeB.asCql(true, false)
     val namesEqual = nameA.equalsIgnoreCase(nameB)
     namesEqual && typesEqual
-}
+  }
 
   /** checks whether the primary keys of given tables are the same **/
-  def samePrimaryKey(current: TableMetadata, desired: AbstractTable[_,_,_,_]):Boolean = {
+  def samePrimaryKey(current: TableMetadata, desired: AbstractTable[_, _, _, _]): Boolean = {
     val currentPk = current.getPartitionKey.asScala.map(_.getName.asInternal.toLowerCase).toSeq
     val desiredPk = desired.partitionKey.map(_.toLowerCase)
     val currentCk = current.getClusteringColumns.asScala.keys.map(_.getName.asInternal.toLowerCase).toSeq
     val desiredCk = desired.clusterKey.map(_.toLowerCase)
-     desiredCk == currentCk && desiredPk == currentPk
+    desiredCk == currentCk && desiredPk == currentPk
   }
 
   /** migrates table to desired state comparing with current metadata of the table **/
-  def migrateTable(desiredTable:Table[_,_,_,_], maybeCurrent:Option[TableMetadata]):Seq[String] = {
+  def migrateTable(desiredTable: Table[_, _, _, _], maybeCurrent: Option[TableMetadata]): Seq[String] = {
     maybeCurrent match {
       case None => desiredTable.cqlStatement
       case Some(current) =>
@@ -73,6 +72,7 @@ package object system {
           val removed = currentColumns.filterNot { case (k,tpe) =>
             desiredColumns.exists { sameColumnDef(k,tpe) _ tupled }
           }
+
           val added = desiredColumns.filterNot { case (k, tpe) =>
             currentColumns.exists { sameColumnDef(k,tpe) _ tupled }
           }

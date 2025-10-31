@@ -18,22 +18,10 @@ package object baseutil {
     )
   }
 
-  /**
-    * Iterate through supplied iterator, but only collect up to `count` elements in iterator
-    */
-  def iterateN[A](it:java.util.Iterator[A], count:Int):Vector[A] = {
-    @tailrec
-    def go(acc:Vector[A],rem:Int):Vector[A] = {
-      if (rem == 0 || ! it.hasNext) acc
-      else  go(acc :+ it.next(), rem - 1)
-    }
-    go(Vector.empty,count)
-  }
-
   /** replaces in prepared statement the name placeholders with CQL form values **/
-  def replaceInCql(cql:String, values:Map[String,String]):String = {
+  def replaceInCql(cql: String, values: Map[String, String]): String = {
     @tailrec
-    def go(pos:Int, acc:String):String = {
+    def go(pos: Int, acc: String): String = {
       val start = cql.indexOf(':', pos)
       if (start < 0 || start >= cql.length) acc + cql.substring(pos)
       else {
@@ -43,17 +31,17 @@ package object baseutil {
             case idx => idx
           }
 
-        val key = cql.substring(start+1,end).trim
+        val key = cql.substring(start + 1, end).trim
         val value =
         values.get(key) match {
-          case None => s":"+key
+          case None => s":" + key
           case Some(v) => v
         }
-        go(end,acc + cql.substring(pos, start) + value)
+        go(end, acc + cql.substring(pos, start) + value)
       }
     }
 
-    go(0,"")
+    go(0, "")
   }
 
   object AnnotatedException {

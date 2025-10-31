@@ -7,8 +7,9 @@ import scala.reflect.macros.blackbox
  */
 case class FieldTypeContext(c: blackbox.Context) {
   import c.universe._
-  case class FieldType(tpe: c.universe.Type, key: String, idx: Int) {
+  case class FieldType(tpe: c.universe.Type, labelTpe: c.universe.Type, key: String, idx: Int) {
     val typeTree: TypeTree = TypeTree(tpe)
+    val labelTree: TypeTree = TypeTree(labelTpe)
     def varName(name: String, inc: Int = 0): TermName = {
       if (idx + inc >= 0) {
         TermName(s"$name${idx+inc}")

@@ -7,17 +7,15 @@ import spinoco.fs2.cassandra.ctype.CType
   */
 trait ListColumnInstance[C[_],V]
 
-
 object ListColumnInstance {
 
+  implicit def seqInstance[V](implicit ev: CType[V]): ListColumnInstance[Seq, V] =
+    new ListColumnInstance[Seq, V] { }
 
-  implicit def seqInstance[V](implicit ev:CType[V]):ListColumnInstance[Seq,V] =
-    new ListColumnInstance[Seq,V] { }
+  implicit def listInstance[V](implicit ev: CType[V]): ListColumnInstance[List, V] =
+    new ListColumnInstance[List, V] { }
 
-  implicit def listInstance[V](implicit ev:CType[V]):ListColumnInstance[List,V] =
-    new ListColumnInstance[List,V] { }
-
-  implicit def vectorInstance[V](implicit ev:CType[V]):ListColumnInstance[Vector,V] =
-    new ListColumnInstance[Vector,V] { }
+  implicit def vectorInstance[V](implicit ev: CType[V]): ListColumnInstance[Vector, V] =
+    new ListColumnInstance[Vector, V] { }
 
 }

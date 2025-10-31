@@ -20,8 +20,8 @@ object CTypeRecordGenerator {
 
     def createCacheFor(name: TermName, field: FieldType): Tree = {
       q"""
-          val ${name}: CType[${field.typeTree}] = implicitly[CType[${field.typeTree}]]
-        """
+        val $name: CType[${field.typeTree}] = implicitly[CType[${field.typeTree}]]
+      """
     }
 
     def extractValues(typeList: List[FieldType], name: String): List[Tree] = typeList.flatMap { field =>
@@ -44,8 +44,8 @@ object CTypeRecordGenerator {
         .foldRight(q"shapeless.HNil": Tree) { (term, acc) =>
           q"shapeless.::($term, $acc)"
         }
-      val typedHlistInstance = q"$simpleHlistInstance.asInstanceOf[$resTpe]"
-      q"""Right($typedHlistInstance)"""
+
+      q"""Right($simpleHlistInstance)"""
     }
 
     def monadicFor(typeList: List[FieldType], name: FieldType => TermName, monadValue: FieldType => Tree)(innerBody: => Tree): Tree = {
@@ -53,7 +53,7 @@ object CTypeRecordGenerator {
         q"""
           ${monadValue(field)}
            .flatMap { tmp =>
-             val ${name(field)} = tmp
+             val ${name(field)}: shapeless.labelled.FieldType[${field.labelTree}, ${field.typeTree}] = shapeless.labelled.field[${field.labelTree}][${field.typeTree}](tmp)
              $acc
            }
          """
@@ -94,17 +94,16 @@ object CTypeRecordGenerator {
 
         ..${
           typeList
-            .map(field => createCacheFor(field.varName("cache"), field))
+          .map(field => createCacheFor(field.varName("cache"), field))
         }
 
         type CTypes = ${TypeTree(tpe)}
 
-
-        def types:Seq[(String,DataType)] = {
+        def types: Seq[(String, DataType)] = {
           ${
             typeList
-              .map { field => q"""${field.key} -> ${field.varName("cache")}.cqlType""" }
-              .fold(q"""Seq.empty[(String, DataType)]""") { (acc, seq) => q"""$acc :+ $seq""" }
+            .map { field => q"""${field.key} -> ${field.varName("cache")}.cqlType""" }
+            .fold(q"""Seq.empty[(String, DataType)]"""){ (acc, seq) => q"""$acc :+ $seq""" }
           }
         }
 
@@ -112,8 +111,8 @@ object CTypeRecordGenerator {
           ..$extractedVals
           ${
             typeList
-              .map { field => q"""${field.varName("cache")}.writeCql(${field.key},${field.varName("value")})""" }
-              .fold(q"""Map.empty[String, String]""") { (acc, dict) => q"""$acc ++ $dict""" }
+            .map { field => q"""${field.varName("cache")}.writeCql(${field.key},${field.varName("value")})""" }
+            .fold(q"""Map.empty[String, String]""") { (acc, dict) => q"""$acc ++ $dict""" }
           }
         }
 
@@ -121,8 +120,8 @@ object CTypeRecordGenerator {
           ..$extractedVals
           ${
             typeList
-              .map { field => q"""${field.varName("cache")}.writeRaw(${field.key},${field.varName("value")}, protocolVersion)""" }
-              .fold(q"""Map.empty[String, ByteBuffer]""") { (acc, dict) => q"""$acc ++ $dict""" }
+            .map { field => q"""${field.varName("cache")}.writeRaw(${field.key},${field.varName("value")}, protocolVersion)""" }
+            .fold(q"""Map.empty[String, ByteBuffer]""") { (acc, dict) => q"""$acc ++ $dict""" }
           }
         }
 
@@ -130,7 +129,7 @@ object CTypeRecordGenerator {
           ..$extractedVals
           ..${
             typeList
-              .map { field => q"""val ${field.varName("data")} = ${field.varName("cache")}.writeByName(${field.key}, ${field.varName("value")}, ${field.varName("data", -1)}, protocolVersion)""" }
+            .map { field => q"""val ${field.varName("data")} = ${field.varName("cache")}.writeByName(${field.key}, ${field.varName("value")}, ${field.varName("data", -1)}, protocolVersion)""" }
           }
           ${typeList.lastOption.varName("data")}
         }

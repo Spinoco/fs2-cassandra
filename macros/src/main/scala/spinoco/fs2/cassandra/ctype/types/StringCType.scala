@@ -16,7 +16,6 @@ object StringCType {
     * Creates instance of CType for String
     * @param nativeCodec  Native CQl Codec for String
     * @param charset  Charset the string is encoded in
-    * @return
     */
   def instance(nativeCodec: StringCodec,  charset: Charset): CType[String] = {
     val stringCodec = scodec.codecs.string(charset)

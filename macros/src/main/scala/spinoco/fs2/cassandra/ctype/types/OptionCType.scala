@@ -8,7 +8,7 @@ import spinoco.fs2.cassandra.ctype.CType
 
 object OptionCType {
 
-  def instance[A : CType]:CType[Option[A]] = {
+  def instance[A: CType]: CType[Option[A]] = {
     new CType[Option[A]] {
       def cqlType: DataType = CType[A].cqlType
 
@@ -38,6 +38,7 @@ object OptionCType {
         if (cql == null || cql.toUpperCase == "NULL") Attempt.successful(None)
         else CType[A].parse(cql).map(Some(_))
       }
+
       def format(a: Option[A]): Attempt[String] = a match {
         case None => Attempt.successful("NULL")
         case Some(a) => CType[A].format(a)

@@ -7,7 +7,6 @@ import shapeless.tag.@@
 import spinoco.fs2.cassandra.ctype.CType
 import spinoco.fs2.cassandra.ctype.types.CollectionCType.ConstDimension
 
-
 object VectorCType {
   def vectorDataType(elementType: DataType, dimension: Int): DataType = {
     new VectorType {
@@ -31,7 +30,7 @@ object VectorCType {
       }
 
       override def hashCode(): Int =
-        java.util.Objects.hash(getElementType(), Integer.valueOf(getDimensions()))
+        java.util.Objects.hash(getElementType, Integer.valueOf(getDimensions))
 
       override def toString: String =
         s"vector<${subtype.asCql(true, false)},${dimension}>"
@@ -42,7 +41,7 @@ object VectorCType {
     }
   }
 
-  def instance[A : CType : Numeric, T](dimension: Int):CType[Vector[A] @@ T] = {
+  def instance[A: CType : Numeric, T](dimension: Int): CType[Vector[A] @@ T] = {
     CollectionCType.instance[Vector, A](
       dimension = Some(ConstDimension(dimension = dimension, tpe = vectorDataType(CType[A].cqlType, dimension)))
     ).xmap[Vector[A] @@ T](vecWoTag => tag[T][Vector[A]](vecWoTag), identity)

@@ -9,33 +9,32 @@ import spinoco.fs2.cassandra.builder._
 
 sealed trait SchemaDDL {
   /** CQL Command representing this SchemaDDL object **/
-  def cqlStatement:Seq[String]
+  def cqlStatement: Seq[String]
 }
 
 case class KeySpace(
-  name:String
-  , durableWrites:Boolean = true
-  , strategyClass:String = "org.apache.cassandra.locator.SimpleStrategy"
-  , strategyOptions:Seq[(String,String)] = Seq("replication_factor" -> "1")
+  name: String
+  , durableWrites: Boolean = true
+  , strategyClass: String = "org.apache.cassandra.locator.SimpleStrategy"
+  , strategyOptions: Seq[(String, String)] = Seq("replication_factor" -> "1")
 ) extends SchemaDDL { self =>
 
   trait KsTblBuilder[A] {
-    def partition[R <: HList,K](name:Witness.Aux[K])(
+    def partition[R <: HList, K](name: Witness.Aux[K])(
       implicit
-      G:LabelledGeneric.Aux[A,R]
-      , ev:Selector[R,K]
-    ):TableBuilder[R, FieldType[K,ev.Out] :: HNil, HNil, HNil] = TableBuilder(self, Nil, Seq(internal.keyOf(name)), Nil)
+      G: LabelledGeneric.Aux[A, R]
+      , ev: Selector[R, K]
+    ): TableBuilder[R, FieldType[K, ev.Out] :: HNil, HNil, HNil] = TableBuilder(self, Nil, Seq(internal.keyOf(name)), Nil)
   }
 
   /** construct definition for table specified by type `A`. At least primary key must be specified **/
-  def table[A]:KsTblBuilder[A] = new KsTblBuilder[A] {}
+  def table[A]: KsTblBuilder[A] = new KsTblBuilder[A] {}
 
   /** constructs empty table definition **/
-  def emptyTable:TableBuilder[HNil, HNil, HNil, HNil]= TableBuilder(self, Nil, Nil, Nil)
-
+  def emptyTable: TableBuilder[HNil, HNil, HNil, HNil]= TableBuilder(self, Nil, Nil, Nil)
 
   lazy val cql = {
-    val replication = (("class" -> strategyClass) +: strategyOptions).map {case (k,v) => s"'$k':'$v'"}.mkString("{",",","}")
+    val replication = (("class" -> strategyClass) +: strategyOptions).map {case (k, v) => s"'$k':'$v'"}.mkString("{", ",", "}")
 
     s"CREATE KEYSPACE $name WITH REPLICATION = $replication AND DURABLE_WRITES = $durableWrites "
   }
@@ -49,12 +48,12 @@ object KeySpace {
 
   implicit class KeySpaceSyntax(val self: KeySpace) extends AnyVal {
     /** converts KeySpace to have SimpleStrategy. Useful for testing **/
-    def asLocal:KeySpace = self.copy(
+    def asLocal: KeySpace = self.copy(
       strategyClass = "SimpleStrategy"
       , strategyOptions = Seq("replication_factor" -> "1")
     )
 
-    def withDurableWrites(durable:Boolean):KeySpace = {
+    def withDurableWrites(durable: Boolean): KeySpace = {
       self.copy(durableWrites = durable)
     }
 
@@ -65,15 +64,15 @@ object KeySpace {
 sealed trait AbstractTable[R <: HList, PK <: HList, CK <: HList, IDX <: HList] extends SchemaDDL {
 
   /** name of the keyspace **/
-  def keySpaceName:String = keySpace.name
+  def keySpaceName: String = keySpace.name
   /** reference to keyspace **/
   def keySpace: KeySpace
   /** full name of the table **/
-  def fullName:String = s"$keySpaceName.$name"
+  def fullName: String = s"$keySpaceName.$name"
   /** name of the table **/
-  def name:String
+  def name: String
   /** any table specific options **/
-  def options:Map[String,String]
+  def options: Map[String, String]
   /** all columns and their datatype **/
   def columns: Seq[(String, DataType)]
   /** partitioning key of primary key, possibly compound when more values. Guaranteed nonempty **/
@@ -90,23 +89,23 @@ trait Table[R <: HList, PK <: HList, CK <: HList, IDX <: HList] extends Abstract
   type ClusterKay = CK
 
   /** definition of delete to delete columns specified by `Q` and eventually returning `R0` as result **/
-  def delete[Q,R0]:DeleteBuilder[R, PK, CK, PK, HNil]
+  def delete[Q, R0]: DeleteBuilder[R, PK, CK, PK, HNil]
 
   /** definition of update specified by columns and conditions and sets in `Q` returning `R` as result **/
-  def update(implicit p:Prepend[PK,CK]):UpdateBuilder[R, PK, CK, p.Out,HNil]
+  def update(implicit p: Prepend[PK, CK]): UpdateBuilder[R, PK, CK, p.Out, HNil]
 
   /** creates definition of the Insert DML statement against this table **/
-  def insert(implicit p:Prepend[PK,CK]):InsertBuilder[R,PK,CK,p.Out]
+  def insert(implicit p: Prepend[PK, CK]): InsertBuilder[R, PK, CK, p.Out]
 
   ///////////////////////////////////////
 
   /** list of indexes on the table **/
-  def indexes:Seq[IndexEntry]
+  def indexes: Seq[IndexEntry]
 }
 
 object Table{
 
-  implicit class TableSyntax[R <:HList, PK <: HList, CK <: HList, IDX <: HList](val self: Table[R, PK, CK, IDX]) extends AnyVal {
+  implicit class TableSyntax[R <: HList, PK <: HList, CK <: HList, IDX <: HList](val self: Table[R, PK, CK, IDX]) extends AnyVal {
 
     /** Creates a query definition against this table **/
     def query: QueryBuilder[R, PK, CK, IDX, HNil, HNil] =

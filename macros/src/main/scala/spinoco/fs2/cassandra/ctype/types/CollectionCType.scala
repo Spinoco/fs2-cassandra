@@ -14,7 +14,7 @@ object CollectionCType {
 
   case class ConstDimension(dimension: Int, tpe: DataType)
 
-  def instance[C[_] : CollectionType, A : CType](dimension: Option[ConstDimension]): CType[C[A]] = {
+  def instance[C[_]: CollectionType, A: CType](dimension: Option[ConstDimension]): CType[C[A]] = {
     new CType[C[A]] {
       def cqlType: DataType = dimension.map(_.tpe).getOrElse(CollectionType[C].cqlType(CType[A].cqlType))
 
@@ -38,7 +38,7 @@ object CollectionCType {
    * - In cassandra, empty collection and null is the same thing. Therefore, Insert Some(List.empty) will return None on select,
    *   as Option takes precedence.
     */
-  def cqlCodec[C[_] : CollectionType, A: CType](protocolVersion: ProtocolVersion, dimension: Option[Int]): Codec[C[A]] = {
+  def cqlCodec[C[_]: CollectionType, A: CType](protocolVersion: ProtocolVersion, dimension: Option[Int]): Codec[C[A]] = {
 
     /**
      * By default [elementCount (int32), [elem1Size(int32), [ ... ] ], [elem2size(int32), [...] ], ... ]
@@ -93,6 +93,7 @@ object CollectionCType {
                 elementCodec.decode(remainsBits) match {
                   case Attempt.Successful(DecodeResult(element, rest)) =>
                     go(remains - 1, rest, CollectionType[C].append(acc, element))
+
                   case Attempt.Failure(err) =>
                     Attempt.failure(Err.General(s"Failed to decode element at ${elementCount - remains}", err.message +: err.context))
                 }
@@ -126,18 +127,15 @@ object CollectionCType {
           }
       }
     }
+
     go(ca, "")
   }
 
   /**
     * Simple parser of the CQL collection value from the string
     * @param cql             Source CQL string
-    * @param collectionType  Type of the collection
-    * @tparam C
-    * @tparam A
-    * @return
     */
-  def parse[C[_] : CollectionType, A : CType](cql: String): Attempt[C[A]] = {
+  def parse[C[_]: CollectionType, A: CType](cql: String): Attempt[C[A]] = {
     if (cql.trim.isEmpty || cql.trim == "NULL") Attempt.successful(CollectionType[C].zero)
     else {
       val start = ParseUtils.skipSpaces(cql, 0)

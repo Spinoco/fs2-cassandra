@@ -7,10 +7,8 @@ import spinoco.fs2.cassandra.KeySpace
   */
 object schema {
 
-
   val system_schema = KeySpace("system_schema")
   val system = KeySpace("system")
-
 
   val keySpaces =
     system_schema.table[KeySpaceSchema]
@@ -48,8 +46,6 @@ object schema {
       .cluster(Symbol("column_name"))
       .build("schema_columns")
 
-
-
   ////////////////////////////////////////////////////////////
   // Queries
 
@@ -70,8 +66,5 @@ object schema {
 
   val queryAllColumnsV2 =
     columnsV2.query.all.build.as[ColumnSchemaV2]
-
-
-
 
 }

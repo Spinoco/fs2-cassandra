@@ -47,7 +47,7 @@ trait CType[A] { self =>
 
   def writeCql(k: String, v: A): Map[String, String] = self.writeFormatted(k, v)
   def writeRaw(k: String, v: A, protocolVersion: ProtocolVersion): Map[String, ByteBuffer] = self.writeRawSerialized(k, v, protocolVersion)
-  def writeByName[D <: SettableByName[D]](k: String, v: A, data: D, protocolVersion: ProtocolVersion): D =  self.writeByNameSerialized(k, v, data, protocolVersion)
+  def writeByName[D <: SettableByName[D]](k: String, v: A, data: D, protocolVersion: ProtocolVersion): D = self.writeByNameSerialized(k, v, data, protocolVersion)
   def readByName(k: String, data: GettableByName, protocolVersion: ProtocolVersion): Either[Throwable, A] = data.getBitsByName(k).readAs[A](k, protocolVersion)(self)
   def readByNameIfExists(keys: Set[String], k: String, data: GettableByName, protocolVersion: ProtocolVersion): Either[Throwable, A] = {
     if (keys.contains(k.toLowerCase)) {
@@ -59,7 +59,6 @@ trait CType[A] { self =>
 
 }
 
-
 object CType {
 
   /** marker trait annotating type1 time based uuid **/
@@ -68,7 +67,6 @@ object CType {
   /** marker trait indicating String to be treated as `ascii` **/
   sealed trait Ascii
 
-
   /** marker trait for Long values that acts like CQL counter. Counter must be of long type **/
   sealed trait Counter
 
@@ -76,7 +74,6 @@ object CType {
   sealed trait TTL
 
   @inline def apply[A](implicit instance: CType[A]): CType[A] = instance
-
 
   implicit class CTypeSyntax[A](val self: CType[A]) extends AnyVal {
     /** create new CType by applying fa and fb to `A` and `B` respectively */
@@ -152,7 +149,6 @@ object CType {
   implicit val bigIntInstance:CType[BigInt] =
    CType.fromCodec(TypeCodecs.VARINT).xmap(BigInt(_), _.bigInteger)
 
-
   implicit val byteBufferInstance: CType[ByteBuffer] =
    CType.fromCodec(TypeCodecs.BLOB)
 
@@ -213,15 +209,17 @@ object CType {
     MapCType.instance[K,V]
 
 
-
   import shapeless.syntax.std.tuple._
 
   implicit def tuple2Instance[A,B](implicit hinstance: CType[A :: B :: HNil]):CType[(A,B)] =
     hinstance.xmap(_.tupled,_.productElements)
+
   implicit def tuple3Instance[A,B,C](implicit hinstance: CType[A :: B :: C :: HNil]):CType[(A,B,C)] =
     hinstance.xmap(_.tupled,_.productElements)
+
   implicit def tuple4Instance[A,B,C,D](implicit hinstance: CType[A :: B :: C :: D :: HNil]):CType[(A,B,C,D)] =
     hinstance.xmap(_.tupled,_.productElements)
+
   implicit def tuple5Instance[A,B,C,D,E](implicit hinstance: CType[A :: B :: C :: D :: E:: HNil]):CType[(A,B,C,D,E)] =
     hinstance.xmap(_.tupled,_.productElements)
 
@@ -234,9 +232,9 @@ object CType {
 /** helper to deserialize collections **/
 trait CollectionType[C[_]] {
   def zero[A] : C[A]
-  def append[A](f:C[A], a:A):C[A]
-  def map[A,B](f:C[A], fm: A => B):C[B]
-  def cqlType(el:DataType):DataType
+  def append[A](f: C[A], a: A): C[A]
+  def map[A, B](f: C[A], fm: A => B): C[B]
+  def cqlType(el: DataType): DataType
   def sizeOf[A](c: C[A]): Int
 
   /** provides head element and tail if the collection is nonempty */
@@ -250,7 +248,7 @@ object CollectionType {
   implicit val listInstance: CollectionType[List] = new CollectionType[List] {
     def zero[A]: List[A] = List.empty
     def append[A](f: List[A], a: A): List[A] = f :+ a
-    def map[A,B](f: List[A], fm: A => B):List[B] = f map fm
+    def map[A, B](f: List[A], fm: A => B): List[B] = f map fm
     def cqlType(el: DataType): DataType = DataTypes.listOf(el)
     def sizeOf[A](c: List[A]): Int = c.length
     def uncons1[A](s: List[A]): Option[(A, List[A])] = s.headOption.map { h => (h, s.tail)}
@@ -284,13 +282,10 @@ object CollectionType {
     def uncons1[A](s: Seq[A]): Option[(A, Seq[A])] = s.headOption.map { h => (h, s.tail) }
   }
 
-
-
 }
 
 
 trait MapKeyCType[A] extends CType[A]
-
 
 object MapKeyCType {
 

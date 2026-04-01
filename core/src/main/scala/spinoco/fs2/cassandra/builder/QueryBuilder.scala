@@ -8,6 +8,7 @@ import shapeless.ops.record.{Keys, Selector}
 import shapeless.{::, HList, HNil, Witness}
 import spinoco.fs2.cassandra._
 import spinoco.fs2.cassandra.baseutil.{AnnotatedException, replaceInCql}
+import spinoco.fs2.cassandra.ctype.CType
 import spinoco.fs2.cassandra.internal._
 import spinoco.fs2.cassandra.macros.CTypeRecord
 
@@ -21,6 +22,7 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
   , clusterColumns: Map[Comparison.Value, Seq[(String, String)]]
   , limitCount: Option[Int]
   , allowFilteringFlag: Boolean
+  , annOrderBy: Option[(String, String)] = None
 ) { self =>
 
   /** mark this query to contain all columns in the table as result **/
@@ -236,19 +238,148 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
   ):QueryBuilder[R, PK, CK, IDX,  Q, S] =
     copy( orderColumns = orderColumns :+ (internal.keyOf(name) -> ascending))
 
+  /** order results by approximate nearest neighbor on a vector column.
+    * The query vector is added to Q as a bound parameter.
+    * ANN queries require a LIMIT clause. */
+  def orderByAnn[K, V](
+    column: Witness.Aux[K]
+  )(implicit
+    ev0: Selector.Aux[IDX, K, V]
+    , P: Prepend[Q, FieldType[K, V] :: HNil]
+  ): QueryBuilder[R, PK, CK, IDX, P.Out, S] =
+    orderByAnn(column, column)
+
+  /** like `orderByAnn` but allows to specify alias for the bound parameter name */
+  def orderByAnn[K, K0, V](
+    column: Witness.Aux[K]
+    , as: Witness.Aux[K0]
+  )(implicit
+    ev0: Selector.Aux[IDX, K, V]
+    , P: Prepend[Q, FieldType[K0, V] :: HNil]
+  ): QueryBuilder[R, PK, CK, IDX, P.Out, S] = {
+    val k = internal.keyOf(column)
+    val k0 = internal.keyOf(as)
+    QueryBuilder(
+      table = table
+      , queryColumns = queryColumns
+      , whereConditions = whereConditions
+      , orderColumns = orderColumns
+      , clusterColumns = clusterColumns
+      , limitCount = limitCount
+      , allowFilteringFlag = allowFilteringFlag
+      , annOrderBy = Some((k, k0))
+    )
+  }
+
+  /** like `orderByAnn` but uses a parameter already present in Q.
+    * Use when the same bound parameter is shared between ANN and a similarity function. */
+  def orderByAnnShared[K, K0, V](
+    column: Witness.Aux[K]
+    , paramName: Witness.Aux[K0]
+  )(implicit
+    ev0: Selector.Aux[IDX, K, V]
+    , ev1: Selector.Aux[Q, K0, V]
+  ): QueryBuilder[R, PK, CK, IDX, Q, S] = {
+    val k = internal.keyOf(column)
+    val k0 = internal.keyOf(paramName)
+    copy(annOrderBy = Some((k, k0)))
+  }
+
+  /** returns only rows where indexed field is in the given list of values */
+  def byIndexIn[K, V](
+    column: Witness.Aux[K]
+  )(implicit
+    ev0: Selector.Aux[IDX, K, V]
+    , ev1: CType[List[V]]
+    , P: Prepend[Q, FieldType[K, List[V]] :: HNil]
+  ): QueryBuilder[R, PK, CK, IDX, P.Out, S] =
+    byIndexIn(column, column)
+
+  /** like `byIndexIn` but allows to specify alias for the bound parameter name */
+  def byIndexIn[K, K0, V](
+    column: Witness.Aux[K]
+    , as: Witness.Aux[K0]
+  )(implicit
+    ev0: Selector.Aux[IDX, K, V]
+    , ev1: CType[List[V]]
+    , P: Prepend[Q, FieldType[K0, List[V]] :: HNil]
+  ): QueryBuilder[R, PK, CK, IDX, P.Out, S] = {
+    val k = internal.keyOf(column)
+    val k0 = internal.keyOf(as)
+    QueryBuilder(
+      table = table
+      , queryColumns = queryColumns
+      , whereConditions = whereConditions :+ s"$k IN :$k0"
+      , orderColumns = orderColumns
+      , clusterColumns = clusterColumns
+      , limitCount = limitCount
+      , allowFilteringFlag = allowFilteringFlag
+      , annOrderBy = annOrderBy
+    )
+  }
+
+  /** select a two-argument function applied to a column and a bound parameter.
+    * The bound parameter is added to Q. */
+  def function2At[K, V, K0, V0, K1](
+    fn: CQLFunction2[V, V, V0]
+    , column: Witness.Aux[K]
+    , param: Witness.Aux[K0]
+    , as: Witness.Aux[K1]
+  )(implicit
+    ev0: Selector.Aux[R, K, V]
+    , P: Prepend[Q, FieldType[K0, V] :: HNil]
+  ): QueryBuilder[R, PK, CK, IDX, P.Out, FieldType[K1, V0] :: S] = {
+    QueryBuilder(
+      table = table
+      , queryColumns = queryColumns :+ (fn(internal.keyOf(column), internal.keyOf(param)) -> internal.keyOf(as))
+      , whereConditions = whereConditions
+      , orderColumns = orderColumns
+      , clusterColumns = clusterColumns
+      , limitCount = limitCount
+      , allowFilteringFlag = allowFilteringFlag
+      , annOrderBy = annOrderBy
+    )
+  }
+
+  /** like `function2At` but uses a parameter already present in Q.
+    * Use when the same bound parameter is shared between ANN and a similarity function. */
+  def function2AtShared[K, V, K0, V0, K1](
+    fn: CQLFunction2[V, V, V0]
+    , column: Witness.Aux[K]
+    , param: Witness.Aux[K0]
+    , as: Witness.Aux[K1]
+  )(implicit
+    ev0: Selector.Aux[R, K, V]
+    , ev1: Selector.Aux[Q, K0, V]
+  ): QueryBuilder[R, PK, CK, IDX, Q, FieldType[K1, V0] :: S] = {
+    QueryBuilder(
+      table = table
+      , queryColumns = queryColumns :+ (fn(internal.keyOf(column), internal.keyOf(param)) -> internal.keyOf(as))
+      , whereConditions = whereConditions
+      , orderColumns = orderColumns
+      , clusterColumns = clusterColumns
+      , limitCount = limitCount
+      , allowFilteringFlag = allowFilteringFlag
+      , annOrderBy = annOrderBy
+    )
+  }
+
   /** creates query, that may be used to perform CQL commands on connection **/
   def build(
    implicit
    CTQ: CTypeRecord[Q]
    , CTS: CTypeRecord[S]
   ): Query[Q, S] = {
-    val orderStmt = {
-      val ocs =
-        orderColumns.map {
-          case (k, asc) => s"$k ${if(asc) "ASC" else "DESC"}"
-        }.mkString(",")
+    val orderStmt = annOrderBy match {
+      case Some((col, param)) =>
+        s"ORDER BY $col ANN OF :$param"
+      case None =>
+        val ocs =
+          orderColumns.map {
+            case (k, asc) => s"$k ${if(asc) "ASC" else "DESC"}"
+          }.mkString(",")
 
-      if (ocs.nonEmpty) s"ORDER BY $ocs" else ""
+        if (ocs.nonEmpty) s"ORDER BY $ocs" else ""
     }
 
 

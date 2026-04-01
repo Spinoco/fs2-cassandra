@@ -62,7 +62,7 @@ trait DockerCassandra
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
-    // Assume Cassandra is already running (started externally)
+    // Assume Cassandra is already running (started externally via scripts/start-cassandra.sh)
     println(s"Connecting to Cassandra $cassandraVersion at 127.0.0.1:$cqlPort")
     val session = clusterConfig.build()
     val cs = CassandraSession.impl.mkSession[IO](session, session.getContext.getProtocolVersion).unsafeRunSync()
@@ -72,7 +72,7 @@ trait DockerCassandra
 
   override protected def afterAll(): Unit = {
     sessionInstance.foreach(_._1.close())
-    // NOTE: Container cleanup is handled externally
+    // NOTE: Container cleanup is handled externally via scripts/stop-cassandra.sh
     super.afterAll()
   }
 

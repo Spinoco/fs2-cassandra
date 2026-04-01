@@ -1,7 +1,8 @@
 package spinoco.fs2.cassandra.builder
 
 import shapeless.LabelledGeneric
-import spinoco.fs2.cassandra.sample.SimpleTableRow
+import spinoco.fs2.cassandra.sample.{ListTableRow, SimpleTableRow, VectorTableRow}
+import spinoco.fs2.cassandra.sample.VectorSizes._
 import spinoco.fs2.cassandra.support.Fs2CassandraSpec
 import spinoco.fs2.cassandra.{Comparison, KeySpace, functions}
 
@@ -244,6 +245,143 @@ class QueryBuilderSpec extends Fs2CassandraSpec {
       .cqlStatement shouldBe
         "SELECT intColumn,longColumn,stringColumn,asciiColumn,floatColumn,doubleColumn,bigDecimalColumn,bigIntColumn,blobColumn,uuidColumn,timeUuidColumn,durationColumn,inetAddressColumn,enumColumn" +
           " FROM test_ks.test_table"
+    }
+
+  }
+
+
+  "SAI query features" - {
+
+    val vectorTable =
+      ks.table[VectorTableRow]
+        .partition(Symbol("intColumn"))
+        .cluster(Symbol("longColumn"))
+        .indexBySAIVector(Symbol("vector8FloatColumn"), "vector_sai_idx")
+        .build("test_table")
+
+    val indexedSimpleTable =
+      ks.table[SimpleTableRow]
+        .partition(Symbol("intColumn"))
+        .cluster(Symbol("longColumn"))
+        .indexBySAI(Symbol("stringColumn"), "string_idx")
+        .build("test_table")
+
+    val indexedListTable =
+      ks.table[ListTableRow]
+        .partition(Symbol("intColumn"))
+        .cluster(Symbol("longColumn"))
+        .indexBySAICollection(Symbol("listColumn"), "list_idx", CollectionIndexTarget.Values)
+        .build("test_table")
+
+    "will select with ANN ORDER BY" in {
+      vectorTable.query
+        .all
+        .partition
+        .orderByAnn(Symbol("vector8FloatColumn"))
+        .limit(10)
+        .build
+        .cqlStatement shouldBe
+        "SELECT intColumn,longColumn,vector4IntColumn,vector8FloatColumn FROM test_ks.test_table" +
+          " WHERE intColumn = :intColumn ORDER BY vector8FloatColumn ANN OF :vector8FloatColumn LIMIT 10"
+    }
+
+    "will select with ANN ORDER BY aliased" in {
+      vectorTable.query
+        .all
+        .partition
+        .orderByAnn(Symbol("vector8FloatColumn"), Symbol("queryVec"))
+        .limit(10)
+        .build
+        .cqlStatement shouldBe
+        "SELECT intColumn,longColumn,vector4IntColumn,vector8FloatColumn FROM test_ks.test_table" +
+          " WHERE intColumn = :intColumn ORDER BY vector8FloatColumn ANN OF :queryVec LIMIT 10"
+    }
+
+    "will select with similarity function" in {
+      vectorTable.query
+        .function2At(functions.similarityCosine[Float, VectorSize8], Symbol("vector8FloatColumn"), Symbol("queryVec"), Symbol("score"))
+        .partition
+        .build
+        .cqlStatement shouldBe
+        "SELECT similarity_cosine(vector8FloatColumn, :queryVec) AS score FROM test_ks.test_table" +
+          " WHERE intColumn = :intColumn"
+    }
+
+    "will select with ANN and shared similarity function" in {
+      vectorTable.query
+        .all
+        .partition
+        .orderByAnn(Symbol("vector8FloatColumn"))
+        .function2AtShared(functions.similarityCosine[Float, VectorSize8], Symbol("vector8FloatColumn"), Symbol("vector8FloatColumn"), Symbol("score"))
+        .limit(10)
+        .build
+        .cqlStatement shouldBe
+        "SELECT intColumn,longColumn,vector4IntColumn,vector8FloatColumn,similarity_cosine(vector8FloatColumn, :vector8FloatColumn) AS score FROM test_ks.test_table" +
+          " WHERE intColumn = :intColumn ORDER BY vector8FloatColumn ANN OF :vector8FloatColumn LIMIT 10"
+    }
+
+    "will select with similarity euclidean" in {
+      vectorTable.query
+        .function2At(functions.similarityEuclidean[Float, VectorSize8], Symbol("vector8FloatColumn"), Symbol("queryVec"), Symbol("score"))
+        .partition
+        .build
+        .cqlStatement shouldBe
+        "SELECT similarity_euclidean(vector8FloatColumn, :queryVec) AS score FROM test_ks.test_table" +
+          " WHERE intColumn = :intColumn"
+    }
+
+    "will select with similarity dot product" in {
+      vectorTable.query
+        .function2At(functions.similarityDotProduct[Float, VectorSize8], Symbol("vector8FloatColumn"), Symbol("queryVec"), Symbol("score"))
+        .partition
+        .build
+        .cqlStatement shouldBe
+        "SELECT similarity_dot_product(vector8FloatColumn, :queryVec) AS score FROM test_ks.test_table" +
+          " WHERE intColumn = :intColumn"
+    }
+
+    "will select with byIndex CONTAINS" in {
+      indexedListTable.query
+        .all
+        .partition
+        .byIndex(Symbol("listColumn"), Comparison.CONTAINS)
+        .build
+        .cqlStatement shouldBe
+        "SELECT intColumn,longColumn,listColumn,setColumn,vectorColumn,seqColumn FROM test_ks.test_table" +
+          " WHERE intColumn = :intColumn AND listColumn CONTAINS :listColumn"
+    }
+
+    "will select with byIndex EQ on SAI" in {
+      indexedSimpleTable.query
+        .all
+        .partition
+        .byIndex(Symbol("stringColumn"), Comparison.EQ)
+        .build
+        .cqlStatement shouldBe
+        "SELECT intColumn,longColumn,stringColumn,asciiColumn,floatColumn,doubleColumn,bigDecimalColumn,bigIntColumn,blobColumn,uuidColumn,timeUuidColumn,durationColumn,inetAddressColumn,enumColumn FROM test_ks.test_table" +
+          " WHERE intColumn = :intColumn AND stringColumn = :stringColumn"
+    }
+
+    "will select with byIndexIn" in {
+      indexedSimpleTable.query
+        .all
+        .partition
+        .byIndexIn(Symbol("stringColumn"))
+        .build
+        .cqlStatement shouldBe
+        "SELECT intColumn,longColumn,stringColumn,asciiColumn,floatColumn,doubleColumn,bigDecimalColumn,bigIntColumn,blobColumn,uuidColumn,timeUuidColumn,durationColumn,inetAddressColumn,enumColumn FROM test_ks.test_table" +
+          " WHERE intColumn = :intColumn AND stringColumn IN :stringColumn"
+    }
+
+    "will select with byIndexIn aliased" in {
+      indexedSimpleTable.query
+        .all
+        .partition
+        .byIndexIn(Symbol("stringColumn"), Symbol("statusList"))
+        .build
+        .cqlStatement shouldBe
+        "SELECT intColumn,longColumn,stringColumn,asciiColumn,floatColumn,doubleColumn,bigDecimalColumn,bigIntColumn,blobColumn,uuidColumn,timeUuidColumn,durationColumn,inetAddressColumn,enumColumn FROM test_ks.test_table" +
+          " WHERE intColumn = :intColumn AND stringColumn IN :statusList"
     }
 
   }

@@ -1,6 +1,6 @@
 package spinoco.fs2.cassandra
 
-import com.datastax.oss.driver.api.core.`type`.DataType
+import com.datastax.oss.driver.api.core.`type`.{DataType, VectorType}
 import com.datastax.oss.driver.api.core.metadata.schema._
 import spinoco.fs2.cassandra.builder.IndexEntry
 
@@ -43,9 +43,21 @@ package object system {
 
   /** checks whether these two columns are of the same name and type **/
   def sameColumnDef(nameA: String, tpeA: DataType)(nameB: String, tpeB: DataType): Boolean = {
-    val typesEqual = tpeA.asCql(true, false) == tpeB.asCql(true, false)
+    val typesEqual = sameDataType(tpeA, tpeB)
     val namesEqual = nameA.equalsIgnoreCase(nameB)
     namesEqual && typesEqual
+  }
+
+  /** structural type comparison; VectorType is compared by dimensions + element type
+    * because the driver's DefaultVectorType.asCql emits the CUSTOM-class form
+    * (e.g. `'org.apache.cassandra.db.marshal.VectorType(3)'`) while the library
+    * emits the CQL form (e.g. `vector<float,3>`) — string-equality across the two
+    * spuriously triggers DROP/ADD which C5 then refuses for SAI-indexed columns. */
+  def sameDataType(tpeA: DataType, tpeB: DataType): Boolean = (tpeA, tpeB) match {
+    case (a: VectorType, b: VectorType) =>
+      a.getDimensions == b.getDimensions && sameDataType(a.getElementType, b.getElementType)
+    case _ =>
+      tpeA.asCql(true, false) == tpeB.asCql(true, false)
   }
 
   /** checks whether the primary keys of given tables are the same **/

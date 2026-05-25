@@ -1,5 +1,8 @@
 package spinoco.fs2.cassandra
 
+import spinoco.fs2.cassandra.builder.SimilarityFunction
+import spinoco.fs2.cassandra.sample.VectorTableRow
+
 class MigrationsSpec extends SchemaSupport {
 
   case class FooTable1(intColumn:Int, longColumn:Long, strColumn:String )
@@ -149,6 +152,30 @@ class MigrationsSpec extends SchemaSupport {
 
       migrate.foreach(cs.executeCql(_).unsafeRunSync())
       cs.migrateDDL(tableNoIdx).unsafeRunSync() shouldBe Nil
+    }
+
+    "will not emit alter for unchanged vector column" in withSessionFor(_.startsWith("5")) { cs =>
+      val table = ks.table[VectorTableRow]
+        .partition(Symbol("intColumn"))
+        .cluster(Symbol("longColumn"))
+        .build("vector_migrate_table")
+
+      cs.create(ks).unsafeRunSync()
+      cs.create(table).unsafeRunSync()
+
+      cs.migrateDDL(table).unsafeRunSync() shouldBe Nil
+    }
+
+    "will not emit alter for SAI-indexed vector column" in withSessionFor(_.startsWith("5")) { cs =>
+      val table = ks.table[VectorTableRow]
+        .partition(Symbol("intColumn"))
+        .indexBySAIVector(Symbol("vector8FloatColumn"), "vec_migrate_idx", SimilarityFunction.COSINE)
+        .build("vector_migrate_idx_table")
+
+      cs.create(ks).unsafeRunSync()
+      cs.create(table).unsafeRunSync()
+
+      cs.migrateDDL(table).unsafeRunSync() shouldBe Nil
     }
 
     "will recreate SAI index when options change" in withSessionFor(_.startsWith("5")) { cs =>

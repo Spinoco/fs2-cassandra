@@ -1,10 +1,10 @@
 package spinoco.fs2.cassandra
-
+import cats.effect.IO
 import fs2.Stream._
-import fs2.Task
 import shapeless.LabelledGeneric
-import spinoco.fs2.cassandra.sample.{ListTableRow, MapTableRow, OptionalTableRow, SimpleTableRow}
+import spinoco.fs2.cassandra.sample._
 import spinoco.fs2.cassandra.support.{DockerCassandra, Fs2CassandraSpec}
+
 
 
 trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
@@ -13,9 +13,9 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
 
   val simpleTable =
     ks.table[SimpleTableRow]
-      .partition('intColumn)
-      .cluster('longColumn)
-      .indexBy('asciiColumn, "asciiColumn_idx")
+      .partition(Symbol("intColumn"))
+      .cluster(Symbol("longColumn"))
+      .indexBy(Symbol("asciiColumn"), "asciiColumn_idx")
       .build("test_table")
 
   val strInsert =
@@ -27,7 +27,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
   val strSelectOne =
     simpleTable.query.all
       .partition
-      .cluster('longColumn, Comparison.EQ)
+      .cluster(Symbol("longColumn"), Comparison.EQ)
       .build
       .fromHList
       .fromTuple[(Int,Long)]
@@ -42,36 +42,38 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
   val strGen = LabelledGeneric[SimpleTableRow]
 
 
+  // Timer no longer needed in CE 3.x
 
-  def createValuesAndSchema[A](cs:CassandraSession[Task])(table:Table[_,_,_,_], insert:Insert[A,_])(f: (Int,Long) => A):Unit = {
+  def createValuesAndSchema[A](cs:CassandraSession[IO])(table:Table[_,_,_,_], insert:Insert[A,_])(f: (Int,Long) => A):Unit = {
     val records =
       for {
         i <- 0 to 10
-        l <- 0l to 10l
+        l <- 0L to 10L
       } yield f(i,l)
 
     (for {
       _ <- cs.create(ks)
       _ <- cs.create(table)
-      _ <- emits(records).flatMap(a => eval_(cs.execute(insert)(a))).run
-    } yield ()).unsafeRun
+      _ <- emits(records).flatMap(a => eval(cs.execute(insert)(a)).drain).compile.drain
+    } yield ()).unsafeRunSync()
 
   }
 
 
-  def withSessionAndSimpleSchema(f: CassandraSession[Task] => Any): Unit = {
+  def withSessionAndSimpleSchema(f: CassandraSession[IO] => Any): Unit = {
     withSession { cs =>
       createValuesAndSchema(cs)(simpleTable,strInsert){ case (i,l) => SimpleTableRow.simpleInstance.copy(intColumn = i, longColumn = l)}
       f(cs)
     }
   }
 
-  def withSessionAndEmptySimpleSchema(f: CassandraSession[Task] => Any): Unit = {
+
+  def withSessionAndEmptySimpleSchema(f: CassandraSession[IO] => Any): Unit = {
     withSession { cs =>
       (for {
         _ <- cs.create(ks)
         _ <- cs.create(simpleTable)
-      } yield ()).unsafeRun
+      } yield ()).unsafeRunSync()
       f(cs)
     }
   }
@@ -79,8 +81,8 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
 
   val listTable =
     ks.table[ListTableRow]
-      .partition('intColumn)
-      .cluster('longColumn)
+      .partition(Symbol("intColumn"))
+      .cluster(Symbol("longColumn"))
       .build("list_table")
 
   val ltInsert =
@@ -100,7 +102,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
 
 
 
-  def withSessionAndListSchema(f: CassandraSession[Task] => Any): Unit = {
+  def withSessionAndListSchema(f: CassandraSession[IO] => Any): Unit = {
     withSession { cs =>
       createValuesAndSchema(cs)(listTable,ltInsert){ case (i,l) => ListTableRow.instance.copy(intColumn = i, longColumn = l)}
       f(cs)
@@ -110,8 +112,8 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
 
   val mapTable =
     ks.table[MapTableRow]
-      .partition('intColumn)
-      .cluster('longColumn)
+      .partition(Symbol("intColumn"))
+      .cluster(Symbol("longColumn"))
       .build("list_table")
 
   val mtInsert =
@@ -129,7 +131,7 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
       .fromTuple[(Int,Long)]
       .as[MapTableRow]
 
-  def withSessionAndMapSchema(f: CassandraSession[Task] => Any): Unit = {
+  def withSessionAndMapSchema(f: CassandraSession[IO] => Any): Unit = {
     withSession { cs =>
       createValuesAndSchema(cs)(mapTable,mtInsert){ case (i,l) => MapTableRow.instance.copy(intColumn = i, longColumn = l)}
       f(cs)
@@ -138,8 +140,8 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
 
   val optionalTable =
     ks.table[OptionalTableRow]
-      .partition('intColumn)
-      .cluster('longColumn)
+      .partition(Symbol("intColumn"))
+      .cluster(Symbol("longColumn"))
       .build("optional_table")
 
   val otInsert =
@@ -153,11 +155,38 @@ trait SchemaSupport extends Fs2CassandraSpec with DockerCassandra {
       .build
       .as[OptionalTableRow]
 
-  def withSessionAndOptionalSchema(f: CassandraSession[Task] => Any): Unit = {
+  def withSessionAndOptionalSchema (f: CassandraSession[IO] => Any): Unit = {
     withSession { cs =>
       createValuesAndSchema(cs)(optionalTable,otInsert){ case (i,l) => OptionalTableRow.instance.copy(intColumn = i, longColumn = l)}
       f(cs)
     }
   }
+
+  def withSessionAndEmptyOptionalSchema(f: CassandraSession[IO] => Any): Unit = {
+    withSession { cs =>
+      (for {
+        _ <- cs.create(ks)
+        _ <- cs.create(optionalTable)
+      } yield ()).unsafeRunSync()
+      f(cs)
+    }
+  }
+
+  val vectorTable =
+    ks.table[VectorTableRow]
+      .partition(Symbol("intColumn"))
+      .cluster(Symbol("longColumn"))
+      .build("vector_table")
+
+  def withSessionFor(versionCheck: String => Boolean)(f: CassandraSession[IO] => Any): Unit = {
+    withSession { cs =>
+      if (versionCheck(cassandraVersion)) {
+        f(cs)
+      } else {
+        println(s"Skipping test on Cassandra version $cassandraVersion")
+      }
+    }
+  }
+
 
 }

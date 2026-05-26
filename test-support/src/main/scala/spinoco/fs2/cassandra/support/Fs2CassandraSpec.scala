@@ -1,21 +1,24 @@
 package spinoco.fs2.cassandra.support
 
-import fs2.{Scheduler, Strategy}
 import org.scalatest.concurrent.{Eventually, TimeLimitedTests}
-import org.scalatest.prop.GeneratorDrivenPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.time.{Seconds, Span}
-import org.scalatest.{FreeSpec, Matchers}
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import scala.concurrent.ExecutionContext
 
 
 /**
   * Created by pach on 07/06/16.
   */
-class Fs2CassandraSpec extends FreeSpec
-  with GeneratorDrivenPropertyChecks
+class Fs2CassandraSpec extends AnyFreeSpec
+  with ScalaCheckPropertyChecks
   with Matchers
   with TimeLimitedTests
   with Eventually {
 
+  implicit val ioRuntimeGlobal: cats.effect.unsafe.IORuntime = cats.effect.unsafe.implicits.global
 
   val timeLimit = Span(90, Seconds)
 
@@ -23,11 +26,10 @@ class Fs2CassandraSpec extends FreeSpec
     PatienceConfig(timeout = timeLimit)
 
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
-    PropertyCheckConfiguration(minSuccessful = 25, workers = 1)
+    PropertyCheckConfiguration(minSuccessful = 25)
 
 
-  implicit val S: Strategy = spinoco.fs2.cassandra.support.S
-  implicit val Sch: Scheduler =  spinoco.fs2.cassandra.support.Sch
+  implicit val EC: ExecutionContext = spinoco.fs2.cassandra.support.EC
 
 
 }

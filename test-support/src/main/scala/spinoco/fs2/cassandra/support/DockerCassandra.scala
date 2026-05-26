@@ -1,14 +1,16 @@
 package spinoco.fs2.cassandra.support
 
-import com.datastax.driver.core.{Cluster, Session}
-import com.datastax.driver.core.policies.ConstantReconnectionPolicy
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import com.datastax.oss.driver.api.core.config.{DefaultDriverOption, DriverConfigLoader}
+import com.datastax.oss.driver.api.core.{CqlSession, CqlSessionBuilder}
 import fs2.Stream._
-import fs2.Task
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
-import spinoco.fs2.cassandra.{CassandraCluster, CassandraSession}
+import spinoco.fs2.cassandra.CassandraSession
 
-import scala.concurrent.SyncVar
-import scala.sys.process.{Process, ProcessLogger}
+import java.net.InetSocketAddress
+import java.time.Duration
+
 
 
 /**
@@ -19,15 +21,9 @@ trait DockerCassandra
     with BeforeAndAfterEach { self: Suite =>
   import DockerCassandra._
 
-  // override this to indicate whether containers shall be removed (true) once the test with C* is done.
-  lazy val clearContainers:Boolean = true
 
-  // override this if the C* container has to be started before invocation
-  // when developing tests, this likely shall be false, so there is no additional overhead starting C*
-  lazy val startContainers:Boolean = true
-
-  // this has to be overridden to provide exact casandra definition. latest is default
-  lazy val cassandra: CassandraDefinition = CassandraDefinition.latest
+  // Cassandra version for display purposes, controlled via CASSANDRA_SPEC_VERSION environment variable
+  lazy val cassandraVersion: String = sys.env.getOrElse("CASSANDRA_SPEC_VERSION", "3.11")
 
 
   // yields to true, if given KeySpace has to be preserved between tests, all other KeySpaces will be dropped after each test will end
@@ -36,30 +32,27 @@ trait DockerCassandra
   // Port where CQL interface is available
   lazy val cqlPort: Int = 12000
 
-  lazy val clusterConfig:Cluster.Builder =
-    Cluster.builder()
-      .addContactPoint(s"127.0.0.1")
-      .withPort(cqlPort)
-      .withReconnectionPolicy(new ConstantReconnectionPolicy(5000))
+  def clusterConfig: CqlSessionBuilder = {
+    val loader = DriverConfigLoader
+      .programmaticBuilder
+      .withDuration(DefaultDriverOption.RECONNECTION_BASE_DELAY, Duration.ofMillis(20000))
+      .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofMillis(20000))
+      .withDuration(DefaultDriverOption.CONNECTION_CONNECT_TIMEOUT, Duration.ofMillis(20000))
+      .withDuration(DefaultDriverOption.CONTROL_CONNECTION_AGREEMENT_TIMEOUT, Duration.ofMillis(20000))
+      .withDuration(DefaultDriverOption.CONTROL_CONNECTION_TIMEOUT, Duration.ofMillis(20000))
+      .build
 
-
-
-  private var dockerInstanceId:Option[String] = None
-  private var clusterInstance:Option[Cluster] = None
-   var sessionInstance:Option[(Session, CassandraSession[Task])] = None
-
-
-  def withCluster(f: CassandraCluster[Task] => Any): Unit = {
-    clusterInstance match {
-      case None => throw new Throwable("Cassandra Cluster not ready")
-      case Some(c) =>
-        val ct = CassandraCluster.impl.create[Task](c).unsafeRun
-        f(ct)
-        ()
-    }
+    CqlSession.builder()
+      .withConfigLoader(loader)
+      .addContactPoint(InetSocketAddress.createUnresolved(s"127.0.0.1", cqlPort))
+      .withLocalDatacenter("datacenter1")
   }
 
-  def withSession(f: CassandraSession[Task] => Any):Unit = {
+
+  var sessionInstance:Option[(CqlSession, CassandraSession[IO])] = None
+
+
+  def withSession(f: CassandraSession[IO] => Any):Unit = {
     sessionInstance match {
       case None => throw new Throwable("Cassandra session not yet ready")
       case Some((_,cs)) => f(cs); ()
@@ -69,30 +62,24 @@ trait DockerCassandra
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
-    if (startContainers) {
-      assertDockerAvailable
-      downloadCImage(cassandra)
-      dockerInstanceId = Some(startCassandra(cassandra, cqlPort))
-    }
-    val cluster = clusterConfig.build()
-    clusterInstance = Some(cluster)
-    val session = cluster.connect()
-    val cs = CassandraSession.impl.mkSession[Task](session,cluster.getConfiguration.getProtocolOptions.getProtocolVersion).unsafeRun
+    // Assume Cassandra is already running (started externally via scripts/start-cassandra.sh)
+    println(s"Connecting to Cassandra $cassandraVersion at 127.0.0.1:$cqlPort")
+    val session = clusterConfig.build()
+    val cs = CassandraSession.impl.mkSession[IO](session, session.getContext.getProtocolVersion).unsafeRunSync()
     sessionInstance = Some(session -> cs)
   }
 
 
   override protected def afterAll(): Unit = {
     sessionInstance.foreach(_._1.close())
-    clusterInstance.foreach(_.close())
-    dockerInstanceId.foreach(stopCassandra(cassandra,_,clearContainers))
+    // NOTE: Container cleanup is handled externally via scripts/stop-cassandra.sh
     super.afterAll()
   }
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
     sessionInstance.foreach { case (_, cs) =>
-      cleanupSchema(cs,cassandra)(preserveKeySpace)
+      cleanupSchema(cs)(preserveKeySpace)
     }
   }
 
@@ -107,78 +94,14 @@ object DockerCassandra {
     "system_auth", "system_schema", "system_distributed", "system", "system_traces"
   )
 
-
-  /** asserts that docker is available on host os **/
-  def assertDockerAvailable:Unit = {
-    val r = Process("docker -v").!!
-    println(s"Verifying docker is available: $r")
-  }
-
-  def downloadCImage(cdef:CassandraDefinition):Unit = {
-    val current:String= Process(s"docker images ${cdef.dockerImageUrl}").!!
-    if (current.lines.size <= 1) {
-      println(s"Pulling docker image for ${cdef.dockerImageUrl}")
-      Process(s"docker pull ${cdef.dockerImageUrl}").!!
-      ()
-    }
-  }
-
   /** cleans schema, leaving only system objects **/
-  def cleanupSchema(cs:CassandraSession[Task], cassandra:CassandraDefinition)(preserveKeysSpace: String => Boolean):Unit = {
-    cs.queryAll(cassandra.allKeySpaceQuery)
+  def cleanupSchema(cs:CassandraSession[IO])(preserveKeysSpace: String => Boolean):Unit = {
+    import spinoco.fs2.cassandra.system.schema
+    cs.queryAll(schema.queryAllKeySpaces.map(_.keyspace_name))
       .filter(n => !preserveKeysSpace(n))
-      .flatMap { n =>
-        eval(cs.executeCql(s"DROP KEYSPACE $n"))
-      }
-      .run.unsafeRun
+      .flatMap { n => eval{ cs.executeCql(s"DROP KEYSPACE $n") } }
+      .compile.drain.unsafeRunSync()
   }
 
-
-  def startCassandra(cdef:CassandraDefinition, cqlPort:Int):String= {
-
-    val dockerId = new SyncVar[String]()
-    val runCmd = s"docker run --name scalatest_cassandra_${System.currentTimeMillis()} -d -p $cqlPort:9042 ${cdef.dockerImageUrl}"
-
-    val thread = new Thread(new Runnable {
-      def run(): Unit = {
-        val result = Process(runCmd).!!.trim
-        var observer: Option[Process] = None
-        val logger = ProcessLogger(
-          { str =>
-            if (str.contains("Starting listening for CQL clients on")) {
-              observer.foreach(_.destroy())
-              dockerId.put(result)
-            }
-          }, str => ()
-        )
-
-        println(s"Awaiting Cassandra startup (${cdef.dockerImageUrl} @ 127.0.0.1:$cqlPort)")
-        val observeCmd = s"docker logs -f $result"
-        observer = Some(Process(observeCmd).run(logger))
-
-      }
-    }, s"Cassandra ${cdef.dockerImageUrl} startup observer")
-    thread.start()
-    val id = dockerId.get
-    println(s"Cassandra (${cdef.dockerImageUrl} @ 127.0.0.1:$cqlPort) started successfully as $id ")
-    id
-  }
-
-  /**
-    * Stops previously running container.
-    *
-    * @param cdef             definition of cassandra
-    * @param instance         Id of docker instance to stop
-    * @param clearContainer   When true, the container will be cleared (reclaimed)
-    */
-  def stopCassandra(cdef:CassandraDefinition, instance:String, clearContainer:Boolean):Unit = {
-    if (clearContainer) {
-      val killCmd = s"docker kill $instance"
-      Process(killCmd).!!
-      val rmCmd = s"docker rm $instance"
-      Process(rmCmd).!!
-      ()
-    }
-  }
 
 }

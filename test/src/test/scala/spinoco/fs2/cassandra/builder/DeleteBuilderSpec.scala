@@ -1,8 +1,8 @@
 package spinoco.fs2.cassandra.builder
 
-import spinoco.fs2.cassandra.{Comparison, KeySpace}
 import spinoco.fs2.cassandra.sample.{OptionalTableRow, SimpleTableRow}
 import spinoco.fs2.cassandra.support.Fs2CassandraSpec
+import spinoco.fs2.cassandra.{Comparison, KeySpace}
 
 /**
   * Created by pach on 11/06/16.
@@ -15,14 +15,14 @@ class DeleteBuilderSpec extends Fs2CassandraSpec {
 
     val simpleTable =
       ks.table[SimpleTableRow]
-        .partition('intColumn)
-        .cluster('longColumn)
+        .partition(Symbol("intColumn"))
+        .cluster(Symbol("longColumn"))
         .build("test_table")
 
     val optionalTable =
       ks.table[OptionalTableRow]
-        .partition('intColumn)
-        .cluster('longColumn)
+        .partition(Symbol("intColumn"))
+        .cluster(Symbol("longColumn"))
         .build("optional_table")
 
     "will delete whole row" in {
@@ -36,7 +36,7 @@ class DeleteBuilderSpec extends Fs2CassandraSpec {
     "will delete cluster from the row" in {
       simpleTable.delete
         .row
-        .cluster('longColumn)
+        .cluster(Symbol("longColumn"))
         .build.cqlStatement shouldBe
       "DELETE FROM test_ks.test_table" +
         "  WHERE intColumn = :intColumn AND longColumn = :longColumn "
@@ -44,7 +44,7 @@ class DeleteBuilderSpec extends Fs2CassandraSpec {
 
     "will delete single column from the row" in {
       optionalTable.delete
-        .column('stringColumn)
+        .column(Symbol("stringColumn"))
         .primary
         .build.cqlStatement shouldBe
       "DELETE stringColumn FROM test_ks.optional_table" +
@@ -66,7 +66,7 @@ class DeleteBuilderSpec extends Fs2CassandraSpec {
       simpleTable.delete
         .row
         .primary
-        .onlyIf('stringColumn, "as_string", Comparison.EQ)
+        .onlyIf(Symbol("stringColumn"), "as_string", Comparison.EQ)
         .build.cqlStatement shouldBe
         "DELETE FROM test_ks.test_table" +
           "  WHERE intColumn = :intColumn AND longColumn = :longColumn" +
@@ -78,10 +78,10 @@ class DeleteBuilderSpec extends Fs2CassandraSpec {
       simpleTable.delete
       .row
       .primary
-      .onlyIf('stringColumn, "as_string", Comparison.EQ)
+      .onlyIf(Symbol("stringColumn"), "as_string", Comparison.EQ)
       .build
       .fromHList
-      .fromTuple[(String, Int, Long)].cqlFor(("Hello", 1, 2l)) shouldBe
+      .fromTuple[(String, Int, Long)].cqlFor(("Hello", 1, 2L)) shouldBe
         "DELETE FROM test_ks.test_table" +
           "  WHERE intColumn = 1 AND longColumn = 2" +
           " IF stringColumn = 'Hello'"

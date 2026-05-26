@@ -1,11 +1,9 @@
 package spinoco.fs2.cassandra
 
 
+class DeleteSpec extends SchemaSupport {
 
-trait DeleteSpec  extends SchemaSupport {
-
-
-  s"DELETE statement (${cassandra.tag})" - {
+  "DELETE statement" - {
 
     val delete =
       simpleTable.delete
@@ -15,9 +13,9 @@ trait DeleteSpec  extends SchemaSupport {
 
     "will delete whole row" in withSessionAndSimpleSchema { cs =>
 
-      cs.execute(delete)(1).unsafeRun
+      cs.execute(delete)(1).unsafeRunSync()
 
-      val result = cs.queryAll(strSelectAll).runLog.unsafeRun
+      val result = cs.queryAll(strSelectAll).compile.toVector.unsafeRunSync()
 
       result.forall(str => str.intColumn != 1) shouldBe true
 
@@ -27,12 +25,12 @@ trait DeleteSpec  extends SchemaSupport {
       val delete =
         simpleTable.delete
           .row
-          .cluster('longColumn)
+          .cluster(Symbol("longColumn"))
           .build.fromHList.fromTuple[(Int,Long)]
 
-      cs.execute(delete)(1 -> 1l).unsafeRun
+      cs.execute(delete)(1 -> 1L).unsafeRunSync()
 
-      val result = cs.queryAll(strSelectAll).runLog.unsafeRun
+      val result = cs.queryAll(strSelectAll).compile.toVector.unsafeRunSync()
 
       result.forall(str => ! (str.intColumn == 1 && str.longColumn == 1)) shouldBe true
 
@@ -41,15 +39,15 @@ trait DeleteSpec  extends SchemaSupport {
     "will delete single column from the row cluster" in withSessionAndOptionalSchema { cs =>
       val delete =
         optionalTable.delete
-        .column('stringColumn)
+        .column(Symbol("stringColumn"))
         .primary
         .build.fromHList.fromTuple[(Int,Long)]
 
-      cs.execute(delete)(1 -> 1l).unsafeRun
+      cs.execute(delete)(1 -> 1L).unsafeRunSync()
 
-      val result = cs.queryAll(otSelectAll).runLog.unsafeRun
+      val result = cs.queryAll(otSelectAll).compile.toVector.unsafeRunSync()
 
-      result.forall(opr => ! (opr.intColumn == 1 &&  opr.longColumn == 1l &&  opr.stringColumn.nonEmpty)) shouldBe true
+      result.forall(opr => ! (opr.intColumn == 1 &&  opr.longColumn == 1L &&  opr.stringColumn.nonEmpty)) shouldBe true
 
     }
 
@@ -65,8 +63,8 @@ trait DeleteSpec  extends SchemaSupport {
           .asA
 
 
-      val result1 =  cs.execute(delete)(1 -> 1l).unsafeRun
-      val result2 =  cs.execute(delete)(99 -> 1l).unsafeRun
+      val result1 =  cs.execute(delete)(1 -> 1L).unsafeRunSync()
+      val result2 =  cs.execute(delete)(99 -> 1L).unsafeRunSync()
 
       result1 shouldBe true
       result2 shouldBe false
@@ -78,15 +76,15 @@ trait DeleteSpec  extends SchemaSupport {
         simpleTable.delete
           .row
           .primary
-          .onlyIf('stringColumn, "str_eq", Comparison.EQ)
+          .onlyIf(Symbol("stringColumn"), "str_eq", Comparison.EQ)
           .build
           .fromHList
           .fromTuple[(String,Int,Long)]
           .asA
 
 
-      val result1 = cs.execute(delete)(("varchar string",1,1l)).unsafeRun
-      val result2 = cs.execute(delete)(("xxx",2,2l)).unsafeRun
+      val result1 = cs.execute(delete)(("varchar string",1,1L)).unsafeRunSync()
+      val result2 = cs.execute(delete)(("xxx",2,2L)).unsafeRunSync()
 
       result1 shouldBe None
       result2 shouldBe Some("varchar string")
@@ -95,5 +93,4 @@ trait DeleteSpec  extends SchemaSupport {
 
 
   }
-
 }

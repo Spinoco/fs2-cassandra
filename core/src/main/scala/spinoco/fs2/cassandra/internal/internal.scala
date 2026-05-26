@@ -7,14 +7,13 @@ import shapeless.Witness
   */
 package object internal {
 
-  def keyOf[A](implicit wt:Witness.Aux[A]):String = asKeyName(wt.value)
+  def keyOf[A](implicit wt: Witness.Aux[A]): String = asKeyName(wt.value)
 
-  def asKeyName(a:Any):String = {
+  def asKeyName(a: Any): String = {
     a match {
-      case sym:Symbol => sym.name
+      case sym: Symbol => sym.name
       case other => other.toString
     }
   }
-
 
 }

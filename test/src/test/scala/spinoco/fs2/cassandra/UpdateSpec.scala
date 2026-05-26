@@ -1,25 +1,18 @@
 package spinoco.fs2.cassandra
 
-
-import java.net.InetAddress
-
 import fs2.Chunk
-import fs2.Stream._
 import shapeless.tag
-import spinoco.fs2.cassandra.CType.{Ascii, Counter, TTL, Type1}
+import shapeless.tag.{apply => _, _}
+import spinoco.fs2.cassandra.ctype.CType.{Ascii, Counter, TTL, Type1}
 import spinoco.fs2.cassandra.sample._
 
+import java.net.InetAddress
+import java.util.UUID
 import scala.concurrent.duration._
-import com.datastax.driver.core.utils.UUIDs.timeBased
-import shapeless.tag.{apply => _, _}
 
+class UpdateSpec extends SchemaSupport {
 
-
-trait UpdateSpec extends SchemaSupport {
-
-
-
-  s"UPDATE statement (${cassandra.tag})" - {
+  "UPDATE statement" - {
 
     "will update all given columns" in withSessionAndSimpleSchema { cs =>
       val update =
@@ -27,6 +20,9 @@ trait UpdateSpec extends SchemaSupport {
           .update.all
           .build
           .from[SimpleTableRow]
+
+      val uuid = UUID.fromString("00000000-0000-0000-0000-000000000000")
+      val timeUuid = UUID.fromString("00000000-0000-1000-8000-000000000001")
 
       val modified =
       SimpleTableRow.simpleInstance.copy(
@@ -38,20 +34,17 @@ trait UpdateSpec extends SchemaSupport {
         , doubleColumn = 0d
         , bigDecimalColumn = BigDecimal(0)
         , bigIntColumn = BigInt(0)
-        , blobColumn = Chunk.bytes(Array(1,2,3))
-        , uuidColumn =  timeBased
-        , timeUuidColumn =  tag[Type1](timeBased)
+        , blobColumn = Chunk.array(Array[Byte](1,2,3))
+        , uuidColumn =  uuid
+        , timeUuidColumn =  tag[Type1](timeUuid)
         , durationColumn = FiniteDuration(1,"min")
         , inetAddressColumn = InetAddress.getByName("www.google.com")
         , enumColumn = TestEnumeration.Two
       )
 
-      cs.execute(update)(modified).unsafeRun
+      cs.execute(update)(modified).unsafeRunSync()
 
-
-
-      val result = cs.query(strSelectOne)(9 -> 9l).runLog.unsafeRun
-
+      val result = cs.query(strSelectOne)(9 -> 9L).compile.toVector.unsafeRunSync()
 
       result shouldBe Vector(modified)
     }
@@ -61,15 +54,15 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         simpleTable
           .update
-          .set('stringColumn)
+          .set(Symbol("stringColumn"))
           .build
           .fromHList
           .fromTuple[(String,Int,Long)]
 
-      cs.execute(update)(("UPDATED",9,9)).unsafeRun
+      cs.execute(update)(("UPDATED",9,9)).unsafeRunSync()
 
 
-      val result = cs.query(strSelectOne)(9 -> 9l).runLog.unsafeRun
+      val result = cs.query(strSelectOne)(9 -> 9L).compile.toVector.unsafeRunSync()
 
       result.map(_.stringColumn) shouldBe Vector("UPDATED")
     }
@@ -78,7 +71,7 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         simpleTable
           .update
-          .set('stringColumn)
+          .set(Symbol("stringColumn"))
           .onlyIfExists
           .build
           .fromHList
@@ -86,9 +79,9 @@ trait UpdateSpec extends SchemaSupport {
           .asA
 
       val result1 =
-        cs.execute(update)(("UPDATED", 9, 9)).unsafeRun
+        cs.execute(update)(("UPDATED", 9, 9)).unsafeRunSync()
 
-      val result2 = cs.execute(update)(("UPDATED", 11, 1)).unsafeRun
+      val result2 = cs.execute(update)(("UPDATED", 11, 1)).unsafeRunSync()
 
 
       result1 shouldBe true
@@ -99,17 +92,17 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         simpleTable
           .update
-          .set('stringColumn)
-          .onlyIf('doubleColumn, "double_gt", Comparison.GT)
+          .set(Symbol("stringColumn"))
+          .onlyIf(Symbol("doubleColumn"), "double_gt", Comparison.GT)
           .build
           .fromHList
           .fromTuple[(Double,String,Int,Long)]
           .asA
 
 
-      val result1 = cs.execute(update)((0.0d,"UPDATED", 9, 9)).unsafeRun
+      val result1 = cs.execute(update)((0.0d,"UPDATED", 9, 9)).unsafeRunSync()
 
-      val result2 =cs.execute(update)((999d, "UPDATED", 9, 9)).unsafeRun
+      val result2 =cs.execute(update)((999d, "UPDATED", 9, 9)).unsafeRunSync()
 
 
 
@@ -123,17 +116,17 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         simpleTable
           .update
-          .set('stringColumn)
-          .onlyIf('doubleColumn, Comparison.GT)
-          .onlyIf('floatColumn, "float_greater",Comparison.GT)
+          .set(Symbol("stringColumn"))
+          .onlyIf(Symbol("doubleColumn"), Comparison.GT)
+          .onlyIf(Symbol("floatColumn"), "float_greater",Comparison.GT)
           .build
           .fromHList
           .fromTuple[(Float,Double,String,Int,Long)]
           .asTuple
 
-      val result1 = cs.execute(update)((0.0f, 0.0d, "UPDATED", 9, 9)).unsafeRun
+      val result1 = cs.execute(update)((0.0f, 0.0d, "UPDATED", 9, 9)).unsafeRunSync()
 
-      val result2 = cs.execute(update)((999f, 999d, "UPDATED", 9, 9)).unsafeRun
+      val result2 = cs.execute(update)((999f, 999d, "UPDATED", 9, 9)).unsafeRunSync()
 
 
       result1 shouldBe (None -> None)
@@ -145,16 +138,16 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         listTable
           .update
-          .set('listColumn)
+          .set(Symbol("listColumn"))
           .build
           .fromHList
           .fromTuple[(List[String],Int,Long)]
 
-        cs.execute(update)((List("l1","l2"), 9, 9)).unsafeRun
+        cs.execute(update)((List("l1","l2"), 9, 9)).unsafeRunSync()
 
 
 
-      val result = cs.query(ltSelectOne)(9 -> 9).runLog.unsafeRun
+      val result = cs.query(ltSelectOne)(9 -> 9).compile.toVector.unsafeRunSync()
 
       result shouldBe Vector(
         ListTableRow.instance.copy(
@@ -171,15 +164,15 @@ trait UpdateSpec extends SchemaSupport {
       val update =
       listTable
         .update
-        .append('listColumn)
+        .append(Symbol("listColumn"))
         .build
         .fromHList
         .fromTuple[(List[String],Int,Long)]
 
 
-      cs.execute(update)((List("appended"), 9, 9)).unsafeRun
+      cs.execute(update)((List("appended"), 9, 9)).unsafeRunSync()
 
-      val result = cs.query(ltSelectOne)(9 -> 9).runLog.unsafeRun
+      val result = cs.query(ltSelectOne)(9 -> 9).compile.toVector.unsafeRunSync()
 
       result shouldBe Vector(
         ListTableRow.instance.copy(
@@ -196,14 +189,14 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         listTable
           .update
-          .prepend('listColumn)
+          .prepend(Symbol("listColumn"))
           .build
           .fromHList
           .fromTuple[(List[String],Int,Long)]
 
-      cs.execute(update)((List("prepended"), 9, 9)).unsafeRun
+      cs.execute(update)((List("prepended"), 9, 9)).unsafeRunSync()
 
-      val result = cs.query(ltSelectOne)(9 -> 9).runLog.unsafeRun
+      val result = cs.query(ltSelectOne)(9 -> 9).compile.toVector.unsafeRunSync()
 
       result shouldBe Vector(
         ListTableRow.instance.copy(
@@ -219,14 +212,14 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         listTable
           .update
-          .addAt('listColumn, 0)
+          .addAt(Symbol("listColumn"), 0)
           .build
           .fromHList
           .fromTuple[(String,Int,Long)]
 
-      cs.execute(update)(("index_set", 9, 9)).unsafeRun
+      cs.execute(update)(("index_set", 9, 9)).unsafeRunSync()
 
-      val result = cs.query(ltSelectOne)(9 -> 9).runLog.unsafeRun
+      val result = cs.query(ltSelectOne)(9 -> 9).compile.toVector.unsafeRunSync()
 
       result shouldBe Vector(
         ListTableRow.instance.copy(
@@ -242,14 +235,14 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         listTable
           .update
-          .remove('listColumn)
+          .remove(Symbol("listColumn"))
           .build
           .fromHList
           .fromTuple[(List[String],Int,Long)]
 
-      cs.execute(update)((List("two"), 9, 9)).unsafeRun
+      cs.execute(update)((List("two"), 9, 9)).unsafeRunSync()
 
-      val result = cs.query(ltSelectOne)(9 -> 9).runLog.unsafeRun
+      val result = cs.query(ltSelectOne)(9 -> 9).compile.toVector.unsafeRunSync()
 
       result shouldBe Vector(
         ListTableRow.instance.copy(
@@ -265,14 +258,14 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         listTable
           .update
-          .add('setColumn)
+          .add(Symbol("setColumn"))
           .build
           .fromHList
           .fromTuple[(Set[String],Int,Long)]
 
-      cs.execute(update)((Set("added"), 9, 9)).unsafeRun
+      cs.execute(update)((Set("added"), 9, 9)).unsafeRunSync()
 
-      val result = cs.query(ltSelectOne)(9 -> 9).runLog.unsafeRun
+      val result = cs.query(ltSelectOne)(9 -> 9).compile.toVector.unsafeRunSync()
 
       result shouldBe Vector(
         ListTableRow.instance.copy(
@@ -288,14 +281,14 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         listTable
           .update
-          .remove('setColumn)
+          .remove(Symbol("setColumn"))
           .build
           .fromHList
           .fromTuple[(Set[String],Int,Long)]
 
-      cs.execute(update)((Set("ones"), 9, 9)).unsafeRun
+      cs.execute(update)((Set("ones"), 9, 9)).unsafeRunSync()
 
-      val result = cs.query(ltSelectOne)(9 -> 9).runLog.unsafeRun
+      val result = cs.query(ltSelectOne)(9 -> 9).compile.toVector.unsafeRunSync()
 
       result shouldBe Vector(
         ListTableRow.instance.copy(
@@ -312,14 +305,14 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         mapTable
           .update
-          .addToMap('mapStringColumn)
+          .addToMap(Symbol("mapStringColumn"))
           .build
           .fromHList
           .fromTuple[(Map[String,String],Int,Long)]
 
-      cs.execute(update)((Map("add" -> "addedValue"), 9,9)).unsafeRun
+      cs.execute(update)((Map("add" -> "addedValue"), 9,9)).unsafeRunSync()
 
-      val result = cs.query(mtSelectOne)(9 -> 9).runLog.unsafeRun
+      val result = cs.query(mtSelectOne)(9 -> 9).compile.toVector.unsafeRunSync()
 
       result shouldBe Vector(
         MapTableRow.instance.copy(
@@ -336,14 +329,14 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         mapTable
           .update
-          .removeFromMap('mapStringColumn)
+          .removeFromMap(Symbol("mapStringColumn"))
           .build
           .fromHList
           .fromTuple[(Set[String],Int,Long)]
 
-      cs.execute(update)((Set("k1"), 9,9)).unsafeRun
+      cs.execute(update)((Set("k1"), 9,9)).unsafeRunSync()
 
-      val result = cs.query(mtSelectOne)(9 -> 9).runLog.unsafeRun
+      val result = cs.query(mtSelectOne)(9 -> 9).compile.toVector.unsafeRunSync()
 
       result shouldBe Vector(
         MapTableRow.instance.copy(
@@ -361,15 +354,15 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         simpleTable
           .update
-          .set('stringColumn)
-          .withTTL('ttl)
+          .set(Symbol("stringColumn"))
+          .withTTL(Symbol("ttl"))
           .build
           .fromHList
           .fromTuple[(FiniteDuration @@ TTL, String,Int,Long)]
 
       val selectTTL =
         simpleTable.query
-        .functionAt(functions.ttlOf[String],'stringColumn, 'ttl)
+        .functionAt(functions.ttlOf[String],Symbol("stringColumn"), Symbol("ttl"))
         .primary
         .build
         .fromHList
@@ -377,9 +370,9 @@ trait UpdateSpec extends SchemaSupport {
         .asA
 
 
-      cs.execute(update)((tag[TTL](1.hour),"UPDATED",9,9)).unsafeRun
+      cs.execute(update)((tag[TTL](1.hour),"UPDATED",9,9)).unsafeRunSync()
 
-      val result = cs.query(selectTTL)(9 -> 9l).runLog.unsafeRun
+      val result = cs.query(selectTTL)(9 -> 9L).compile.toVector.unsafeRunSync()
 
       result.map(_.isDefined) shouldBe Vector(true)
 
@@ -391,8 +384,8 @@ trait UpdateSpec extends SchemaSupport {
       val update =
         simpleTable
           .update
-          .set('stringColumn)
-          .withTimeStamp('ts)
+          .set(Symbol("stringColumn"))
+          .withTimeStamp(Symbol("ts"))
           .build
           .fromHList
           .fromTuple[(Long, String,Int,Long)]
@@ -401,7 +394,7 @@ trait UpdateSpec extends SchemaSupport {
 
       val selectTimeStamp =
         simpleTable.query
-          .functionAt(functions.writeTimeOfMicro[String],'stringColumn, 'ts)
+          .functionAt(functions.writeTimeOfMicro[String],Symbol("stringColumn"), Symbol("ts"))
           .primary
           .build
           .fromHList
@@ -410,9 +403,9 @@ trait UpdateSpec extends SchemaSupport {
 
       val ts = System.currentTimeMillis()*1000 + 1
 
-      cs.execute(update)((ts,"UPDATED",9,9)).unsafeRun
+      cs.execute(update)((ts,"UPDATED",9,9)).unsafeRunSync()
 
-      val result = cs.query(selectTimeStamp)(9 -> 9l).runLog.unsafeRun
+      val result = cs.query(selectTimeStamp)(9 -> 9L).compile.toVector.unsafeRunSync()
 
       result shouldBe Vector(ts)
 
@@ -425,20 +418,20 @@ trait UpdateSpec extends SchemaSupport {
 
       val counterTable =
         ks.table[CounterTableRow]
-          .partition('intColumn)
-          .cluster('longColumn)
+          .partition(Symbol("intColumn"))
+          .cluster(Symbol("longColumn"))
           .build("counter_table")
 
       val increment =
         counterTable.update
-          .increment('counterColumn)
+          .increment(Symbol("counterColumn"))
           .build
           .fromHList
           .fromTuple[(Long, Int,Long)]
 
       val decrement =
         counterTable.update
-          .decrement('counterColumn)
+          .decrement(Symbol("counterColumn"))
           .build
           .fromHList
           .fromTuple[(Long, Int,Long)]
@@ -447,14 +440,14 @@ trait UpdateSpec extends SchemaSupport {
         counterTable.query.all.build.as[CounterTableRow]
 
 
-      cs.create(ks).flatMap(_ => cs.create(counterTable)).unsafeRun
+      cs.create(ks).flatMap(_ => cs.create(counterTable)).unsafeRunSync()
 
-      cs.execute(increment)((10, 1, 1)).unsafeRun
+      cs.execute(increment)((10, 1, 1)).unsafeRunSync()
 
-      cs.execute(decrement)((5,1,1)).unsafeRun
+      cs.execute(decrement)((5,1,1)).unsafeRunSync()
 
-      cs.queryAll(select).runLog.unsafeRun shouldBe Vector(
-        CounterTableRow(1,1l,tag[Counter](5l))  // +10 -5 = 5
+      cs.queryAll(select).compile.toVector.unsafeRunSync() shouldBe Vector(
+        CounterTableRow(1,1L,tag[Counter](5L))  // +10 -5 = 5
       )
 
     }

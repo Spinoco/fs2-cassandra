@@ -1,17 +1,19 @@
 package spinoco.fs2.cassandra
 
-import com.datastax.driver.core._
+import com.datastax.oss.driver.api.core.`type`.{DataType, VectorType}
+import com.datastax.oss.driver.api.core.metadata.schema._
+import spinoco.fs2.cassandra.builder.IndexEntry
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 package object system {
 
   /** helper allowing to construct ALTER statement, that will modify keyspaced to `desired` state **/
-  def migrateKeySpace(desired:KeySpace, maybeCurrent: Option[KeyspaceMetadata]):Seq[String] = {
+  def migrateKeySpace(desired: KeySpace, maybeCurrent: Option[KeyspaceMetadata]): Seq[String] = {
     maybeCurrent match {
       case None => desired.cqlStatement
       case Some(current) =>
-        if (desired.name.toLowerCase != current.getName.toLowerCase) Nil
+        if (desired.name.toLowerCase != current.getName.asInternal().toLowerCase) Nil
         else {
           val currentReplication = current.getReplication.asScala
           val desiredReplication = desired.strategyOptions.toMap + ("class" -> desired.strategyClass)
@@ -40,79 +42,123 @@ package object system {
   }
 
   /** checks whether these two columns are of the same name and type **/
-  def sameColumnDef(nameA:String, tpeA:DataType)(nameB:String, tpeB:DataType):Boolean = {
-    lazy val argsA = tpeA.getTypeArguments.asScala.map(_.getName)
-    lazy val argsB = tpeB.getTypeArguments.asScala.map(_.getName)
-    lazy val sameArgs:Boolean = {
-      if (argsA.size != argsB.size) false
-      else {
-        (argsA zip argsB).forall{ case (nA,nB) => nA.isCompatibleWith(nB) }
-      }
-    }
+  def sameColumnDef(nameA: String, tpeA: DataType)(nameB: String, tpeB: DataType): Boolean = {
+    val typesEqual = sameDataType(tpeA, tpeB)
+    val namesEqual = nameA.equalsIgnoreCase(nameB)
+    namesEqual && typesEqual
+  }
 
-    nameA.equalsIgnoreCase(nameB) &&
-      tpeA.getName.isCompatibleWith(tpeB.getName) &&
-      sameArgs
+  /** structural type comparison; VectorType is compared by dimensions + element type
+    * because the driver's DefaultVectorType.asCql emits the CUSTOM-class form
+    * (e.g. `'org.apache.cassandra.db.marshal.VectorType(3)'`) while the library
+    * emits the CQL form (e.g. `vector<float,3>`) — string-equality across the two
+    * spuriously triggers DROP/ADD which C5 then refuses for SAI-indexed columns. */
+  def sameDataType(tpeA: DataType, tpeB: DataType): Boolean = (tpeA, tpeB) match {
+    case (a: VectorType, b: VectorType) =>
+      a.getDimensions == b.getDimensions && sameDataType(a.getElementType, b.getElementType)
+    case _ =>
+      tpeA.asCql(true, false) == tpeB.asCql(true, false)
   }
 
   /** checks whether the primary keys of given tables are the same **/
-  def samePrimaryKey(current: AbstractTableMetadata, desired: AbstractTable[_,_,_,_]):Boolean = {
-    val currentPk = current.getPartitionKey.asScala.map(_.getName.toLowerCase)
-    val currentCk = current.getClusteringColumns.asScala.map(_.getName.toLowerCase)
-    desired.clusterKey.map(_.toLowerCase) == currentCk && desired.partitionKey.map(_.toLowerCase) == currentPk
+  def samePrimaryKey(current: TableMetadata, desired: AbstractTable[_, _, _, _]): Boolean = {
+    val currentPk = current.getPartitionKey.asScala.map(_.getName.asInternal.toLowerCase).toSeq
+    val desiredPk = desired.partitionKey.map(_.toLowerCase)
+    val currentCk = current.getClusteringColumns.asScala.keys.map(_.getName.asInternal.toLowerCase).toSeq
+    val desiredCk = desired.clusterKey.map(_.toLowerCase)
+    desiredCk == currentCk && desiredPk == currentPk
   }
 
   /** migrates table to desired state comparing with current metadata of the table **/
-  def migrateTable(desiredTable:Table[_,_,_,_], maybeCurrent:Option[TableMetadata]):Seq[String] = {
-    // todo: support for index migration, AND options
-
+  def migrateTable(desiredTable: Table[_, _, _, _], maybeCurrent: Option[TableMetadata]): Seq[String] = {
     maybeCurrent match {
       case None => desiredTable.cqlStatement
       case Some(current) =>
         val fullTableName = s"${desiredTable.keySpaceName}.${desiredTable.name}"
 
-        if (desiredTable.name != current.getName) Nil
+        if (desiredTable.name != current.getName.asInternal) Nil
         else if (!samePrimaryKey(current, desiredTable)) s"DROP TABLE $fullTableName" +: desiredTable.cqlStatement
         else {
-          val currentColumns =
-            current.getColumns.asScala.map { c => c.getName.toLowerCase -> c.getType }
+          val currentColumns = current.getColumns.asScala.map { c => c._1.asInternal.toLowerCase -> c._2.getType }
           val desiredColumns =  desiredTable.columns
 
           val removed = currentColumns.filterNot { case (k,tpe) =>
             desiredColumns.exists { sameColumnDef(k,tpe) _ tupled }
           }
+
           val added = desiredColumns.filterNot { case (k, tpe) =>
             currentColumns.exists { sameColumnDef(k,tpe) _ tupled }
           }
 
           lazy val tableTemplate = s"ALTER TABLE $fullTableName"
           val cqlRemoved = removed.map { case (k, _) => s"$tableTemplate DROP $k" }
-          val cqlAdded = added.map {case (k, tpe) => s"$tableTemplate ADD $k $tpe"}
-          cqlRemoved ++ cqlAdded
+          val cqlAdded = added.map {case (k, tpe) => s"$tableTemplate ADD $k ${tpe.asCql(true, false)}"}
 
+          val indexStatements = migrateIndexes(desiredTable, current)
+
+          val res = cqlRemoved ++ cqlAdded ++ indexStatements
+          res.toSeq
         }
     }
   }
 
-  /** migrates materialized view to desired state while comparing with current metadata of the table **/
-  def migrateMaterializedView(desiredView: MaterializedView[_,_,_], maybeCurrent: Option[MaterializedViewMetadata]): Seq[String] = {
-    //TODO support for options migration
+  /** compares desired indexes against current indexes, returns DROP/CREATE statements **/
+  def migrateIndexes(desiredTable: Table[_, _, _, _], current: TableMetadata): Seq[String] = {
+    val currentIndexes = current.getIndexes.asScala
+    val desiredIndexes = desiredTable.indexes
 
-    maybeCurrent match {
-      case None => desiredView.cqlStatement
-      case Some(current) =>
+    val desiredByName = desiredIndexes.map(idx => idx.name.toLowerCase -> idx).toMap
 
-        def sameColumns: Boolean = {
-          val currentColumns =
-            current.getColumns.asScala.map { c => c.getName.toLowerCase -> c.getType }.sortBy(_._1)
-          if(desiredView.columns.size != currentColumns.size) false
-          else desiredView.columns.sortBy(_._1).zip(currentColumns).forall{case (dc, cc) => (sameColumnDef _).tupled(dc).tupled(cc)}
-        }
-
-        if (desiredView.name != current.getName) Nil
-        else if (!samePrimaryKey(current.getBaseTable, desiredView.table)) desiredView.cqlStatement
-        else if (!samePrimaryKey(current, desiredView) || !sameColumns) s"DROP MATERIALIZED VIEW ${desiredView.fullName}" +: desiredView.cqlStatement
-        else Nil
+    // indexes to drop: exist in current but not in desired, or exist but changed
+    val toDrop = currentIndexes.flatMap { case (cqlId, meta) =>
+      val name = cqlId.asInternal.toLowerCase
+      desiredByName.get(name) match {
+        case None =>
+          // index exists in C* but not desired - drop it
+          Some(s"DROP INDEX ${desiredTable.keySpaceName}.$name")
+        case Some(desired) =>
+          // index exists in both - check if it changed
+          if (!sameIndex(desired, meta, desiredTable.keySpaceName, desiredTable.name)) {
+            Some(s"DROP INDEX ${desiredTable.keySpaceName}.$name")
+          } else None
+      }
     }
+
+    // indexes to create: not in current, or were dropped because they changed
+    val droppedNames = toDrop.map(_.split('.').last.trim.toLowerCase).toSet
+    val currentNames = currentIndexes.keys.map(_.asInternal.toLowerCase).toSet
+
+    val toCreate = desiredIndexes.flatMap { desired =>
+      val name = desired.name.toLowerCase
+      if (!currentNames.contains(name) || droppedNames.contains(name)) {
+        Some(desired.cqlStatement(desiredTable.keySpaceName, desiredTable.name))
+      } else None
+    }
+
+    (toDrop ++ toCreate).toSeq
+  }
+
+  /** checks whether a desired IndexEntry matches the current IndexMetadata **/
+  def sameIndex(desired: IndexEntry, current: IndexMetadata, ks: String, table: String): Boolean = {
+    val currentOptions = current.getOptions.asScala
+
+    // compare class name
+    val classMatches = desired.className match {
+      case None => current.getKind != IndexKind.CUSTOM
+      case Some(clz) => currentOptions.get("class_name").contains(clz)
+    }
+
+    // compare target column
+    val targetMatches = currentOptions.get("target").exists { target =>
+      val desiredField = desired.collectionTarget.fold(desired.field)(_.wrap(desired.field))
+      target.equalsIgnoreCase(desiredField)
+    }
+
+    // compare options (exclude internal keys like class_name and target)
+    val internalKeys = Set("class_name", "target")
+    val currentUserOptions = currentOptions.filterNot { case (k, _) => internalKeys.contains(k) }
+    val optionsMatch = desired.options == currentUserOptions
+
+    classMatches && targetMatches && optionsMatch
   }
 }

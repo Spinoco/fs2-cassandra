@@ -10,7 +10,7 @@ import com.datastax.oss.driver.api.core.{CqlSession, CqlSessionBuilder, Protocol
 import fs2.Stream._
 import fs2._
 import shapeless.HNil
-import spinoco.fs2.cassandra.internal.Util
+import spinoco.fs2.cassandra.internal.{Idempotence, Util}
 import spinoco.fs2.cassandra.internal.Util.{evalCS, evalCS_}
 
 import scala.jdk.CollectionConverters._
@@ -79,7 +79,10 @@ trait CassandraSession[F[_]] {
   /** Executes supplied batch statement. Returns None, if statement was applied correctly, Some(R) in case it was not applied **/
   def executeBatch[I, R](batch: BatchStatement[I, R], o: DMLOptions = Options.defaultDML)(i: I): F[Option[R]]
 
-  /** raw variant of batch statement execution, allowing to join several bound statements together **/
+  /**
+   * raw variant of batch statement execution, allowing to join several bound statements together.
+   * The batch is not idempotent if any of the statements is not idempotent.
+   */
   def executeBatchRaw(statements: Seq[BoundStatement], logged: Boolean): F[AsyncResultSet]
 
   /** executes supplied DML statement specified by CQL expecting raw ResultSet as result **/
@@ -264,7 +267,7 @@ object CassandraSession {
             .addStatements(statements: _*)
             .build()
 
-          evalCS(cqlSession.executeAsync(batch))
+          evalCS(cqlSession.executeAsync(Idempotence.ofBatch(batch)))
         }
 
         new CassandraSession[F] {

@@ -9,7 +9,7 @@ import shapeless.tag.@@
 import shapeless.{::, HList, Witness}
 import spinoco.fs2.cassandra.baseutil.AnnotatedException
 import spinoco.fs2.cassandra.ctype.CType.TTL
-import spinoco.fs2.cassandra.internal.SelectAll
+import spinoco.fs2.cassandra.internal.{Idempotence, SelectAll}
 import spinoco.fs2.cassandra.macros.CTypeRecord
 import spinoco.fs2.cassandra._
 
@@ -96,7 +96,8 @@ case class InsertBuilder[R <: HList, PK <: HList, CK <: HList,  I <: HList](
 
       def fill(i: I, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {
         val boundStatement = s.bind()
-        CTI.writeByName(i, boundStatement, protocolVersion)
+        // IF NOT EXISTS repeated after it was applied reports the row it inserted itself as already existing
+        Idempotence.markNonIdempotent(CTI.writeByName(i, boundStatement, protocolVersion), nonIdempotent = ifNotExistsFlag)
       }
 
       def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, Option[R]] = {

@@ -59,6 +59,55 @@ class TableBuilderSpec extends Fs2CassandraSpec{
       table.cqlStatement shouldBe Seq(s"$simpleTableDef PRIMARY KEY ((intColumn),longColumn,stringColumn))")
     }
 
+    "explicitly ascending cluster key" in {
+      val table =
+        ks.table[SimpleTableRow]
+          .partition(Symbol("intColumn"))
+          .cluster(Symbol("longColumn"), ascending = true)
+          .build("test_table")
+
+      table.cqlStatement shouldBe Seq(s"$simpleTableDef PRIMARY KEY ((intColumn),longColumn))")
+      table.descendingClusterKeys shouldBe Set.empty
+    }
+
+    "descending cluster key" in {
+      val table =
+        ks.table[SimpleTableRow]
+          .partition(Symbol("intColumn"))
+          .cluster(Symbol("longColumn"), ascending = false)
+          .build("test_table")
+
+      table.cqlStatement shouldBe Seq(s"$simpleTableDef PRIMARY KEY ((intColumn),longColumn)) WITH CLUSTERING ORDER BY (longColumn DESC)")
+      table.descendingClusterKeys shouldBe Set("longColumn")
+    }
+
+    "compound cluster key with a descending key" in {
+      val table =
+        ks.table[SimpleTableRow]
+          .partition(Symbol("intColumn"))
+          .cluster(Symbol("longColumn"))
+          .cluster(Symbol("stringColumn"), ascending = false)
+          .build("test_table")
+
+      table.cqlStatement shouldBe Seq(
+        s"$simpleTableDef PRIMARY KEY ((intColumn),longColumn,stringColumn)) WITH CLUSTERING ORDER BY (longColumn ASC,stringColumn DESC)"
+      )
+    }
+
+    "descending cluster key with an SAI index" in {
+      val table =
+        ks.table[SimpleTableRow]
+          .partition(Symbol("intColumn"))
+          .cluster(Symbol("longColumn"), ascending = false)
+          .indexBySAI(Symbol("asciiColumn"), "ascii_sai_idx")
+          .build("test_table")
+
+      table.cqlStatement shouldBe Seq(
+        s"$simpleTableDef PRIMARY KEY ((intColumn),longColumn)) WITH CLUSTERING ORDER BY (longColumn DESC)"
+        , "CREATE CUSTOM INDEX ascii_sai_idx ON test_ks.test_table (asciiColumn) USING 'org.apache.cassandra.index.sai.StorageAttachedIndex'"
+      )
+    }
+
     "indexed" in {
       val table =
         ks.table[SimpleTableRow]

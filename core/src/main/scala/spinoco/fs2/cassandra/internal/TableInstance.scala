@@ -12,6 +12,12 @@ import spinoco.fs2.cassandra.macros.CTypeRecord
   * Created by pach on 03/06/16.
   */
 trait TableInstance[R <: HList, PK <: HList, CK <: HList, IDX <: HList] {
+
+  /**
+    * The table definition.
+    *
+    * @param descendingKeys cluster keys stored in descending order, the others are ascending
+    */
   def table(
     ks: KeySpace
     , name: String
@@ -19,6 +25,7 @@ trait TableInstance[R <: HList, PK <: HList, CK <: HList, IDX <: HList] {
     , indexes: Seq[IndexEntry]
     , partitionKeys: Seq[String]
     , clusterKeys: Seq[String]
+    , descendingKeys: Set[String]
   ): Table[R, PK, CK, IDX]
 }
 
@@ -38,6 +45,7 @@ object TableInstance {
         , idxs: Seq[IndexEntry]
         , pks: Seq[String]
         , cks: Seq[String]
+        , desc: Set[String]
       ): Table[R, PK, CK, IDX] =
         new Table[R, PK, CK, IDX] { self =>
           val fields: String = CTR.types.map { case (k, tpe) =>
@@ -49,8 +57,14 @@ object TableInstance {
             else s"(${pks.mkString(",")}),${cks.mkString(",")}"
           }
 
+          // only when some key is descending, so that the DDL of the tables with the default order does not change
+          val clusteringOrder: String = {
+            if (!cks.exists(desc.contains)) ""
+            else cks.map { k => s"$k ${if (desc.contains(k)) "DESC" else "ASC"}" }.mkString(" WITH CLUSTERING ORDER BY (", ",", ")")
+          }
+
           val cql: String =
-            s"""CREATE TABLE ${ks.name}.$tn ($fields, PRIMARY KEY ($pkDef))"""
+            s"""CREATE TABLE ${ks.name}.$tn ($fields, PRIMARY KEY ($pkDef))$clusteringOrder"""
 
           val indexCql: Seq[String] =
             idxs.map(_.cqlStatement(ks.name, tn))
@@ -62,6 +76,7 @@ object TableInstance {
           def columns: Seq[(String, DataType)] = CTR.types
           def partitionKey: Seq[String] = pks
           def clusterKey: Seq[String] = cks
+          def descendingClusterKeys: Set[String] = desc.filter(cks.contains)
 
           def insert(implicit p: Prepend[PK, CK]): InsertBuilder[R, PK, CK, p.Out] =
             InsertBuilder(self, None, None, ifNotExistsFlag = false)

@@ -15,6 +15,45 @@ class SAISpec extends SchemaSupport {
 
   "SAI index features" - {
 
+    "query by SAI index returns rows in the descending order of the table" in withCassandra5 { cs =>
+      val table =
+        ks.table[SimpleTableRow]
+          .partition(Symbol("intColumn"))
+          .cluster(Symbol("longColumn"), ascending = false)
+          .indexBySAI(Symbol("stringColumn"), "string_desc_sai_idx")
+          .build("sai_desc_table")
+
+      (for {
+        _ <- cs.create(ks)
+        _ <- cs.create(table)
+      } yield ()).unsafeRunSync()
+
+      cs.migrateDDL(table).unsafeRunSync() shouldBe Nil
+
+      val insert = table.insert.all.build.from[SimpleTableRow]
+      val entries = (0L to 9L).map { l =>
+        SimpleTableRow.simpleInstance.copy(intColumn = 1, longColumn = l, stringColumn = if (l % 2 == 0) "even" else "odd")
+      }
+      emits(entries).flatMap(e => eval(cs.execute(insert)(e)).drain).compile.drain.unsafeRunSync()
+
+      // ORDER BY is rejected together with an index, so the order comes from the table
+      val page = table.query.all
+        .partition
+        .cluster(Symbol("longColumn"), Comparison.LT)
+        .byIndex(Symbol("stringColumn"), Comparison.EQ)
+        .limit(2)
+        .build
+        .fromHList
+        .fromTuple[(Int, Long, String)]
+        .as[SimpleTableRow]
+
+      val all = table.query.all.partition.build.fromA[Int].as[SimpleTableRow]
+
+      cs.query(all)(1).compile.toVector.unsafeRunSync().map(_.longColumn) shouldBe (9L to 0L by -1L).toVector
+      cs.query(page)((1, 8L, "even")).compile.toVector.unsafeRunSync().map(_.longColumn) shouldBe Vector(6L, 4L)
+      cs.query(page)((1, 4L, "even")).compile.toVector.unsafeRunSync().map(_.longColumn) shouldBe Vector(2L, 0L)
+    }
+
     "create table with SAI index" in withCassandra5 { cs =>
       val table =
         ks.table[SimpleTableRow]

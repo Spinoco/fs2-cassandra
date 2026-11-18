@@ -114,5 +114,62 @@ class MigrationsSpec extends SchemaSupport {
       )
     }
 
+    "will add SAI index if missing" in withSessionFor(_.startsWith("5")) { cs =>
+      val tableNoIdx = ks.table[FooTable1].partition(Symbol("intColumn")).build("foo_sai")
+      val tableWithIdx = ks.table[FooTable1].partition(Symbol("intColumn"))
+        .indexBySAI(Symbol("strColumn"), "str_sai_idx")
+        .build("foo_sai")
+
+      cs.create(ks).unsafeRunSync()
+      cs.create(tableNoIdx).unsafeRunSync()
+
+      val migrate = cs.migrateDDL(tableWithIdx).unsafeRunSync()
+      migrate shouldBe Seq(
+        "CREATE CUSTOM INDEX str_sai_idx ON crud_ks.foo_sai (strColumn) USING 'org.apache.cassandra.index.sai.StorageAttachedIndex'"
+      )
+
+      // apply migration
+      migrate.foreach(cs.executeCql(_).unsafeRunSync())
+
+      // no further migration needed
+      cs.migrateDDL(tableWithIdx).unsafeRunSync() shouldBe Nil
+    }
+
+    "will drop removed SAI index" in withSessionFor(_.startsWith("5")) { cs =>
+      val tableWithIdx = ks.table[FooTable1].partition(Symbol("intColumn"))
+        .indexBySAI(Symbol("strColumn"), "str_sai_idx2")
+        .build("foo_sai2")
+      val tableNoIdx = ks.table[FooTable1].partition(Symbol("intColumn")).build("foo_sai2")
+
+      cs.create(ks).unsafeRunSync()
+      cs.create(tableWithIdx).unsafeRunSync()
+
+      val migrate = cs.migrateDDL(tableNoIdx).unsafeRunSync()
+      migrate shouldBe Seq("DROP INDEX crud_ks.str_sai_idx2")
+
+      migrate.foreach(cs.executeCql(_).unsafeRunSync())
+      cs.migrateDDL(tableNoIdx).unsafeRunSync() shouldBe Nil
+    }
+
+    "will recreate SAI index when options change" in withSessionFor(_.startsWith("5")) { cs =>
+      val tableV1 = ks.table[FooTable1].partition(Symbol("intColumn"))
+        .indexBySAI(Symbol("strColumn"), "str_sai_idx3", Map("case_sensitive" -> "true"))
+        .build("foo_sai3")
+      val tableV2 = ks.table[FooTable1].partition(Symbol("intColumn"))
+        .indexBySAI(Symbol("strColumn"), "str_sai_idx3", Map("case_sensitive" -> "false"))
+        .build("foo_sai3")
+
+      cs.create(ks).unsafeRunSync()
+      cs.create(tableV1).unsafeRunSync()
+
+      val migrate = cs.migrateDDL(tableV2).unsafeRunSync()
+      migrate.size shouldBe 2
+      migrate.head shouldBe "DROP INDEX crud_ks.str_sai_idx3"
+      migrate(1) should include("case_sensitive")
+
+      migrate.foreach(cs.executeCql(_).unsafeRunSync())
+      cs.migrateDDL(tableV2).unsafeRunSync() shouldBe Nil
+    }
+
   }
 }

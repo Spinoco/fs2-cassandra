@@ -2,6 +2,7 @@ package spinoco.fs2.cassandra
 
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.metadata.schema._
+import spinoco.fs2.cassandra.builder.IndexEntry
 
 import scala.jdk.CollectionConverters._
 
@@ -80,9 +81,72 @@ package object system {
           lazy val tableTemplate = s"ALTER TABLE $fullTableName"
           val cqlRemoved = removed.map { case (k, _) => s"$tableTemplate DROP $k" }
           val cqlAdded = added.map {case (k, tpe) => s"$tableTemplate ADD $k ${tpe.asCql(true, false)}"}
-          val res = cqlRemoved ++ cqlAdded
+
+          val indexStatements = migrateIndexes(desiredTable, current)
+
+          val res = cqlRemoved ++ cqlAdded ++ indexStatements
           res.toSeq
         }
     }
+  }
+
+  /** compares desired indexes against current indexes, returns DROP/CREATE statements **/
+  def migrateIndexes(desiredTable: Table[_, _, _, _], current: TableMetadata): Seq[String] = {
+    val currentIndexes = current.getIndexes.asScala
+    val desiredIndexes = desiredTable.indexes
+
+    val desiredByName = desiredIndexes.map(idx => idx.name.toLowerCase -> idx).toMap
+
+    // indexes to drop: exist in current but not in desired, or exist but changed
+    val toDrop = currentIndexes.flatMap { case (cqlId, meta) =>
+      val name = cqlId.asInternal.toLowerCase
+      desiredByName.get(name) match {
+        case None =>
+          // index exists in C* but not desired - drop it
+          Some(s"DROP INDEX ${desiredTable.keySpaceName}.$name")
+        case Some(desired) =>
+          // index exists in both - check if it changed
+          if (!sameIndex(desired, meta, desiredTable.keySpaceName, desiredTable.name)) {
+            Some(s"DROP INDEX ${desiredTable.keySpaceName}.$name")
+          } else None
+      }
+    }
+
+    // indexes to create: not in current, or were dropped because they changed
+    val droppedNames = toDrop.map(_.split('.').last.trim.toLowerCase).toSet
+    val currentNames = currentIndexes.keys.map(_.asInternal.toLowerCase).toSet
+
+    val toCreate = desiredIndexes.flatMap { desired =>
+      val name = desired.name.toLowerCase
+      if (!currentNames.contains(name) || droppedNames.contains(name)) {
+        Some(desired.cqlStatement(desiredTable.keySpaceName, desiredTable.name))
+      } else None
+    }
+
+    (toDrop ++ toCreate).toSeq
+  }
+
+  /** checks whether a desired IndexEntry matches the current IndexMetadata **/
+  def sameIndex(desired: IndexEntry, current: IndexMetadata, ks: String, table: String): Boolean = {
+    val currentOptions = current.getOptions.asScala
+
+    // compare class name
+    val classMatches = desired.className match {
+      case None => current.getKind != IndexKind.CUSTOM
+      case Some(clz) => currentOptions.get("class_name").contains(clz)
+    }
+
+    // compare target column
+    val targetMatches = currentOptions.get("target").exists { target =>
+      val desiredField = desired.collectionTarget.fold(desired.field)(_.wrap(desired.field))
+      target.equalsIgnoreCase(desiredField)
+    }
+
+    // compare options (exclude internal keys like class_name and target)
+    val internalKeys = Set("class_name", "target")
+    val currentUserOptions = currentOptions.filterNot { case (k, _) => internalKeys.contains(k) }
+    val optionsMatch = desired.options == currentUserOptions
+
+    classMatches && targetMatches && optionsMatch
   }
 }

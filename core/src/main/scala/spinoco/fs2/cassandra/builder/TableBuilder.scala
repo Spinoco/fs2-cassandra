@@ -67,6 +67,26 @@ case class TableBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList](
   ): TableBuilder[R, PK, CK, FieldType[K, V] :: IDX] =
     indexBy(column, name, Some(IndexEntry.SASIIndexClz), Map("mode" -> "SPARSE") ++ options)
 
+  /** create SAI (Storage Attached Index) on specified column **/
+  def indexBySAI[K, V](column: Witness.Aux[K], name: String, options: Map[String, String] = Map.empty)(
+    implicit S: Selector.Aux[R, K, V]
+  ): TableBuilder[R, PK, CK, FieldType[K, V] :: IDX] =
+    indexBy(column, name, Some(IndexEntry.SAIIndexClz), options)
+
+  /** create SAI index with specific similarity function for vector columns **/
+  def indexBySAIVector[K, V](column: Witness.Aux[K], name: String, similarity: SimilarityFunction = SimilarityFunction.COSINE, options: Map[String, String] = Map.empty)(
+    implicit S: Selector.Aux[R, K, V]
+  ): TableBuilder[R, PK, CK, FieldType[K, V] :: IDX] =
+    indexBy(column, name, Some(IndexEntry.SAIIndexClz), options + ("similarity_function" -> similarity.name))
+
+  /** create SAI index on collection column with specified target (KEYS/VALUES/ENTRIES/FULL) **/
+  def indexBySAICollection[K, V](column: Witness.Aux[K], name: String, target: CollectionIndexTarget, options: Map[String, String] = Map.empty)(
+    implicit S: Selector.Aux[R, K, V]
+  ): TableBuilder[R, PK, CK, FieldType[K, V] :: IDX] = {
+    val entry = IndexEntry(name, internal.keyOf(column), Some(IndexEntry.SAIIndexClz), options, Some(target))
+    TableBuilder(ks, entry +: indexes, partitionKeys, clusterKeys)
+  }
+
   def build(name: String, options: Map[String, String] = Map.empty)(
     implicit T: TableInstance[R, PK, CK, IDX]
   ): Table[R, PK, CK, IDX] = T.table(ks,name,options, self.indexes, self.partitionKeys, self.clusterKeys)

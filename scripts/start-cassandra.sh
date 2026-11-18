@@ -8,7 +8,7 @@ VERSION=${1:-"3.11"}
 PORT=${2:-12000}
 
 # Supported versions
-SUPPORTED_VERSIONS=("3.11" "4.0" "4.1" "5.0")
+SUPPORTED_VERSIONS=("3.11" "4.0" "4.1" "5.0" "5.0.7")
 
 # Check if version is supported
 if [[ ! " ${SUPPORTED_VERSIONS[@]} " =~ " ${VERSION} " ]]; then

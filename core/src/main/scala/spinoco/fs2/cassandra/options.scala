@@ -77,11 +77,17 @@ case class DMLOptions(
     * Whether this statement is idempotent, i.e. whether it can be applied multiple times
     * without changing the result beyond the initial application.
     *
-    * Overrides default behaviour, where statement is idempotnet when
+    * The driver retries only idempotent statements on another node, e.g. when the connection drops
+    * before the response arrives, so a statement that is not idempotent may be applied twice.
+    *
+    * Overrides default behaviour, where statement built by this library is not idempotent when
     * - it updates counter
     * - it prepends / appends to the list
-    * - uses function call
+    * - it is conditional (`IF NOT EXISTS`, `IF EXISTS`, `IF` condition)
     *
+    * Any other DML statement uses the driver's `basic.request.default-idempotence`.
+    * A batch is not idempotent when any of its statements is not idempotent.
+    * Queries are always idempotent.
     */
   def setIdempotent(idempotent: Boolean): DMLOptions =
     copy(idempotent = Some(idempotent))

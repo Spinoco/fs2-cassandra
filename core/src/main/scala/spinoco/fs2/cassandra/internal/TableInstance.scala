@@ -70,7 +70,7 @@ object TableInstance {
             DeleteBuilder(self,Nil,Nil,None,ifExistsCondition = false)
 
           def update(implicit p: Prepend[PK, CK]): UpdateBuilder[R, PK, CK, p.Out, HNil] =
-            UpdateBuilder(self, Nil, Set.empty, Nil, None, None, Nil, ifExistsCondition = false)
+            UpdateBuilder(self, Nil, Set.empty, Nil, None, None, Nil, ifExistsCondition = false, appendsToList = false)
 
           def indexes: Seq[IndexEntry] = idxs
 

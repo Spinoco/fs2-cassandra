@@ -24,6 +24,8 @@ import scala.concurrent.duration.FiniteDuration
   * @param collectionUpdates       Updates to collection fields (set, list, map)
   * @param ifConditions           If conditions
   * @param ifExistsCondition      flag indicating if this has to be applied only if row exists.
+  * @param appendsToList          flag indicating the update appends or prepends to a list column,
+  *                               which adds the elements again when the update is repeated.
   */
 case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <: HList] (
   table: Table[R, PK, CK, _ <: HList]
@@ -34,6 +36,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   , ttl: Option[String]
   , counterColumns: Seq[(String, Boolean)]
   , ifExistsCondition: Boolean
+  , appendsToList: Boolean
 ) {
 
   /**
@@ -41,7 +44,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
     * `Q` is set to primary key and `S` type is set to type of all columns except columns specified in primary key.
     */
   def all: UpdateBuilder[R, PK, CK, R, HNil] =
-    UpdateBuilder(table, Nil, Set.empty, Nil, None, None, Nil, false)
+    UpdateBuilder(table, Nil, Set.empty, Nil, None, None, Nil, ifExistsCondition = false, appendsToList = false)
 
   /**
     * Sets only this given column. Appends to columns already specified in `set`
@@ -49,14 +52,14 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   def set[K, V](wt: Witness.Aux[K])(
     implicit ev: Selector.Aux[R, K, V]
   ): UpdateBuilder[R, PK, CK, FieldType[K, V] :: Q, RIF] =
-    UpdateBuilder(table, collectionUpdates, collectionKeys, ifConditions, timestamp, ttl, counterColumns, ifExistsCondition)
+    UpdateBuilder(table, collectionUpdates, collectionKeys, ifConditions, timestamp, ttl, counterColumns, ifExistsCondition, appendsToList)
 
   /** Sets all columns in a given list **/
   def setColumns[C <: HList](
     implicit sel: SelectAll[R, C]
     , PP: Prepend[C, Q]
   ): UpdateBuilder[R, PK, CK, PP.Out, RIF] =
-  UpdateBuilder(table, collectionUpdates, collectionKeys, ifConditions, timestamp, ttl, counterColumns, ifExistsCondition)
+  UpdateBuilder(table, collectionUpdates, collectionKeys, ifConditions, timestamp, ttl, counterColumns, ifExistsCondition, appendsToList)
 
   /** appends element to column of list type (i.e. List, Seq, Vector) **/
   def append[C <: Seq[_], K](wt: Witness.Aux[K])(
@@ -70,7 +73,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   ): UpdateBuilder[R, PK, CK, FieldType[KK, C] :: Q, RIF] = {
     val k = internal.keyOf(wt)
     val kk = internal.keyOf(as)
-    collectionOp(kk, s"$k = $k + :$kk")
+    collectionOp(kk, s"$k = $k + :$kk", listAppend = true)
   }
 
   /** prepends element to column of list type (i.e. List, Seq, Vector) **/
@@ -85,7 +88,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   ): UpdateBuilder[R, PK, CK, FieldType[K, C] :: Q, RIF] = {
     val k = internal.keyOf(wt)
     val kk = internal.keyOf(as)
-    collectionOp(kk,s"$k = :$kk + $k")
+    collectionOp(kk,s"$k = :$kk + $k", listAppend = true)
   }
 
   /** sets value at given index in list **/
@@ -104,6 +107,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
       , ttl
       , counterColumns
       , ifExistsCondition
+      , appendsToList
     )
   }
 
@@ -174,7 +178,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
   }
 
 
-  private def collectionOp[Q0 <: HList](k: String, op: String): UpdateBuilder[R, PK, CK, Q0, RIF] = {
+  private def collectionOp[Q0 <: HList](k: String, op: String, listAppend: Boolean = false): UpdateBuilder[R, PK, CK, Q0, RIF] = {
     UpdateBuilder(
       table
       , collectionUpdates :+ op
@@ -184,6 +188,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
       , ttl
       , counterColumns
       , ifExistsCondition
+      , appendsToList || listAppend
     )
   }
 
@@ -200,6 +205,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
       , Some(internal.keyOf(wt))
       , counterColumns
       , ifExistsCondition
+      , appendsToList
     )
 
   /**
@@ -215,6 +221,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
       , ttl
       , counterColumns
       , ifExistsCondition
+      , appendsToList
     )
 
   /** increments supplied counter column **/
@@ -230,6 +237,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
       , ttl
       , counterColumns :+ (internal.keyOf(wt) -> true)
       , ifExistsCondition
+      , appendsToList
     )
 
   /** decrements supplied counter column **/
@@ -245,6 +253,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
       , ttl
       , counterColumns :+ (internal.keyOf(wt) -> false)
       , ifExistsCondition
+      , appendsToList
     )
 
   /**
@@ -252,7 +261,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
     * Returns field with key [exists] that either is set to false, if the field existed or false otherwise.
     */
   def onlyIfExists: UpdateBuilder[R, PK, CK, Q, IfExistsField :: RIF] =
-    UpdateBuilder(table,collectionUpdates,collectionKeys,ifConditions, timestamp, ttl, counterColumns, true)
+    UpdateBuilder(table,collectionUpdates,collectionKeys,ifConditions, timestamp, ttl, counterColumns, ifExistsCondition = true, appendsToList)
 
   /**
     * Causes to specify `IF` condition to guard the update operation.
@@ -280,6 +289,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
       , ttl
       , counterColumns
       , ifExistsCondition
+      , appendsToList
     )
   }
 
@@ -321,6 +331,10 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
 
     val cql = s"UPDATE ${table.keySpaceName}.${table.name}$usingStmt SET $setStmt WHERE $whereStmt$ifStmt$ifExistsStmt"
 
+    // repeating these changes the result: counters count twice, list elements are added twice,
+    // and a conditional update repeated after it was applied reports its own change as a failed condition
+    val nonIdempotent = counterColumns.nonEmpty || appendsToList || ifConditions.nonEmpty || ifExistsCondition
+
     new Update[Q,RIF] {
       def cqlStatement: String = cql
       def cqlFor(q: Q): String = replaceInCql(cql,CTQ.writeCql(q))
@@ -330,7 +344,7 @@ case class UpdateBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
       }
       def fill(i: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {
         val boundStatement = s.bind()
-        CTQ.writeByName(i,boundStatement,protocolVersion)
+        Idempotence.markNonIdempotent(CTQ.writeByName(i,boundStatement,protocolVersion), nonIdempotent)
       }
 
       def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {

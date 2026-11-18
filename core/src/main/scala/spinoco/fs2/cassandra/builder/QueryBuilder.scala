@@ -432,7 +432,8 @@ case class QueryBuilder[R <: HList, PK <: HList, CK <: HList, IDX <: HList, Q <:
       def read(r: Row, protocolVersion: ProtocolVersion): Either[Throwable, S] = CTS.readByName(r, protocolVersion).left.map(AnnotatedException.withStmt(_, cql))
       def fill(q: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {
         val boundStatement = s.bind()
-        CTQ.writeByName(q, boundStatement, protocolVersion)
+        // reads have no side effects, so the driver may always retry them on another node
+        CTQ.writeByName(q, boundStatement, protocolVersion).setIdempotent(true)
       }
 
       override def toString: String = s"Query[$cql]"

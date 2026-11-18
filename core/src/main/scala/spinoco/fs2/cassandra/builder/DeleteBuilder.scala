@@ -9,7 +9,7 @@ import shapeless.{::, HList, HNil, Witness}
 import spinoco.fs2.cassandra._
 import spinoco.fs2.cassandra.baseutil._
 import spinoco.fs2.cassandra.builder.UpdateBuilder.IfExistsField
-import spinoco.fs2.cassandra.internal.Util
+import spinoco.fs2.cassandra.internal.{Idempotence, Util}
 import spinoco.fs2.cassandra.macros.CTypeRecord
 
 import java.nio.ByteBuffer
@@ -109,7 +109,8 @@ case class DeleteBuilder[R <: HList, PK <: HList, CK <: HList, Q <: HList, RIF <
 
       def fill(i: Q, s: PreparedStatement, protocolVersion: ProtocolVersion): BoundStatement = {
         val boundStatement = s.bind()
-        CTQ.writeByName(i, boundStatement, protocolVersion)
+        // conditional delete repeated after it was applied reports its own delete as a failed condition
+        Idempotence.markNonIdempotent(CTQ.writeByName(i, boundStatement, protocolVersion), nonIdempotent = ifExistsCondition || ifConditions.nonEmpty)
       }
 
       def readResult(r: Option[Row], protocolVersion: ProtocolVersion): Either[Throwable, RIF] = {

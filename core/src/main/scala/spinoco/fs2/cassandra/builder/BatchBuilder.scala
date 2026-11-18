@@ -4,6 +4,7 @@ import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.cql.{BoundStatement, DefaultBatchType, PreparedStatement, Row, BatchStatement => CBatchStatement}
 import shapeless.{::, HList, HNil}
 import spinoco.fs2.cassandra.{BatchStatement, DMLStatement}
+import spinoco.fs2.cassandra.internal.Idempotence
 
 import scala.jdk.CollectionConverters._
 
@@ -65,7 +66,7 @@ case class BatchBuilder[Q <: HList, R <: HList] (
         self.fill(r, statements, protocolVersion).map { bs =>
           val tpe = if (self.isLogged) DefaultBatchType.LOGGED else DefaultBatchType.UNLOGGED
           val batch = CBatchStatement.newInstance(tpe)
-          batch.addAll(bs.asJava)
+          Idempotence.ofBatch(batch.addAll(bs.asJava))
         }
     }
 

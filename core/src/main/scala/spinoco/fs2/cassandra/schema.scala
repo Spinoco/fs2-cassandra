@@ -79,6 +79,8 @@ sealed trait AbstractTable[R <: HList, PK <: HList, CK <: HList, IDX <: HList] e
   def partitionKey: Seq[String]
   /** cluster key(s), if any **/
   def clusterKey: Seq[String]
+  /** cluster keys stored in descending order (`CLUSTERING ORDER BY`), the other cluster keys are ascending **/
+  def descendingClusterKeys: Set[String]
 
 }
 

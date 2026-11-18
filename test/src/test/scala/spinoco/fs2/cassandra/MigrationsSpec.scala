@@ -11,6 +11,7 @@ class MigrationsSpec extends SchemaSupport {
   val table1 = ks.table[FooTable1].partition(Symbol("intColumn")).build("foo1")
   val table2 = ks.table[FooTable2].partition(Symbol("intColumn")).build("foo1")
   val table3 = ks.table[FooTable1].partition(Symbol("intColumn")).cluster(Symbol("longColumn")).build("foo1")
+  val table3Desc = ks.table[FooTable1].partition(Symbol("intColumn")).cluster(Symbol("longColumn"), ascending = false).build("foo1")
 
 
   "Migrations" - {
@@ -104,6 +105,33 @@ class MigrationsSpec extends SchemaSupport {
       migrate.toSet shouldBe (expectedDrops ++ expectedAdds).toSet
     }
 
+
+    "will not emit update if the descending table is same" in withSession { cs =>
+      cs.create(ks).unsafeRunSync()
+      cs.create(table3Desc).unsafeRunSync()
+
+      cs.migrateDDL(table3Desc).unsafeRunSync() shouldBe Nil
+    }
+
+    "will drop and create table if the order of a cluster key has changed" in withSession { cs =>
+      cs.create(ks).unsafeRunSync()
+      cs.create(table3).unsafeRunSync()
+
+      val toDesc = cs.migrateDDL(table3Desc).unsafeRunSync()
+
+      toDesc shouldBe Seq(
+        "DROP TABLE crud_ks.foo1"
+        , "CREATE TABLE crud_ks.foo1 (intColumn int,longColumn bigint,strColumn text, PRIMARY KEY ((intColumn),longColumn)) WITH CLUSTERING ORDER BY (longColumn DESC)"
+      )
+
+      toDesc.foreach(cs.executeCql(_).unsafeRunSync())
+
+      cs.migrateDDL(table3Desc).unsafeRunSync() shouldBe Nil
+      cs.migrateDDL(table3).unsafeRunSync() shouldBe Seq(
+        "DROP TABLE crud_ks.foo1"
+        , "CREATE TABLE crud_ks.foo1 (intColumn int,longColumn bigint,strColumn text, PRIMARY KEY ((intColumn),longColumn))"
+      )
+    }
 
     "will drop and create table if primary key has changed" in withSession { cs =>
       cs.create(ks).unsafeRunSync()

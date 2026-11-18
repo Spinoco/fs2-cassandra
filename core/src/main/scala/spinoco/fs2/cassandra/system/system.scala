@@ -60,12 +60,17 @@ package object system {
       tpeA.asCql(true, false) == tpeB.asCql(true, false)
   }
 
-  /** checks whether the primary keys of given tables are the same **/
+  /**
+    * checks whether the primary keys of given tables are the same, the order of the cluster keys included, as it
+    * cannot be altered either
+    */
   def samePrimaryKey(current: TableMetadata, desired: AbstractTable[_, _, _, _]): Boolean = {
     val currentPk = current.getPartitionKey.asScala.map(_.getName.asInternal.toLowerCase).toSeq
     val desiredPk = desired.partitionKey.map(_.toLowerCase)
-    val currentCk = current.getClusteringColumns.asScala.keys.map(_.getName.asInternal.toLowerCase).toSeq
-    val desiredCk = desired.clusterKey.map(_.toLowerCase)
+    val currentCk = current.getClusteringColumns.asScala.toSeq.map { case (column, order) =>
+      column.getName.asInternal.toLowerCase -> (order == ClusteringOrder.DESC)
+    }
+    val desiredCk = desired.clusterKey.map { k => k.toLowerCase -> desired.descendingClusterKeys.contains(k) }
     desiredCk == currentCk && desiredPk == currentPk
   }
 
